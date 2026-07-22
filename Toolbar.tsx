@@ -28,9 +28,29 @@ const BLOCKS: Block[] = [
     build: (s) => ({ text: `## ${s || "Step title"}\n\n` }),
   },
   {
+    label: "H3",
+    title: "Sub-heading (also a tracked step)",
+    build: (s) => ({ text: `### ${s || "Sub-step"}\n\n` }),
+  },
+  {
     label: "Callout",
     title: "Note callout box",
     build: (s) => ({ text: `> **Note:**\n>\n> ${s || "Something worth highlighting."}\n\n` }),
+  },
+  {
+    label: "Warning",
+    title: "Warning callout box",
+    build: (s) => ({ text: `> **Warning:**\n>\n> ${s || "Something to watch out for."}\n\n` }),
+  },
+  {
+    label: "Bullets",
+    title: "Bulleted list",
+    build: (s) => ({ text: `- ${s || "First item"}\n- Second item\n- Third item\n\n` }),
+  },
+  {
+    label: "Steps 1-2-3",
+    title: "Numbered list",
+    build: (s) => ({ text: `1. ${s || "First"}\n2. Second\n3. Third\n\n` }),
   },
   {
     label: "Code",
@@ -41,6 +61,16 @@ const BLOCKS: Block[] = [
     label: "Image",
     title: "Shared course image (../_assets/images/…)",
     build: (s) => ({ text: `![${s || "alt text"}](../_assets/images/example.png)\n\n` }),
+  },
+  {
+    label: "Link",
+    title: "Hyperlink (external opens in the system browser)",
+    build: (s) => ({ text: `[${s || "link text"}](https://docs.pentaho.com)` }),
+  },
+  {
+    label: "Divider",
+    title: "Horizontal rule / section break",
+    build: () => ({ text: `\n---\n\n` }),
   },
   {
     label: "Video",

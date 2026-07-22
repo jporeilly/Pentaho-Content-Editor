@@ -27,6 +27,8 @@ export function App() {
   const [status, setStatus] = useState<string>("");
   const [glossary, setGlossary] = useState<Record<string, string>>({});
   const [structureKey, setStructureKey] = useState(0);
+  const [verifyOut, setVerifyOut] = useState<{ ok: boolean; output: string } | null>(null);
+  const [working, setWorking] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -118,6 +120,43 @@ export function App() {
     }
   }, [course, lab, body]);
 
+  const newCourse = useCallback(async () => {
+    const title = window.prompt("New course title?");
+    if (!title) return;
+    const kind = window.confirm("OK = workshop (hands-on, themed), Cancel = academy (reference catalogue)")
+      ? "workshop"
+      : "academy";
+    setWorking(true);
+    setStatus("Creating course…");
+    try {
+      const created = await api.createCourse(title, kind);
+      const list = await api.listCourses();
+      setCourses(list);
+      setCourse(created.id); // switches, loads its starter lab
+      setStatus(`Created course “${created.title}”. Edit the Getting Started lab, then Save.`);
+    } catch (e) {
+      setStatus(`Couldn’t create course: ${(e as Error).message}`);
+    } finally {
+      setWorking(false);
+    }
+  }, []);
+
+  const runVerify = useCallback(async () => {
+    if (!course) return;
+    setWorking(true);
+    setVerifyOut(null);
+    setStatus("Verifying…");
+    try {
+      const res = await api.verifyCourse(course);
+      setVerifyOut(res);
+      setStatus(res.ok ? "Verify passed ✓" : "Verify found issues — see panel");
+    } catch (e) {
+      setStatus(`Verify failed: ${(e as Error).message}`);
+    } finally {
+      setWorking(false);
+    }
+  }, [course]);
+
   // Ctrl/Cmd+S to save.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -157,6 +196,12 @@ uvicorn app:app --reload --port 8000`}</pre>
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
+        <button type="button" className="author-tool" onClick={newCourse} disabled={working} title="Scaffold a new course from the blank template">
+          ✚ New Course
+        </button>
+        <button type="button" className="author-tool" onClick={runVerify} disabled={working || !course} title="Check this course against the publishing guidelines">
+          ✓ Verify
+        </button>
         <div className="author-header-spacer" />
         <span className="author-status">{status}</span>
         <button
@@ -168,6 +213,16 @@ uvicorn app:app --reload --port 8000`}</pre>
           {saving ? "Saving…" : dirty ? "Save" : "Saved"}
         </button>
       </header>
+
+      {verifyOut && (
+        <div className={`author-verify ${verifyOut.ok ? "is-ok" : "is-bad"}`}>
+          <div className="author-verify-head">
+            <span>{verifyOut.ok ? "✓ Verify passed" : "⚠ Verify found issues"}</span>
+            <button type="button" className="author-mini-btn" onClick={() => setVerifyOut(null)}>Dismiss</button>
+          </div>
+          <pre className="author-verify-body">{verifyOut.output}</pre>
+        </div>
+      )}
 
       <div className="author-body">
         <StructurePanel

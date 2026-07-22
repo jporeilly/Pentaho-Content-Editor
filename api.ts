@@ -63,6 +63,22 @@ export const api = {
     return json(await fetch(`${API_BASE}/api/courses`));
   },
 
+  async createCourse(title: string, kind: "workshop" | "academy"): Promise<CourseSummary> {
+    return json(
+      await fetch(`${API_BASE}/api/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, kind }),
+      }),
+    );
+  },
+
+  async verifyCourse(course: string): Promise<{ ok: boolean; output: string }> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}/verify`, { method: "POST" }),
+    );
+  },
+
   async listLabs(course: string): Promise<LabSummary[]> {
     return json(await fetch(`${API_BASE}/api/courses/${course}/labs`));
   },

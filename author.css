@@ -51,7 +51,47 @@ body {
   font-size: 13px;
   max-width: 320px;
 }
+.author-tool {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.author-tool:hover:not(:disabled) { border-color: var(--author-accent); color: #fff; }
+.author-tool:disabled { opacity: 0.4; cursor: default; }
 .author-header-spacer { flex: 1 1 auto; }
+
+/* ── Verify results panel ───────────────────────────────────────── */
+.author-verify {
+  flex: 0 0 auto;
+  max-height: 30vh;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--author-border);
+  background: var(--author-panel);
+}
+.author-verify.is-ok { border-left: 3px solid var(--author-accent); }
+.author-verify.is-bad { border-left: 3px solid #f59e0b; }
+.author-verify-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.author-verify-body {
+  margin: 0;
+  padding: 0 14px 12px;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--author-muted);
+  white-space: pre-wrap;
+}
 .author-status {
   color: var(--author-muted);
   font-size: 12px;
