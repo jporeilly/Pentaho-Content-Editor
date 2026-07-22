@@ -863,6 +863,129 @@ def import_build(req: ImportBuildRequest) -> ImportBuildResponse:
     return ImportBuildResponse(courseId=course, labCount=count, sources=list(all_sources.values()))
 
 
+# ── Assets: image upload + lab files ────────────────────────────────
+
+_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+_MAX_UPLOAD = 20 * 1024 * 1024
+
+
+def _safe_name(name: str, default: str) -> str:
+    base = Path(name or default).name
+    base = re.sub(r"[^A-Za-z0-9._-]", "_", base).strip("._") or default
+    return base
+
+
+def _unique(directory: Path, name: str) -> Path:
+    target = directory / name
+    if not target.exists():
+        return target
+    stem, ext = target.stem, target.suffix
+    i = 1
+    while (directory / f"{stem}-{i}{ext}").exists():
+        i += 1
+    return directory / f"{stem}-{i}{ext}"
+
+
+@app.post("/api/courses/{course}/assets")
+async def upload_asset(course: str, file: UploadFile = File(...)) -> dict[str, str]:
+    """Save an uploaded image into the course's shared _assets/images/ and
+    return the guide-relative path to reference it."""
+    course_path = _course_dir(course)
+    data = await file.read()
+    if len(data) > _MAX_UPLOAD:
+        raise HTTPException(413, "Image too large (max 20 MB).")
+    name = _safe_name(file.filename or "image.png", "image.png")
+    if Path(name).suffix.lower() not in _IMAGE_EXTS:
+        name += ".png"
+    images = course_path / "_assets" / "images"
+    images.mkdir(parents=True, exist_ok=True)
+    target = _unique(images, name)
+    target.write_bytes(data)
+    return {"name": target.name, "path": f"../_assets/images/{target.name}"}
+
+
+@app.get("/api/courses/{course}/labs/{lab}/files")
+def list_lab_files(course: str, lab: str) -> list[str]:
+    files_dir = _course_dir(course) / lab / "files"
+    if not files_dir.is_dir():
+        return []
+    return sorted(f.name for f in files_dir.iterdir() if f.is_file())
+
+
+@app.post("/api/courses/{course}/labs/{lab}/files")
+async def upload_lab_file(course: str, lab: str, file: UploadFile = File(...)) -> dict[str, str]:
+    """Save an uploaded file into a lab's files/ folder (for launch/graph
+    buttons) and return its lab-relative path."""
+    lab_dir = _course_dir(course) / lab
+    if not (lab_dir / "manifest.json").exists():
+        raise HTTPException(404, f"Lab not found: {lab}")
+    data = await file.read()
+    if len(data) > _MAX_UPLOAD:
+        raise HTTPException(413, "File too large (max 20 MB).")
+    name = _safe_name(file.filename or "file", "file")
+    files_dir = lab_dir / "files"
+    files_dir.mkdir(parents=True, exist_ok=True)
+    target = _unique(files_dir, name)
+    target.write_bytes(data)
+    return {"name": target.name, "path": f"files/{target.name}"}
+
+
+# ── Course metadata (course.json) ───────────────────────────────────
+
+
+@app.put("/api/courses/{course}")
+def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
+    """Update the course.json — the editable metadata fields only; id and
+    structural fields are preserved."""
+    course_path = _course_dir(course)
+    cj_path = course_path / "course.json"
+    cj = _read_json(cj_path)
+    for key in ("title", "description", "theme", "launchers", "assistant", "mode"):
+        if key in body:
+            cj[key] = body[key]
+    if not cj.get("title"):
+        raise HTTPException(400, "Course title can't be empty")
+    _write_json(cj_path, cj)
+    return cj
+
+
+# ── AI: review a lab ────────────────────────────────────────────────
+
+
+class ReviewRequest(BaseModel):
+    body: str
+
+
+class ReviewResponse(BaseModel):
+    review: str
+    sources: list[Source] = []
+
+
+@app.post("/api/review", response_model=ReviewResponse)
+def review_lab(req: ReviewRequest) -> ReviewResponse:
+    """AI critique of a lab guide — quality, accuracy, completeness — as
+    grouped bullet points. Complements the structural Verify."""
+    body = req.body.strip()
+    if not body:
+        raise HTTPException(400, "Nothing to review.")
+    system = "You are a senior instructional designer reviewing hands-on Pentaho workshop labs."
+    prompt = (
+        "Review this lab guide and list concrete, actionable issues with brief "
+        "suggested fixes. Group them under **Critical**, **Should fix**, and "
+        "**Nice to have** headings (omit a group if empty). Check: clarity, "
+        "technical accuracy, completeness of steps, and whether it reads as a "
+        "hands-on step-by-step workshop. Be specific and concise — do NOT "
+        f"rewrite the lab.\n\n---\n{body}"
+    )
+    ground, sources = _ground(body[:200])
+    prompt += ground
+    try:
+        out = providers.generate(prompt, system)
+    except providers.ProviderError as e:
+        raise HTTPException(502, str(e))
+    return ReviewResponse(review=out.strip(), sources=sources)
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"ok": True, "coursesDir": str(COURSES_DIR), "exists": COURSES_DIR.exists()}
