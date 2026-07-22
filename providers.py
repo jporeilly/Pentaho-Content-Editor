@@ -32,7 +32,12 @@ DEFAULTS: dict[str, Any] = {
     # author can pick another in Settings.
     "anthropic": {"model": "claude-opus-4-8"},
     "openai": {"model": "gpt-4o"},
+    # GitBook MCP grounding: when enabled, AI generation/rewrite is
+    # grounded in the Pentaho docs via the site's ~gitbook/mcp endpoint.
+    "docs": {"enabled": False, "url": "https://docs.pentaho.com/~gitbook/mcp"},
 }
+
+_SETTING_KEYS = ("provider", "ollama", "anthropic", "openai", "docs")
 
 PROVIDERS = ("ollama", "anthropic", "openai")
 
@@ -52,7 +57,7 @@ def load_settings() -> dict[str, Any]:
             stored = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
         except (ValueError, OSError):
             stored = {}
-        for key in ("provider", "ollama", "anthropic", "openai"):
+        for key in _SETTING_KEYS:
             if key in stored:
                 if isinstance(DEFAULTS[key], dict) and isinstance(stored[key], dict):
                     data[key] = {**DEFAULTS[key], **stored[key]}
@@ -65,7 +70,7 @@ def load_settings() -> dict[str, Any]:
 
 def save_settings(patch: dict[str, Any]) -> dict[str, Any]:
     current = load_settings()
-    for key in ("provider", "ollama", "anthropic", "openai"):
+    for key in _SETTING_KEYS:
         if key in patch and patch[key] is not None:
             if isinstance(current[key], dict) and isinstance(patch[key], dict):
                 current[key] = {**current[key], **patch[key]}

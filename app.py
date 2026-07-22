@@ -38,6 +38,7 @@ from pydantic import BaseModel
 
 import providers
 import extract
+import mcp
 
 # ── Repo layout ─────────────────────────────────────────────────────
 # app.py lives at <repo>/editor/api/app.py → repo root is three up.
@@ -453,6 +454,22 @@ def create_lab(course: str, req: NewLabRequest) -> Structure:
 # ── LLM authoring assist (Ollama / Anthropic / OpenAI) ──────────────
 
 
+def _ground(query: str) -> str:
+    """When GitBook-MCP grounding is enabled in Settings, search the
+    Pentaho docs and return a context block for the prompt. Best-effort —
+    a docs failure never blocks generation."""
+    s = providers.load_settings()
+    docs = s.get("docs") or {}
+    if not docs.get("enabled") or not docs.get("url") or not query.strip():
+        return ""
+    try:
+        hits = mcp.search(docs["url"], query.strip()[:200], limit=5, timeout=15)
+    except mcp.McpError:
+        return ""
+    ctx = mcp.as_context(hits)
+    return ("\n\n" + ctx) if ctx else ""
+
+
 def _clean_generated(text: str) -> str:
     """Strip a whole-document ```markdown fence some models wrap output in."""
     t = text.strip()
@@ -512,8 +529,9 @@ def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
     kind = "page" if req.kind == "page" else "workshop"
 
     system = "You are a technical curriculum author for hands-on Pentaho workshops."
+    prompt = _lab_prompt(title, req.outline, kind) + _ground(f"{title}. {req.outline or ''}")
     try:
-        raw = providers.generate(_lab_prompt(title, req.outline, kind), system)
+        raw = providers.generate(prompt, system)
     except providers.ProviderError as e:
         raise HTTPException(502, str(e))
     body = _clean_generated(raw)
@@ -596,6 +614,20 @@ def suggest_model(profile: str = "auto") -> dict[str, Any]:
     return providers.suggest_model(profile, s["ollama"]["url"])
 
 
+@app.get("/api/docs/test")
+def docs_test(url: str | None = None, query: str = "CSV file input") -> dict[str, Any]:
+    """Probe the GitBook MCP docs endpoint — used by the Settings 'Test'
+    button to confirm grounding is reachable."""
+    docs_url = url or (providers.load_settings().get("docs") or {}).get("url")
+    if not docs_url:
+        return {"ok": False, "error": "No docs MCP URL configured"}
+    try:
+        hits = mcp.search(docs_url, query, limit=3, timeout=15)
+        return {"ok": True, "count": len(hits), "sample": [h["title"] for h in hits[:3]]}
+    except mcp.McpError as e:
+        return {"ok": False, "error": str(e)}
+
+
 # Back-compat alias for the earlier Ollama-only endpoint.
 class RewriteRequest(BaseModel):
     text: str
@@ -619,6 +651,7 @@ def rewrite(req: RewriteRequest) -> dict[str, str]:
         "links, and `::: tabs` blocks). Output ONLY the rewritten passage — no "
         f"preamble, no code fence around the whole thing.\n\n---\n{text}"
     )
+    prompt += _ground(text)
     try:
         out = providers.generate(prompt, system)
     except providers.ProviderError as e:
@@ -778,6 +811,7 @@ def import_build(req: ImportBuildRequest) -> ImportBuildResponse:
                     "\n\nGround the lab in this source material where relevant "
                     f"(do not invent facts that contradict it):\n{context}"
                 )
+            body_prompt += _ground(f"{title}. {outline_note}")
             try:
                 body = _clean_generated(providers.generate(body_prompt, system))
             except providers.ProviderError as e:
