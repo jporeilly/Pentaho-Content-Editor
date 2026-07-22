@@ -557,11 +557,13 @@ class SettingsPatch(BaseModel):
 
 def _settings_view(settings: dict[str, Any]) -> dict[str, Any]:
     """Settings plus non-secret runtime facts the UI needs: which keys are
-    detected (bool only) and the Ollama model list."""
+    detected (bool only), the Ollama model list, and whether a GPU was
+    detected in the OS environment."""
     return {
         **settings,
         "keys": providers.key_status(),
         "ollamaModels": providers.ollama_models(settings["ollama"]["url"]),
+        "gpu": providers.detect_gpu(),
     }
 
 
@@ -586,7 +588,44 @@ def providers_health() -> dict[str, Any]:
     return providers.health()
 
 
+@app.get("/api/providers/suggest")
+def suggest_model(profile: str = "auto") -> dict[str, Any]:
+    """Recommend an installed Ollama model for the CPU/GPU profile
+    ('auto' detects from the OS environment)."""
+    s = providers.load_settings()
+    return providers.suggest_model(profile, s["ollama"]["url"])
+
+
 # Back-compat alias for the earlier Ollama-only endpoint.
+class RewriteRequest(BaseModel):
+    text: str
+    instruction: str | None = None
+
+
+@app.post("/api/rewrite")
+def rewrite(req: RewriteRequest) -> dict[str, str]:
+    """Rewrite a selected passage of a lab guide with the active LLM,
+    preserving Markdown structure."""
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(400, "Nothing to rewrite — select some text first.")
+    system = "You are an expert technical editor for hands-on Pentaho workshop guides."
+    instr = req.instruction or (
+        "Improve clarity and flow and fix any grammar, keeping the same meaning."
+    )
+    prompt = (
+        f"Rewrite the passage below. {instr} Preserve all Markdown structure "
+        "(headings, `> **Note:**`-style callouts, fenced code blocks, lists, "
+        "links, and `::: tabs` blocks). Output ONLY the rewritten passage — no "
+        f"preamble, no code fence around the whole thing.\n\n---\n{text}"
+    )
+    try:
+        out = providers.generate(prompt, system)
+    except providers.ProviderError as e:
+        raise HTTPException(502, str(e))
+    return {"text": _clean_generated(out).rstrip("\n")}
+
+
 @app.get("/api/ollama/health")
 def ollama_health() -> dict[str, Any]:
     h = providers.health()

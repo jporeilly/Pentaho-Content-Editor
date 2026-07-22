@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shutil
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -85,6 +87,61 @@ def key_status() -> dict[str, bool]:
 
 
 # ── Ollama (stdlib) ─────────────────────────────────────────────────
+
+
+def detect_gpu() -> bool:
+    """Best-effort GPU detection from the OS environment — an NVIDIA
+    driver on PATH or a CUDA/GPU env var. Not exhaustive (won't spot every
+    Apple-silicon / ROCm setup), just a useful hint for model suggestion."""
+    if shutil.which("nvidia-smi") or shutil.which("nvidia-smi.exe"):
+        return True
+    for var in ("CUDA_VISIBLE_DEVICES", "CUDA_PATH", "HIP_VISIBLE_DEVICES", "GPU_DEVICE_ORDINAL"):
+        v = os.environ.get(var)
+        if v and v not in ("", "-1"):
+            return True
+    return False
+
+
+def _model_size(name: str) -> float:
+    """Parameter count in billions parsed from a model tag ('qwen2.5:7b'
+    → 7.0, ':0.5b' → 0.5). Unknown → a neutral 4.0 so it isn't ranked at
+    an extreme."""
+    m = re.search(r"(\d+(?:\.\d+)?)\s*b\b", name.lower())
+    return float(m.group(1)) if m else 4.0
+
+
+def suggest_model(profile: str, url: str) -> dict[str, Any]:
+    """Recommend an installed Ollama model for the hardware profile.
+    profile: 'auto' (detect), 'cpu', or 'gpu'. GPU → a larger, sharper
+    model (≤14B to stay safe on typical cards); CPU → a small model that
+    fits comfortably in RAM (~3B target)."""
+    gpu = detect_gpu() if profile == "auto" else (profile == "gpu")
+    installed = ollama_models(url)
+    if not installed:
+        return {"profile": "gpu" if gpu else "cpu", "gpu": gpu, "model": None,
+                "reason": "No Ollama models installed — pull one with `ollama pull`."}
+
+    # Prefer instruction-tuned general chat models; de-prioritise coder /
+    # embedding / vision variants for prose authoring.
+    def usable(n: str) -> bool:
+        low = n.lower()
+        return not any(t in low for t in ("coder", "embed", "vision", "-vl", "code"))
+
+    pool = [m for m in installed if usable(m)] or installed
+    ranked = sorted(pool, key=lambda m: (_model_size(m), "instruct" in m.lower()))
+
+    if gpu:
+        # Largest model at or under 14B; else the largest available.
+        candidates = [m for m in ranked if _model_size(m) <= 14] or ranked
+        model = candidates[-1]
+        reason = "GPU detected — picked a larger, higher-quality model."
+    else:
+        # Prefer the largest at or under 3B (good on CPU); else the smallest.
+        candidates = [m for m in ranked if _model_size(m) <= 3]
+        model = candidates[-1] if candidates else ranked[0]
+        reason = "No GPU detected — picked a small model that fits in RAM."
+
+    return {"profile": "gpu" if gpu else "cpu", "gpu": gpu, "model": model, "reason": reason}
 
 
 def ollama_models(url: str) -> list[str]:
