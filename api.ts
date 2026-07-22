@@ -211,6 +211,24 @@ export const api = {
     );
   },
 
+  async chat(messages: { role: "user" | "assistant"; content: string }[], context?: string): Promise<{ reply: string; sources: Source[] }> {
+    return json(
+      await fetch(`${API_BASE}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages, context }),
+      }),
+    );
+  },
+
+  exportUrl(course: string): string {
+    return `${API_BASE}/api/courses/${course}/export`;
+  },
+
+  async installCourse(course: string): Promise<{ ok: boolean; output: string }> {
+    return json(await fetch(`${API_BASE}/api/courses/${course}/install`, { method: "POST" }));
+  },
+
   async review(body: string): Promise<{ review: string; sources: Source[] }> {
     return json(
       await fetch(`${API_BASE}/api/review`, {

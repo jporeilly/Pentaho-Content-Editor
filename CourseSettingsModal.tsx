@@ -25,6 +25,17 @@ export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettings
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [installNote, setInstallNote] = useState("");
+
+  async function install() {
+    setInstallNote("Installing locally…");
+    try {
+      const r = await api.installCourse(course);
+      setInstallNote(r.ok ? "✓ Installed into the app's content dir." : `✗ ${r.output.split("\n").slice(-1)[0] || "install failed"}`);
+    } catch (e) {
+      setInstallNote(`✗ ${(e as Error).message}`);
+    }
+  }
 
   useEffect(() => {
     api.getCourse(course).then((c: any) => {
@@ -103,6 +114,18 @@ export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettings
                   </select>
                 </label>
                 <p className="author-hint">These are what the learner app uses on the VM — separate from the editor's own provider (Settings ⚙).</p>
+              </fieldset>
+              <fieldset className="author-fieldset">
+                <legend>Deploy</legend>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <a className="author-tool" href={api.exportUrl(course)} download>⬇ Export .zip</a>
+                  <button type="button" className="author-tool" onClick={install}>⚙ Install locally</button>
+                </div>
+                <p className="author-hint">
+                  Export a portable zip (hand to install-course or a VM), or install into
+                  this machine's app content dir to preview in the real app.
+                </p>
+                {installNote && <p className="author-hint">{installNote}</p>}
               </fieldset>
               {error && <p className="author-error">{error}</p>}
             </>

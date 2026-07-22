@@ -18,6 +18,7 @@ import { ImportModal } from "./ImportModal";
 import { NewCourseModal } from "./NewCourseModal";
 import { LabFilesModal } from "./LabFilesModal";
 import { CourseSettingsModal } from "./CourseSettingsModal";
+import { ChatPanel } from "./ChatPanel";
 
 export function App() {
   const [apiUp, setApiUp] = useState<boolean | null>(null);
@@ -46,6 +47,7 @@ export function App() {
   const [reviewOut, setReviewOut] = useState<string | null>(null);
   const [showLabFiles, setShowLabFiles] = useState(false);
   const [showCourseSettings, setShowCourseSettings] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -326,6 +328,9 @@ uvicorn app:app --reload --port 8000`}</pre>
         </button>
         <div className="author-header-spacer" />
         <span className="author-status">{status}</span>
+        <button type="button" className={`author-tool${showChat ? " is-active" : ""}`} onClick={() => setShowChat((v) => !v)} title="Toggle the AI assistant chat">
+          💬 Chat
+        </button>
         <button
           type="button"
           className={`author-conn ${health?.ok ? "is-ok" : "is-bad"}`}
@@ -378,7 +383,7 @@ uvicorn app:app --reload --port 8000`}</pre>
         </div>
       )}
 
-      <div className="author-body">
+      <div className={`author-body${showChat ? " has-chat" : ""}`}>
         <StructurePanel
           course={course}
           activeSlug={lab}
@@ -443,6 +448,14 @@ uvicorn app:app --reload --port 8000`}</pre>
           </div>
         ) : (
           <div className="author-splash"><p>Select a lab to edit.</p></div>
+        )}
+        {showChat && (
+          <ChatPanel
+            onClose={() => setShowChat(false)}
+            context={body}
+            onInsert={insertAtCaret}
+            ready={health?.ok !== false}
+          />
         )}
       </div>
 

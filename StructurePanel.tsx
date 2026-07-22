@@ -20,7 +20,6 @@ interface StructurePanelProps {
 }
 
 /** Flattened [topicIndex, labIndex] address of a lab, for reordering. */
-type Addr = { t: number; l: number };
 
 export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources }: StructurePanelProps) {
   const [structure, setStructure] = useState<Structure>({ topics: [] });
@@ -29,6 +28,8 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
+  const [dragSlug, setDragSlug] = useState<string | null>(null);
+  const [dropSlug, setDropSlug] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!course) return;
@@ -55,23 +56,32 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
     }
   }, [course, load]);
 
-  // Flatten to a linear list of addresses so up/down can cross topics.
-  const flat: Addr[] = structure.topics.flatMap((t, ti) =>
-    t.labs.map((_l, li) => ({ t: ti, l: li })),
-  );
+  // ── Drag-and-drop reordering (across topics) ──────────────────────
+  function popLab(next: Structure, slug: string): StructureLab | null {
+    for (const t of next.topics) {
+      const i = t.labs.findIndex((l) => l.slug === slug);
+      if (i >= 0) return t.labs.splice(i, 1)[0];
+    }
+    return null;
+  }
 
-  function move(addr: Addr, dir: -1 | 1) {
-    const idx = flat.findIndex((a) => a.t === addr.t && a.l === addr.l);
-    const target = flat[idx + dir];
-    if (!target) return;
+  function dropOnLab(sourceSlug: string, targetSlug: string) {
+    if (sourceSlug === targetSlug) return;
     const next: Structure = structuredClone(structure);
-    const [lab] = next.topics[addr.t].labs.splice(addr.l, 1);
-    // Insert relative to the target's topic/position.
-    const insertTopic = target.t;
-    let insertPos = target.l + (dir === 1 ? 1 : 0);
-    if (addr.t === target.t && addr.l < target.l) insertPos -= 1;
-    next.topics[insertTopic].labs.splice(insertPos, 0, lab);
-    persist(next);
+    const lab = popLab(next, sourceSlug);
+    if (!lab) return;
+    for (const t of next.topics) {
+      const i = t.labs.findIndex((l) => l.slug === targetSlug);
+      if (i >= 0) { t.labs.splice(i, 0, lab); persist(next); return; }
+    }
+  }
+
+  function dropOnTopic(sourceSlug: string, topicTitle: string) {
+    const next: Structure = structuredClone(structure);
+    const lab = popLab(next, sourceSlug);
+    if (!lab) return;
+    const t = next.topics.find((x) => x.title === topicTitle);
+    if (t) { t.labs.push(lab); persist(next); }
   }
 
   function beginRename(lab: StructureLab) {
@@ -157,45 +167,53 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
       </div>
       <div className="author-structure-body">
         {structure.topics.map((topic, ti) => (
-          <div key={topic.title + ti} className="author-topic">
+          <div
+            key={topic.title + ti}
+            className="author-topic"
+            onDragOver={(e) => { if (dragSlug) e.preventDefault(); }}
+            onDrop={(e) => { if (dragSlug) { e.preventDefault(); dropOnTopic(dragSlug, topic.title); setDragSlug(null); setDropSlug(null); } }}
+          >
             <div className="author-topic-title">{topic.title}</div>
-            {topic.labs.map((lab, li) => {
-              const idx = flat.findIndex((a) => a.t === ti && a.l === li);
-              return (
-                <div
-                  key={lab.slug}
-                  className={`author-lab-row${lab.slug === activeSlug ? " is-active" : ""}`}
-                >
-                  {editing === lab.slug ? (
-                    <input
-                      className="author-lab-rename"
-                      value={draftTitle}
-                      autoFocus
-                      onChange={(e) => setDraftTitle(e.target.value)}
-                      onBlur={() => commitRename(ti, li)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") commitRename(ti, li);
-                        if (e.key === "Escape") setEditing(null);
-                      }}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="author-lab-label"
-                      onClick={() => onSelect(lab.slug)}
-                      onDoubleClick={() => beginRename(lab)}
-                      title={`${lab.slug} — double-click to rename`}
-                    >
-                      {lab.kind === "page" ? "📄" : "🧪"} {lab.title}
-                    </button>
-                  )}
-                  <span className="author-lab-actions">
-                    <button type="button" className="author-mini-btn" disabled={busy || idx <= 0} onClick={() => move({ t: ti, l: li }, -1)} title="Move up">↑</button>
-                    <button type="button" className="author-mini-btn" disabled={busy || idx >= flat.length - 1} onClick={() => move({ t: ti, l: li }, 1)} title="Move down">↓</button>
-                  </span>
-                </div>
-              );
-            })}
+            {topic.labs.map((lab, li) => (
+              <div
+                key={lab.slug}
+                draggable={editing !== lab.slug && !busy}
+                onDragStart={(e) => { setDragSlug(lab.slug); e.dataTransfer.effectAllowed = "move"; }}
+                onDragEnd={() => { setDragSlug(null); setDropSlug(null); }}
+                onDragOver={(e) => { if (dragSlug && dragSlug !== lab.slug) { e.preventDefault(); e.stopPropagation(); setDropSlug(lab.slug); } }}
+                onDragLeave={() => setDropSlug((s) => (s === lab.slug ? null : s))}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (dragSlug) dropOnLab(dragSlug, lab.slug); setDragSlug(null); setDropSlug(null); }}
+                className={
+                  `author-lab-row${lab.slug === activeSlug ? " is-active" : ""}` +
+                  `${dropSlug === lab.slug ? " is-drop" : ""}${dragSlug === lab.slug ? " is-dragging" : ""}`
+                }
+              >
+                <span className="author-lab-grip" title="Drag to reorder">⋮⋮</span>
+                {editing === lab.slug ? (
+                  <input
+                    className="author-lab-rename"
+                    value={draftTitle}
+                    autoFocus
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    onBlur={() => commitRename(ti, li)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename(ti, li);
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className="author-lab-label"
+                    onClick={() => onSelect(lab.slug)}
+                    onDoubleClick={() => beginRename(lab)}
+                    title={`${lab.slug} — drag to reorder, double-click to rename`}
+                  >
+                    {lab.kind === "page" ? "📄" : "🧪"} {lab.title}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         ))}
         {structure.topics.length === 0 && <div className="author-structure-empty">No labs yet.</div>}

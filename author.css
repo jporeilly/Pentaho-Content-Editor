@@ -223,12 +223,64 @@ body {
   cursor: default;
 }
 
-/* ── Body: structure sidebar + panes ────────────────────────────── */
+/* ── Body: structure sidebar + panes (+ optional chat) ──────────── */
 .author-body {
   display: grid;
   grid-template-columns: 260px 1fr;
   flex: 1 1 auto;
   min-height: 0;
+}
+.author-body.has-chat { grid-template-columns: 260px 1fr 360px; }
+.author-tool.is-active { border-color: var(--author-accent); color: #fff; }
+
+/* ── Structure drag-and-drop ────────────────────────────────────── */
+.author-lab-grip {
+  cursor: grab;
+  color: var(--author-muted);
+  font-size: 11px;
+  user-select: none;
+  padding: 0 2px;
+}
+.author-lab-row.is-dragging { opacity: 0.4; }
+.author-lab-row.is-drop { box-shadow: inset 0 2px 0 var(--author-accent); }
+
+/* ── Chat panel ─────────────────────────────────────────────────── */
+.author-chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--author-panel);
+  border-left: 1px solid var(--author-border);
+  overflow: hidden;
+}
+.author-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--author-border);
+}
+.author-chat-list { flex: 1 1 auto; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.author-chat-msg { border-radius: 8px; padding: 8px 10px; max-width: 100%; }
+.author-chat-msg.is-user { background: rgba(22, 163, 74, 0.14); align-self: flex-end; }
+.author-chat-msg.is-assistant { background: var(--author-bg); border: 1px solid var(--author-border); align-self: flex-start; }
+.author-chat-text { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 13px; line-height: 1.5; }
+.author-chat-actions { display: flex; gap: 6px; margin-top: 6px; }
+.author-chat-sources { padding: 6px 10px; border-top: 1px solid var(--author-border); font-size: 11px; color: var(--author-muted); display: flex; flex-wrap: wrap; gap: 8px; }
+.author-chat-sources a { color: #6ea8fe; text-decoration: none; }
+.author-chat-input { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--author-border); }
+.author-chat-input textarea {
+  flex: 1 1 auto;
+  resize: none;
+  height: 46px;
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 13px;
 }
 
 /* ── Structure sidebar ──────────────────────────────────────────── */
