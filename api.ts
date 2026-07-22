@@ -45,6 +45,7 @@ export interface Settings {
   ollama: { url: string; model: string };
   anthropic: { model: string };
   openai: { model: string };
+  docs: { enabled: boolean; url: string };
   keys: { anthropic: boolean; openai: boolean };
   ollamaModels: string[];
   gpu: boolean;
@@ -172,6 +173,10 @@ export const api = {
 
   async suggestModel(profile: "auto" | "cpu" | "gpu"): Promise<ModelSuggestion> {
     return json(await fetch(`${API_BASE}/api/providers/suggest?profile=${profile}`));
+  },
+
+  async docsTest(url: string): Promise<{ ok: boolean; count?: number; sample?: string[]; error?: string }> {
+    return json(await fetch(`${API_BASE}/api/docs/test?url=${encodeURIComponent(url)}`));
   },
 
   async rewrite(text: string, instruction?: string): Promise<{ text: string }> {

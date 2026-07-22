@@ -343,6 +343,10 @@ body {
   white-space: nowrap;
 }
 .author-rewrite:disabled { opacity: 0.4; cursor: default; }
+.author-rewrite.is-undo {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: #f59e0b;
+}
 
 /* ── Editor textarea ────────────────────────────────────────────── */
 .author-textarea {

@@ -33,6 +33,9 @@ export function App() {
   const [verifyOut, setVerifyOut] = useState<{ ok: boolean; output: string } | null>(null);
   const [working, setWorking] = useState(false);
   const [health, setHealth] = useState<ProviderHealth | null>(null);
+  // One-level undo for the last AI rewrite (so the button can toggle
+  // between Rewrite and Reset). Cleared on any manual edit or lab switch.
+  const [lastRewrite, setLastRewrite] = useState<{ start: number; end: number; original: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showNewCourse, setShowNewCourse] = useState(false);
@@ -89,6 +92,7 @@ export function App() {
         setDetail(d);
         setBody(d.body);
         setDirty(false);
+        setLastRewrite(null);
         setStatus("");
       })
       .catch((e) => {
@@ -107,6 +111,7 @@ export function App() {
   const onBodyChange = useCallback((next: string, caret?: number) => {
     setBody(next);
     setDirty(true);
+    setLastRewrite(null); // a manual edit invalidates the rewrite undo range
     if (caret !== undefined && textareaRef.current) {
       requestAnimationFrame(() => {
         textareaRef.current?.setSelectionRange(caret, caret);
@@ -162,7 +167,8 @@ export function App() {
       const next = body.slice(0, start) + text + body.slice(end);
       setBody(next);
       setDirty(true);
-      setStatus("Rewrote selection — review, then Save.");
+      setLastRewrite({ start, end: start + text.length, original: selected });
+      setStatus("Rewrote selection — review, Reset to undo, or Save.");
       requestAnimationFrame(() => {
         ta.focus();
         ta.setSelectionRange(start, start + text.length);
@@ -173,6 +179,20 @@ export function App() {
       setWorking(false);
     }
   }, [body]);
+
+  const undoRewrite = useCallback(() => {
+    if (!lastRewrite) return;
+    const { start, end, original } = lastRewrite;
+    const next = body.slice(0, start) + original + body.slice(end);
+    setBody(next);
+    setDirty(true);
+    setLastRewrite(null);
+    setStatus("Reverted the rewrite.");
+    requestAnimationFrame(() => {
+      const ta = textareaRef.current;
+      if (ta) { ta.focus(); ta.setSelectionRange(start, start + original.length); }
+    });
+  }, [body, lastRewrite]);
 
   const runVerify = useCallback(async () => {
     if (!course) return;
@@ -284,12 +304,18 @@ uvicorn app:app --reload --port 8000`}</pre>
                 <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
                 <button
                   type="button"
-                  className="author-toolbar-btn author-rewrite"
-                  onClick={rewriteSelection}
-                  disabled={working || health?.ok === false}
-                  title={health?.ok === false ? "AI provider not ready — see Settings" : "Rewrite the selected text with AI"}
+                  className={`author-toolbar-btn author-rewrite${lastRewrite ? " is-undo" : ""}`}
+                  onClick={lastRewrite ? undoRewrite : rewriteSelection}
+                  disabled={working || (!lastRewrite && health?.ok === false)}
+                  title={
+                    lastRewrite
+                      ? "Undo the last AI rewrite (restore the original text)"
+                      : health?.ok === false
+                        ? "AI provider not ready — see Settings"
+                        : "Rewrite the selected text with AI"
+                  }
                 >
-                  ✨ Rewrite
+                  {lastRewrite ? "↺ Reset" : "✨ Rewrite"}
                 </button>
               </div>
               <textarea

@@ -27,6 +27,7 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
   const [error, setError] = useState("");
   const [hw, setHw] = useState<HwProfile>("auto");
   const [suggestNote, setSuggestNote] = useState("");
+  const [docsNote, setDocsNote] = useState("");
 
   useEffect(() => {
     api.getSettings().then(setS).catch((e) => setError((e as Error).message));
@@ -52,6 +53,17 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
     }
   }
 
+  async function testDocs() {
+    if (!s) return;
+    setDocsNote("Testing…");
+    try {
+      const r = await api.docsTest(s.docs.url);
+      setDocsNote(r.ok ? `✓ Connected — ${r.count} hit(s), e.g. ${(r.sample || []).join(", ")}` : `✗ ${r.error}`);
+    } catch (e) {
+      setDocsNote(`✗ ${(e as Error).message}`);
+    }
+  }
+
   async function save() {
     if (!s) return;
     setSaving(true);
@@ -62,6 +74,7 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
         ollama: s.ollama,
         anthropic: s.anthropic,
         openai: s.openai,
+        docs: s.docs,
       });
       onSaved();
       onClose();
@@ -201,6 +214,32 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
                 )}
               </fieldset>
             )}
+
+            <fieldset className="author-fieldset">
+              <legend>Pentaho docs grounding</legend>
+              <label className="author-radio" style={{ gridTemplateColumns: "auto 1fr" }}>
+                <input
+                  type="checkbox"
+                  checked={s.docs.enabled}
+                  onChange={(e) => patch({ docs: { ...s.docs, enabled: e.target.checked } })}
+                />
+                <span className="author-radio-label">Ground AI output in the Pentaho docs (GitBook MCP)</span>
+                <span className="author-radio-note">When on, lab generation, import, and rewrite search the docs site and use the results as context.</span>
+              </label>
+              <label className="author-field">
+                <span>Docs MCP endpoint</span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    className="author-input"
+                    style={{ flex: "1 1 auto" }}
+                    value={s.docs.url}
+                    onChange={(e) => patch({ docs: { ...s.docs, url: e.target.value } })}
+                  />
+                  <button type="button" className="author-tool" onClick={testDocs}>Test</button>
+                </div>
+              </label>
+              {docsNote && <p className="author-hint">{docsNote}</p>}
+            </fieldset>
 
             {error && <p className="author-error">{error}</p>}
           </div>
