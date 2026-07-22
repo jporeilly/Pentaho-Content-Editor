@@ -102,7 +102,12 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _write_json(path: Path, value: dict[str, Any]) -> None:
-    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    # ensure_ascii=False keeps course.json / manifest.json readable UTF-8
+    # (e.g. an em-dash stays "—", not "—") — matches how the Node
+    # scaffolder writes them, so a save doesn't churn the diff.
+    path.write_text(
+        json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
 
 
 def _is_lab_dir(course_path: Path, name: str) -> bool:

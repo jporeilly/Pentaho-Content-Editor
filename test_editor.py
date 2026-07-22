@@ -121,6 +121,15 @@ def test_put_course_rejects_empty_title(env, client):
     assert client.put("/api/courses/sample", json={"title": "  "}).status_code == 400
 
 
+def test_put_course_writes_utf8_not_escaped(env, client):
+    # Regression: course.json must stay readable UTF-8 (an em-dash is "—",
+    # not "—") so a save doesn't churn the diff.
+    r = client.put("/api/courses/sample", json={"description": "Tour the PUC — the home."})
+    assert r.status_code == 200
+    raw = (env / "sample" / "course.json").read_text(encoding="utf-8")
+    assert "—" in raw and "\\u2014" not in raw
+
+
 def test_structure_rename_syncs_manifest(env, client):
     topics = client.get("/api/courses/sample/structure").json()["topics"]
     assert topics[0]["labs"][0]["slug"] == "01-intro"

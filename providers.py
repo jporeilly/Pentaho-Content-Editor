@@ -78,7 +78,9 @@ def save_settings(patch: dict[str, Any]) -> dict[str, Any]:
                 current[key] = patch[key]
     if current["provider"] not in PROVIDERS:
         raise ProviderError(f"Unknown provider '{current['provider']}'")
-    SETTINGS_PATH.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
+    SETTINGS_PATH.write_text(
+        json.dumps(current, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     return current
 
 
