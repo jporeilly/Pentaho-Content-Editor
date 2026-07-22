@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, type Structure, type StructureLab, type Source } from "./api";
+import { LabModal, type LabDraft } from "./LabModal";
 
 interface StructurePanelProps {
   course: string;
@@ -30,6 +31,9 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   const [draftTitle, setDraftTitle] = useState("");
   const [dragSlug, setDragSlug] = useState<string | null>(null);
   const [dropSlug, setDropSlug] = useState<string | null>(null);
+  // Which lab-creation modal is open ("new" or "ai"), and its inline error.
+  const [labModal, setLabModal] = useState<"new" | "ai" | null>(null);
+  const [labModalError, setLabModalError] = useState("");
 
   const load = useCallback(() => {
     if (!course) return;
@@ -97,46 +101,35 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
     persist(next);
   }
 
-  async function newLab() {
-    const title = window.prompt("New lab title?");
-    if (!title) return;
-    const topics = structure.topics.map((t) => t.title);
-    const topic =
-      window.prompt(
-        `Topic? (existing: ${topics.join(", ") || "none"})`,
-        topics[topics.length - 1] ?? "Workshops",
-      ) ?? "Workshops";
-    const kind = window.confirm("OK = workshop (tracked steps), Cancel = page")
-      ? "workshop"
-      : "page";
+  function openLabModal(mode: "new" | "ai") {
+    setLabModalError("");
+    setLabModal(mode);
+  }
+
+  async function submitNewLab(draft: LabDraft) {
+    setLabModalError("");
     setBusy(true);
     try {
-      setStructure(await api.createLab(course, title, topic, kind));
+      setStructure(await api.createLab(course, draft.title, draft.topic, draft.kind));
+      setLabModal(null);
     } catch (e) {
-      window.alert(`Couldn’t create lab: ${(e as Error).message}`);
+      setLabModalError((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
 
-  async function aiLab() {
-    const title = window.prompt("Lab title for the AI to draft?");
-    if (!title) return;
-    const outline = window.prompt(
-      "Optional: outline the points to cover (one line, e.g. 'open Spoon; add CSV input; preview; run').",
-      "",
-    ) ?? "";
-    const topics = structure.topics.map((t) => t.title);
-    const topic =
-      window.prompt(`Topic?`, topics[topics.length - 1] ?? "Workshops") ?? "Workshops";
+  async function submitAiLab(draft: LabDraft) {
+    setLabModalError("");
     setGenerating(true);
     try {
-      const res = await api.generateLab(course, title, outline, topic, "workshop");
+      const res = await api.generateLab(course, draft.title, draft.outline ?? "", draft.topic, "workshop");
       setStructure(res.structure);
       onSelect(res.slug);
       onSources?.(res.sources ?? []);
+      setLabModal(null);
     } catch (e) {
-      window.alert(`AI draft failed: ${(e as Error).message}`);
+      setLabModalError((e as Error).message);
     } finally {
       setGenerating(false);
     }
@@ -150,7 +143,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
           <button
             type="button"
             className="author-mini-btn"
-            onClick={aiLab}
+            onClick={() => openLabModal("ai")}
             disabled={busy || generating || aiReady === false}
             title={
               aiReady === false
@@ -160,7 +153,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
           >
             {generating ? "Drafting…" : "✨ AI Lab"}
           </button>
-          <button type="button" className="author-mini-btn" onClick={newLab} disabled={busy || generating} title="New blank lab">
+          <button type="button" className="author-mini-btn" onClick={() => openLabModal("new")} disabled={busy || generating} title="New blank lab">
             + Lab
           </button>
         </span>
@@ -218,6 +211,17 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
         ))}
         {structure.topics.length === 0 && <div className="author-structure-empty">No labs yet.</div>}
       </div>
+
+      {labModal && (
+        <LabModal
+          mode={labModal}
+          topics={structure.topics.map((t) => t.title)}
+          busy={busy || generating}
+          error={labModalError}
+          onClose={() => setLabModal(null)}
+          onSubmit={labModal === "ai" ? submitAiLab : submitNewLab}
+        />
+      )}
     </aside>
   );
 }
