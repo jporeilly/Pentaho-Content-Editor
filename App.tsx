@@ -9,15 +9,15 @@
 // same logic as the CLI scaffolder).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type CourseSummary, type LabSummary, type LabDetail } from "./api";
+import { api, type CourseSummary, type LabDetail } from "./api";
 import { Toolbar } from "./Toolbar";
 import { Preview } from "./Preview";
+import { StructurePanel } from "./StructurePanel";
 
 export function App() {
   const [apiUp, setApiUp] = useState<boolean | null>(null);
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [course, setCourse] = useState<string>("");
-  const [labs, setLabs] = useState<LabSummary[]>([]);
   const [lab, setLab] = useState<string>("");
 
   const [detail, setDetail] = useState<LabDetail | null>(null);
@@ -26,6 +26,7 @@ export function App() {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string>("");
   const [glossary, setGlossary] = useState<Record<string, string>>({});
+  const [structureKey, setStructureKey] = useState(0);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -44,17 +45,15 @@ export function App() {
       .catch(() => setApiUp(false));
   }, []);
 
-  // ── Course change: load labs + glossary ───────────────────────────
+  // ── Course change: pick first lab + load glossary ─────────────────
   useEffect(() => {
     if (!course) return;
-    setLabs([]);
     setLab("");
     setDetail(null);
     setBody("");
     api
       .listLabs(course)
       .then((ls) => {
-        setLabs(ls);
         if (ls.length) setLab(ls[0].slug);
       })
       .catch((e) => setStatus(`Couldn’t load labs: ${(e as Error).message}`));
@@ -109,6 +108,7 @@ export function App() {
       const updated = await api.saveLab(course, lab, body);
       setDetail(updated);
       setDirty(false);
+      setStructureKey((k) => k + 1); // refresh titles/metadata in the tree
       const m = updated.manifest as any;
       setStatus(`Saved · ${m.stepCount} steps · ~${m.estimatedMinutes} min${m.hasVideo ? " · has video" : ""}`);
     } catch (e) {
@@ -157,18 +157,6 @@ uvicorn app:app --reload --port 8000`}</pre>
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
-        <select
-          className="author-select"
-          value={lab}
-          onChange={(e) => setLab(e.target.value)}
-          disabled={!labs.length}
-        >
-          {labs.map((l) => (
-            <option key={l.slug} value={l.slug}>
-              {l.order}. {l.title}{l.kind === "page" ? " (page)" : ""}
-            </option>
-          ))}
-        </select>
         <div className="author-header-spacer" />
         <span className="author-status">{status}</span>
         <button
@@ -181,25 +169,33 @@ uvicorn app:app --reload --port 8000`}</pre>
         </button>
       </header>
 
-      {detail ? (
-        <div className="author-panes">
-          <section className="author-editor">
-            <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
-            <textarea
-              ref={textareaRef}
-              className="author-textarea"
-              value={body}
-              spellCheck
-              onChange={(e) => onBodyChange(e.target.value)}
-            />
-          </section>
-          <section className="author-preview">
-            <Preview body={body} baseUrl={baseUrl} labSlug={lab} glossary={glossary} />
-          </section>
-        </div>
-      ) : (
-        <div className="author-splash"><p>Loading…</p></div>
-      )}
+      <div className="author-body">
+        <StructurePanel
+          course={course}
+          activeSlug={lab}
+          onSelect={setLab}
+          refreshKey={structureKey}
+        />
+        {detail ? (
+          <div className="author-panes">
+            <section className="author-editor">
+              <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
+              <textarea
+                ref={textareaRef}
+                className="author-textarea"
+                value={body}
+                spellCheck
+                onChange={(e) => onBodyChange(e.target.value)}
+              />
+            </section>
+            <section className="author-preview">
+              <Preview body={body} baseUrl={baseUrl} labSlug={lab} glossary={glossary} />
+            </section>
+          </div>
+        ) : (
+          <div className="author-splash"><p>Select a lab to edit.</p></div>
+        )}
+      </div>
     </div>
   );
 }

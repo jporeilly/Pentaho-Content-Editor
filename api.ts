@@ -23,6 +23,21 @@ export interface LabDetail {
   manifest: Record<string, unknown>;
 }
 
+export interface StructureLab {
+  slug: string;
+  title: string;
+  kind: "workshop" | "page";
+}
+
+export interface StructureTopic {
+  title: string;
+  labs: StructureLab[];
+}
+
+export interface Structure {
+  topics: StructureTopic[];
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
@@ -67,6 +82,35 @@ export const api = {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body, manifest }),
+      }),
+    );
+  },
+
+  async getStructure(course: string): Promise<Structure> {
+    return json(await fetch(`${API_BASE}/api/courses/${course}/structure`));
+  },
+
+  async putStructure(course: string, structure: Structure): Promise<Structure> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}/structure`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(structure),
+      }),
+    );
+  },
+
+  async createLab(
+    course: string,
+    title: string,
+    topic: string,
+    kind: "workshop" | "page",
+  ): Promise<Structure> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}/labs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, topic, kind }),
       }),
     );
   },
