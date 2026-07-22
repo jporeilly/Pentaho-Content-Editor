@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -250,6 +251,136 @@ def get_asset(course: str, path: str) -> FileResponse:
     if not target.is_file():
         raise HTTPException(404, f"Asset not found: {path}")
     return FileResponse(target)
+
+
+# ── Structure (sidebar tree) ────────────────────────────────────────
+
+
+class StructureLab(BaseModel):
+    slug: str
+    title: str
+    kind: str = "workshop"
+
+
+class StructureTopic(BaseModel):
+    title: str
+    labs: list[StructureLab]
+
+
+class Structure(BaseModel):
+    topics: list[StructureTopic]
+
+
+class NewLabRequest(BaseModel):
+    title: str
+    topic: str
+    kind: str = "workshop"
+
+
+_SUMMARY_LINK = re.compile(r"^\s*[-*]\s+\[([^\]]+)\]\(([^)]+)\)\s*$")
+_SUMMARY_H2 = re.compile(r"^##\s+(.+)$")
+
+
+def _parse_structure(course_path: Path) -> list[StructureTopic]:
+    """Parse SUMMARY.md into ordered topics, each with its labs (in
+    SUMMARY order). Lab titles come from the manifest so a rename in one
+    place stays authoritative."""
+    summary = course_path / "SUMMARY.md"
+    topics: list[StructureTopic] = []
+    if not summary.exists():
+        return topics
+    current: StructureTopic | None = None
+    for raw in summary.read_text(encoding="utf-8").splitlines():
+        h2 = _SUMMARY_H2.match(raw)
+        if h2:
+            current = StructureTopic(title=h2.group(1).strip(), labs=[])
+            topics.append(current)
+            continue
+        link = _SUMMARY_LINK.match(raw)
+        if link and current is not None:
+            slug = link.group(2).replace("\\", "/").lstrip("./").split("/")[0]
+            man_path = course_path / slug / "manifest.json"
+            if not man_path.exists():
+                continue
+            man = _read_json(man_path)
+            current.labs.append(
+                StructureLab(
+                    slug=slug,
+                    title=man.get("title", link.group(1).strip()),
+                    kind="page" if man.get("kind") == "page" else "workshop",
+                )
+            )
+    return topics
+
+
+def _write_structure(course_path: Path, topics: list[StructureTopic]) -> None:
+    """Rewrite SUMMARY.md from the given topic/lab order, and sync each
+    lab's manifest `order` (flattened 1-based sequence) and `title`."""
+    lines = ["# Table of contents", ""]
+    seq = 0
+    for topic in topics:
+        lines.append(f"## {topic.title}")
+        lines.append("")
+        for lab in topic.labs:
+            lines.append(f"* [{lab.title}]({lab.slug}/guide.md)")
+            seq += 1
+            man_path = course_path / lab.slug / "manifest.json"
+            if man_path.exists():
+                man = _read_json(man_path)
+                man["order"] = seq
+                man["title"] = lab.title
+                _write_json(man_path, man)
+        lines.append("")
+    (course_path / "SUMMARY.md").write_text(
+        "\n".join(lines).rstrip("\n") + "\n", encoding="utf-8"
+    )
+
+
+@app.get("/api/courses/{course}/structure", response_model=Structure)
+def get_structure(course: str) -> Structure:
+    return Structure(topics=_parse_structure(_course_dir(course)))
+
+
+@app.put("/api/courses/{course}/structure", response_model=Structure)
+def put_structure(course: str, body: Structure) -> Structure:
+    course_path = _course_dir(course)
+    # Guard: every referenced lab must exist on disk.
+    for topic in body.topics:
+        for lab in topic.labs:
+            if not (course_path / lab.slug / "manifest.json").exists():
+                raise HTTPException(400, f"Unknown lab: {lab.slug}")
+    _write_structure(course_path, body.topics)
+    return Structure(topics=_parse_structure(course_path))
+
+
+@app.post("/api/courses/{course}/labs", response_model=Structure)
+def create_lab(course: str, req: NewLabRequest) -> Structure:
+    """Create a lab by delegating to the Node scaffolder (single source
+    of truth for lab creation + SUMMARY wiring), then return the updated
+    structure."""
+    course_path = _course_dir(course)
+    if not req.title.strip():
+        raise HTTPException(400, "Lab title is required")
+    try:
+        subprocess.run(
+            [
+                "node", "scripts/new-lab.mjs",
+                "--course", course,
+                "--title", req.title,
+                "--topic", req.topic or "Workshops",
+                "--kind", "page" if req.kind == "page" else "workshop",
+            ],
+            cwd=str(REPO_ROOT),
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except FileNotFoundError:
+        raise HTTPException(500, "`node` not found on PATH — needed to scaffold a lab")
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(500, f"Scaffold failed: {e.stderr or e.stdout}")
+    return Structure(topics=_parse_structure(course_path))
 
 
 @app.get("/api/health")
