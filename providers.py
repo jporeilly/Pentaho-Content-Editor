@@ -179,10 +179,16 @@ def _ollama_generate(model: str, prompt: str, system: str, url: str, timeout: in
         raise ProviderError(f"Can't reach Ollama at {url} — is it running? ({e.reason})")
 
 
-# ── Anthropic (official SDK) ────────────────────────────────────────
+# ── Cloud SDKs (official) ───────────────────────────────────────────
+#
+# `_anthropic_chat` / `_openai_chat` are the primitives — they take a full
+# `messages` list. Single-prompt `generate` for these providers is just a
+# one-message chat, so the `_*_generate` wrappers below avoid duplicating
+# the SDK setup. Ollama keeps a distinct `_ollama_generate` because it has
+# a separate /api/generate endpoint.
 
 
-def _anthropic_generate(model: str, prompt: str, system: str, timeout: int) -> str:
+def _anthropic_chat(model: str, messages: list[dict], system: str, timeout: int) -> str:
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise ProviderError("ANTHROPIC_API_KEY is not set in the environment.")
@@ -194,10 +200,7 @@ def _anthropic_generate(model: str, prompt: str, system: str, timeout: int) -> s
         client = Anthropic(api_key=key, timeout=timeout)
         # No temperature — removed on Opus 4.7/4.8 and Sonnet 5 (returns 400).
         resp = client.messages.create(
-            model=model,
-            max_tokens=8000,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
+            model=model, max_tokens=8000, system=system, messages=messages,
         )
         return "".join(
             getattr(b, "text", "") for b in resp.content if getattr(b, "type", None) == "text"
@@ -206,10 +209,7 @@ def _anthropic_generate(model: str, prompt: str, system: str, timeout: int) -> s
         raise ProviderError(f"Anthropic request failed: {e}")
 
 
-# ── OpenAI (official SDK) ───────────────────────────────────────────
-
-
-def _openai_generate(model: str, prompt: str, system: str, timeout: int) -> str:
+def _openai_chat(model: str, messages: list[dict], system: str, timeout: int) -> str:
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
         raise ProviderError("OPENAI_API_KEY is not set in the environment.")
@@ -219,40 +219,24 @@ def _openai_generate(model: str, prompt: str, system: str, timeout: int) -> str:
         raise ProviderError("The `openai` package isn't installed: pip install openai")
     try:
         client = OpenAI(api_key=key, timeout=timeout)
-        messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": prompt},
-        ]
+        full = ([{"role": "system", "content": system}] if system else []) + messages
         try:
-            resp = client.chat.completions.create(
-                model=model, messages=messages, max_tokens=4000
-            )
+            resp = client.chat.completions.create(model=model, messages=full, max_tokens=4000)
         except Exception:
             # Newer models reject `max_tokens` in favour of
             # `max_completion_tokens`; retry once with the default cap.
-            resp = client.chat.completions.create(model=model, messages=messages)
+            resp = client.chat.completions.create(model=model, messages=full)
         return resp.choices[0].message.content or ""
     except Exception as e:  # noqa: BLE001
         raise ProviderError(f"OpenAI request failed: {e}")
 
 
-# ── Dispatch ────────────────────────────────────────────────────────
+def _anthropic_generate(model: str, prompt: str, system: str, timeout: int) -> str:
+    return _anthropic_chat(model, [{"role": "user", "content": prompt}], system, timeout)
 
 
-def generate(prompt: str, system: str, timeout: int = 240) -> str:
-    s = load_settings()
-    provider = s["provider"]
-    if provider == "ollama":
-        o = s["ollama"]
-        return _ollama_generate(o["model"], prompt, system, o["url"], timeout)
-    if provider == "anthropic":
-        return _anthropic_generate(s["anthropic"]["model"], prompt, system, timeout)
-    if provider == "openai":
-        return _openai_generate(s["openai"]["model"], prompt, system, timeout)
-    raise ProviderError(f"Unknown provider '{provider}'")
-
-
-# ── Multi-turn chat (for the assistant panel) ───────────────────────
+def _openai_generate(model: str, prompt: str, system: str, timeout: int) -> str:
+    return _openai_chat(model, [{"role": "user", "content": prompt}], system, timeout)
 
 
 def _ollama_chat(model: str, messages: list[dict], system: str, url: str, timeout: int) -> str:
@@ -273,48 +257,36 @@ def _ollama_chat(model: str, messages: list[dict], system: str, url: str, timeou
         raise ProviderError(f"Can't reach Ollama at {url} — is it running? ({e.reason})")
 
 
+# ── Dispatch ────────────────────────────────────────────────────────
+
+
+def generate(prompt: str, system: str, timeout: int = 240) -> str:
+    """Single-shot completion via the active provider."""
+    s = load_settings()
+    provider = s["provider"]
+    if provider == "ollama":
+        o = s["ollama"]
+        return _ollama_generate(o["model"], prompt, system, o["url"], timeout)
+    if provider == "anthropic":
+        return _anthropic_generate(s["anthropic"]["model"], prompt, system, timeout)
+    if provider == "openai":
+        return _openai_generate(s["openai"]["model"], prompt, system, timeout)
+    raise ProviderError(f"Unknown provider '{provider}'")
+
+
 def chat(messages: list[dict], system: str, timeout: int = 240) -> str:
-    """Multi-turn chat. `messages` is a list of {role, content} with roles
-    'user' / 'assistant'; `system` is the system prompt."""
+    """Multi-turn chat via the active provider. `messages` is a list of
+    {role, content} with roles 'user' / 'assistant'; `system` is the
+    system prompt."""
     s = load_settings()
     provider = s["provider"]
     if provider == "ollama":
         o = s["ollama"]
         return _ollama_chat(o["model"], messages, system, o["url"], timeout)
     if provider == "anthropic":
-        key = os.environ.get("ANTHROPIC_API_KEY")
-        if not key:
-            raise ProviderError("ANTHROPIC_API_KEY is not set in the environment.")
-        try:
-            from anthropic import Anthropic
-        except ImportError:
-            raise ProviderError("The `anthropic` package isn't installed: pip install anthropic")
-        try:
-            client = Anthropic(api_key=key, timeout=timeout)
-            resp = client.messages.create(
-                model=s["anthropic"]["model"], max_tokens=4000, system=system, messages=messages,
-            )
-            return "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", None) == "text")
-        except Exception as e:  # noqa: BLE001
-            raise ProviderError(f"Anthropic request failed: {e}")
+        return _anthropic_chat(s["anthropic"]["model"], messages, system, timeout)
     if provider == "openai":
-        key = os.environ.get("OPENAI_API_KEY")
-        if not key:
-            raise ProviderError("OPENAI_API_KEY is not set in the environment.")
-        try:
-            from openai import OpenAI
-        except ImportError:
-            raise ProviderError("The `openai` package isn't installed: pip install openai")
-        try:
-            client = OpenAI(api_key=key, timeout=timeout)
-            full = ([{"role": "system", "content": system}] if system else []) + messages
-            try:
-                resp = client.chat.completions.create(model=s["openai"]["model"], messages=full, max_tokens=4000)
-            except Exception:
-                resp = client.chat.completions.create(model=s["openai"]["model"], messages=full)
-            return resp.choices[0].message.content or ""
-        except Exception as e:  # noqa: BLE001
-            raise ProviderError(f"OpenAI request failed: {e}")
+        return _openai_chat(s["openai"]["model"], messages, system, timeout)
     raise ProviderError(f"Unknown provider '{provider}'")
 
 
