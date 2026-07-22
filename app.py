@@ -28,6 +28,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -185,12 +187,13 @@ class NewCourseRequest(BaseModel):
     accent: str | None = None
 
 
-def _run_node(args: list[str], what: str) -> None:
+def _run_node(args: list[str], what: str) -> str:
     try:
-        subprocess.run(
+        proc = subprocess.run(
             ["node", *args], cwd=str(REPO_ROOT),
             check=True, capture_output=True, text=True, timeout=45,
         )
+        return proc.stdout
     except FileNotFoundError:
         raise HTTPException(500, "`node` not found on PATH — needed to scaffold")
     except subprocess.CalledProcessError as e:
@@ -443,6 +446,153 @@ def create_lab(course: str, req: NewLabRequest) -> Structure:
     except subprocess.CalledProcessError as e:
         raise HTTPException(500, f"Scaffold failed: {e.stderr or e.stdout}")
     return Structure(topics=_parse_structure(course_path))
+
+
+# ── Ollama (local LLM) authoring assist ─────────────────────────────
+
+DEFAULT_OLLAMA_URL = "http://localhost:11434"
+DEFAULT_MODEL = "llama3.2:3b"
+
+
+def _assistant_cfg(course_path: Path) -> tuple[str, str]:
+    """Resolve (ollamaURL, model) for a course from its course.json
+    `assistant` block, falling back to app defaults — matches how the
+    learner app picks its model."""
+    try:
+        cj = _read_json(course_path / "course.json")
+    except (ValueError, FileNotFoundError):
+        cj = {}
+    a = cj.get("assistant") or {}
+    url = a.get("ollamaURL") or DEFAULT_OLLAMA_URL
+    models = a.get("models") or {}
+    profile = a.get("defaultProfile") or "cpu"
+    model = models.get(profile) or models.get("cpu") or DEFAULT_MODEL
+    return url, model
+
+
+def _ollama_generate(model: str, prompt: str, ollama_url: str, timeout: int = 240) -> str:
+    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
+    req = urllib.request.Request(
+        f"{ollama_url.rstrip('/')}/api/generate",
+        data=payload, headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read()).get("response", "")
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        if e.code == 404:
+            raise HTTPException(
+                502, f"Model '{model}' not found in Ollama. Pull it first: `ollama pull {model}`",
+            )
+        raise HTTPException(502, f"Ollama error {e.code}: {body}")
+    except urllib.error.URLError as e:
+        raise HTTPException(
+            502, f"Can't reach Ollama at {ollama_url} — is it running? ({e.reason})",
+        )
+
+
+def _clean_generated(text: str) -> str:
+    """Strip a whole-document ```markdown fence some models wrap output in."""
+    t = text.strip()
+    t = re.sub(r"^```(?:markdown|md)?\s*\n", "", t)
+    t = re.sub(r"\n```\s*$", "", t)
+    return t.strip() + "\n"
+
+
+def _lab_prompt(title: str, outline: str | None, kind: str) -> str:
+    outline_block = (
+        f"\nCover these points, in order:\n{outline.strip()}\n" if outline and outline.strip() else ""
+    )
+    page_note = (
+        "This is a reference PAGE, so headings organise content but are not hands-on steps."
+        if kind == "page"
+        else "Each `## ` heading is a hands-on step the learner ticks off."
+    )
+    return f"""You are a technical curriculum author for hands-on Pentaho workshops.
+Write a complete lab guide in GitHub-flavored Markdown for a lab titled "{title}".
+{outline_block}
+Follow these conventions exactly:
+- Start with a single `# {title}` line.
+- Open with a `> **Note:**` callout stating what the learner will accomplish.
+- {page_note}
+- Put any commands or code in fenced code blocks with a language tag.
+- Use `> **Note:**` and `> **Warning:**` callouts where helpful.
+- If steps differ by OS or tool, use a tab block: a line `::: tabs`, then
+  `### Tab Title` sub-headings for each variant, closed by a line `:::`.
+- Reference images as `![alt](../_assets/images/name.png)` (relative paths only).
+- End with a `## Lab Files` section only if the lab uses downloadable files.
+
+Output ONLY the Markdown body — no preamble, no commentary, and do NOT wrap
+the whole thing in a code fence."""
+
+
+class GenerateLabRequest(BaseModel):
+    title: str
+    outline: str | None = None
+    topic: str = "Workshops"
+    kind: str = "workshop"
+
+
+class GeneratedLab(BaseModel):
+    slug: str
+    structure: Structure
+
+
+@app.post("/api/courses/{course}/generate-lab", response_model=GeneratedLab)
+def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
+    """Draft a lab body with the local Ollama model, then create the lab
+    (via the scaffolder) and write the draft into it. Generation runs
+    FIRST so a failure never leaves an empty lab behind."""
+    course_path = _course_dir(course)
+    title = req.title.strip()
+    if not title:
+        raise HTTPException(400, "Lab title is required")
+    kind = "page" if req.kind == "page" else "workshop"
+
+    ollama_url, model = _assistant_cfg(course_path)
+    body = _clean_generated(
+        _ollama_generate(model, _lab_prompt(title, req.outline, kind), ollama_url)
+    )
+    if not body.strip():
+        raise HTTPException(502, "The model returned an empty draft — try again.")
+
+    out = _run_node(
+        [
+            "scripts/new-lab.mjs",
+            "--course", course, "--title", title,
+            "--topic", req.topic or "Workshops", "--kind", kind,
+        ],
+        "Lab scaffold",
+    )
+    m = re.search(r"Created lab: courses/[^/]+/([^/\s]+)/", out)
+    if not m:
+        raise HTTPException(500, "Couldn't determine the new lab's folder")
+    slug = m.group(1)
+
+    lab_dir = course_path / slug
+    (lab_dir / "guide.md").write_text(body, encoding="utf-8")
+    man = _read_json(lab_dir / "manifest.json")
+    steps = count_steps(body)
+    man["stepCount"] = steps
+    man["hasVideo"] = detect_has_video(body)
+    man["estimatedMinutes"] = estimate_minutes(steps)
+    _write_json(lab_dir / "manifest.json", man)
+
+    return GeneratedLab(slug=slug, structure=Structure(topics=_parse_structure(course_path)))
+
+
+@app.get("/api/ollama/health")
+def ollama_health() -> dict[str, Any]:
+    """Best-effort check that Ollama is reachable + which models it has,
+    so the editor can enable/disable the AI button and show guidance."""
+    try:
+        with urllib.request.urlopen(f"{DEFAULT_OLLAMA_URL}/api/tags", timeout=3) as resp:
+            tags = json.loads(resp.read())
+        models = [m.get("name") for m in tags.get("models", [])]
+        return {"ok": True, "models": models}
+    except Exception as e:  # noqa: BLE001 — health probe, any failure = not ready
+        return {"ok": False, "error": str(e)}
 
 
 @app.get("/api/health")
