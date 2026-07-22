@@ -9,10 +9,11 @@
 // same logic as the CLI scaffolder).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type CourseSummary, type LabDetail } from "./api";
+import { api, type CourseSummary, type LabDetail, type ProviderHealth } from "./api";
 import { Toolbar } from "./Toolbar";
 import { Preview } from "./Preview";
 import { StructurePanel } from "./StructurePanel";
+import { SettingsModal } from "./SettingsModal";
 
 export function App() {
   const [apiUp, setApiUp] = useState<boolean | null>(null);
@@ -29,6 +30,8 @@ export function App() {
   const [structureKey, setStructureKey] = useState(0);
   const [verifyOut, setVerifyOut] = useState<{ ok: boolean; output: string } | null>(null);
   const [working, setWorking] = useState(false);
+  const [health, setHealth] = useState<ProviderHealth | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -46,6 +49,11 @@ export function App() {
       })
       .catch(() => setApiUp(false));
   }, []);
+
+  const refreshHealth = useCallback(() => {
+    api.providerHealth().then(setHealth).catch(() => setHealth(null));
+  }, []);
+  useEffect(() => { refreshHealth(); }, [refreshHealth]);
 
   // ── Course change: pick first lab + load glossary ─────────────────
   useEffect(() => {
@@ -206,6 +214,16 @@ uvicorn app:app --reload --port 8000`}</pre>
         <span className="author-status">{status}</span>
         <button
           type="button"
+          className={`author-conn ${health?.ok ? "is-ok" : "is-bad"}`}
+          onClick={() => setShowSettings(true)}
+          title={health ? `${health.provider} · ${health.detail}${health.model ? ` · ${health.model}` : ""} — click to configure` : "AI provider — click to configure"}
+        >
+          <span className="author-conn-dot" />
+          {health ? `${health.provider}${health.model ? ` · ${health.model}` : ""}` : "AI"}
+          <span className="author-conn-gear">⚙</span>
+        </button>
+        <button
+          type="button"
           className="author-save"
           onClick={save}
           disabled={!dirty || saving || !detail}
@@ -251,6 +269,13 @@ uvicorn app:app --reload --port 8000`}</pre>
           <div className="author-splash"><p>Select a lab to edit.</p></div>
         )}
       </div>
+
+      {showSettings && (
+        <SettingsModal
+          onClose={() => setShowSettings(false)}
+          onSaved={() => { refreshHealth(); setStructureKey((k) => k + 1); }}
+        />
+      )}
     </div>
   );
 }

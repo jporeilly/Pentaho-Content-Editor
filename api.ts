@@ -38,6 +38,25 @@ export interface Structure {
   topics: StructureTopic[];
 }
 
+export type Provider = "ollama" | "anthropic" | "openai";
+
+export interface Settings {
+  provider: Provider;
+  ollama: { url: string; model: string };
+  anthropic: { model: string };
+  openai: { model: string };
+  keys: { anthropic: boolean; openai: boolean };
+  ollamaModels: string[];
+}
+
+export interface ProviderHealth {
+  provider: Provider;
+  ok: boolean;
+  model: string;
+  detail: string;
+  models?: string[];
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
@@ -118,6 +137,24 @@ export const api = {
 
   async ollamaHealth(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
     return json(await fetch(`${API_BASE}/api/ollama/health`));
+  },
+
+  async getSettings(): Promise<Settings> {
+    return json(await fetch(`${API_BASE}/api/settings`));
+  },
+
+  async putSettings(patch: Partial<Omit<Settings, "keys" | "ollamaModels">>): Promise<Settings> {
+    return json(
+      await fetch(`${API_BASE}/api/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      }),
+    );
+  },
+
+  async providerHealth(): Promise<ProviderHealth> {
+    return json(await fetch(`${API_BASE}/api/providers/health`));
   },
 
   async generateLab(

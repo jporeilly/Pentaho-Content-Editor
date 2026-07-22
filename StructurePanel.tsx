@@ -35,10 +35,11 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey }: Str
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
-  // Probe Ollama once so the AI button can enable/disable + explain itself.
+  // Probe the active LLM provider so the AI button can enable/disable +
+  // explain itself. refreshKey re-runs it (e.g. after a settings change).
   useEffect(() => {
-    api.ollamaHealth().then((h) => setAiReady(h.ok)).catch(() => setAiReady(false));
-  }, []);
+    api.providerHealth().then((h) => setAiReady(h.ok)).catch(() => setAiReady(false));
+  }, [refreshKey]);
 
   const persist = useCallback(async (next: Structure) => {
     setStructure(next); // optimistic
@@ -140,8 +141,8 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey }: Str
             disabled={busy || generating || aiReady === false}
             title={
               aiReady === false
-                ? "Ollama not reachable — start it to draft with AI"
-                : "Draft a new lab with the local AI (Ollama)"
+                ? "AI provider not ready — open Settings (⚙ in the header) to configure"
+                : "Draft a new lab with the configured AI provider"
             }
           >
             {generating ? "Drafting…" : "✨ AI Lab"}
