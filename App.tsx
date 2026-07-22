@@ -14,6 +14,7 @@ import { Toolbar } from "./Toolbar";
 import { Preview } from "./Preview";
 import { StructurePanel } from "./StructurePanel";
 import { SettingsModal } from "./SettingsModal";
+import { ImportModal } from "./ImportModal";
 
 export function App() {
   const [apiUp, setApiUp] = useState<boolean | null>(null);
@@ -32,6 +33,7 @@ export function App() {
   const [working, setWorking] = useState(false);
   const [health, setHealth] = useState<ProviderHealth | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -207,6 +209,9 @@ uvicorn app:app --reload --port 8000`}</pre>
         <button type="button" className="author-tool" onClick={newCourse} disabled={working} title="Scaffold a new course from the blank template">
           ✚ New Course
         </button>
+        <button type="button" className="author-tool" onClick={() => setShowImport(true)} disabled={working} title="Create a course from a PDF / DOCX / PPTX / Markdown document">
+          ⬆ Import
+        </button>
         <button type="button" className="author-tool" onClick={runVerify} disabled={working || !course} title="Check this course against the publishing guidelines">
           ✓ Verify
         </button>
@@ -274,6 +279,18 @@ uvicorn app:app --reload --port 8000`}</pre>
         <SettingsModal
           onClose={() => setShowSettings(false)}
           onSaved={() => { refreshHealth(); setStructureKey((k) => k + 1); }}
+        />
+      )}
+
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onBuilt={async (courseId) => {
+            const list = await api.listCourses();
+            setCourses(list);
+            setCourse(courseId);
+            setStatus(`Imported course “${courseId}” — review the AI-drafted labs.`);
+          }}
         />
       )}
     </div>

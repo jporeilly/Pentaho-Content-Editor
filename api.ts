@@ -57,6 +57,11 @@ export interface ProviderHealth {
   models?: string[];
 }
 
+export interface OutlineLab { title: string; summary: string }
+export interface OutlineTopic { title: string; labs: OutlineLab[] }
+export interface Outline { courseTitle: string; topics: OutlineTopic[] }
+export interface ImportOutline { importId: string; chars: number; outline: Outline }
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
@@ -155,6 +160,28 @@ export const api = {
 
   async providerHealth(): Promise<ProviderHealth> {
     return json(await fetch(`${API_BASE}/api/providers/health`));
+  },
+
+  async importOutline(file: File): Promise<ImportOutline> {
+    const form = new FormData();
+    form.append("file", file);
+    return json(
+      await fetch(`${API_BASE}/api/import/outline`, { method: "POST", body: form }),
+    );
+  },
+
+  async importBuild(
+    importId: string,
+    outline: Outline,
+    kind: "workshop" | "academy",
+  ): Promise<{ courseId: string; labCount: number }> {
+    return json(
+      await fetch(`${API_BASE}/api/import/build`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importId, outline, kind }),
+      }),
+    );
   },
 
   async generateLab(
