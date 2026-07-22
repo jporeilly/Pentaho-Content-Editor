@@ -129,6 +129,13 @@ def _lab_number(dir_name: str) -> int:
     return int(m.group(1)) if m else 0
 
 
+def _slugify(text: str) -> str:
+    """URL-safe slug — mirrors slugify() in the Node scaffolder so the
+    course dir the scaffolder creates is predictable."""
+    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:80]
+    return s or "course"
+
+
 # ── Response models ─────────────────────────────────────────────────
 
 
@@ -172,9 +179,64 @@ def list_courses() -> list[dict[str, str]]:
     return out
 
 
+class NewCourseRequest(BaseModel):
+    title: str
+    kind: str = "workshop"
+    accent: str | None = None
+
+
+def _run_node(args: list[str], what: str) -> None:
+    try:
+        subprocess.run(
+            ["node", *args], cwd=str(REPO_ROOT),
+            check=True, capture_output=True, text=True, timeout=45,
+        )
+    except FileNotFoundError:
+        raise HTTPException(500, "`node` not found on PATH — needed to scaffold")
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(500, f"{what} failed: {e.stderr or e.stdout}")
+
+
+@app.post("/api/courses")
+def create_course(req: NewCourseRequest) -> dict[str, str]:
+    """Scaffold a new course (course.json + SUMMARY.md + a starter lab
+    from the blank template) by delegating to the Node scaffolder."""
+    title = req.title.strip()
+    if not title:
+        raise HTTPException(400, "Course title is required")
+    slug = _slugify(title)
+    if (COURSES_DIR / slug).exists():
+        raise HTTPException(409, f"A course '{slug}' already exists")
+    args = [
+        "scripts/new-course.mjs",
+        "--title", title,
+        "--kind", "academy" if req.kind == "academy" else "workshop",
+        "--lab-title", "Getting Started",
+        "--topic", "Getting Started",
+    ]
+    if req.accent:
+        args += ["--accent", req.accent]
+    _run_node(args, "Course scaffold")
+    if not (COURSES_DIR / slug / "course.json").exists():
+        raise HTTPException(500, "Course scaffold produced no course.json")
+    meta = _read_json(COURSES_DIR / slug / "course.json")
+    return {"id": slug, "title": meta.get("title", title)}
+
+
 @app.get("/api/courses/{course}")
 def get_course(course: str) -> dict[str, Any]:
     return _read_json(_course_dir(course) / "course.json")
+
+
+@app.post("/api/courses/{course}/verify")
+def verify_course(course: str) -> dict[str, Any]:
+    """Run the course verifier and return its report."""
+    _course_dir(course)  # 404 if unknown
+    proc = subprocess.run(
+        ["node", "scripts/verify-course.mjs", course],
+        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=60,
+    )
+    return {"ok": proc.returncode == 0, "output": (proc.stdout + proc.stderr).strip()}
 
 
 @app.get("/api/courses/{course}/labs", response_model=list[LabSummary])
