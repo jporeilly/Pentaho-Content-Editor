@@ -28,8 +28,6 @@ from __future__ import annotations
 import json
 import re
 import subprocess
-import urllib.error
-import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +35,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
+import providers
 
 # ── Repo layout ─────────────────────────────────────────────────────
 # app.py lives at <repo>/editor/api/app.py → repo root is three up.
@@ -191,7 +191,7 @@ def _run_node(args: list[str], what: str) -> str:
     try:
         proc = subprocess.run(
             ["node", *args], cwd=str(REPO_ROOT),
-            check=True, capture_output=True, text=True, timeout=45,
+            check=True, capture_output=True, text=True, encoding="utf-8", timeout=45,
         )
         return proc.stdout
     except FileNotFoundError:
@@ -237,7 +237,7 @@ def verify_course(course: str) -> dict[str, Any]:
     _course_dir(course)  # 404 if unknown
     proc = subprocess.run(
         ["node", "scripts/verify-course.mjs", course],
-        cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=60,
+        cwd=str(REPO_ROOT), capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     return {"ok": proc.returncode == 0, "output": (proc.stdout + proc.stderr).strip()}
 
@@ -439,6 +439,7 @@ def create_lab(course: str, req: NewLabRequest) -> Structure:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=30,
         )
     except FileNotFoundError:
@@ -448,48 +449,7 @@ def create_lab(course: str, req: NewLabRequest) -> Structure:
     return Structure(topics=_parse_structure(course_path))
 
 
-# ── Ollama (local LLM) authoring assist ─────────────────────────────
-
-DEFAULT_OLLAMA_URL = "http://localhost:11434"
-DEFAULT_MODEL = "llama3.2:3b"
-
-
-def _assistant_cfg(course_path: Path) -> tuple[str, str]:
-    """Resolve (ollamaURL, model) for a course from its course.json
-    `assistant` block, falling back to app defaults — matches how the
-    learner app picks its model."""
-    try:
-        cj = _read_json(course_path / "course.json")
-    except (ValueError, FileNotFoundError):
-        cj = {}
-    a = cj.get("assistant") or {}
-    url = a.get("ollamaURL") or DEFAULT_OLLAMA_URL
-    models = a.get("models") or {}
-    profile = a.get("defaultProfile") or "cpu"
-    model = models.get(profile) or models.get("cpu") or DEFAULT_MODEL
-    return url, model
-
-
-def _ollama_generate(model: str, prompt: str, ollama_url: str, timeout: int = 240) -> str:
-    payload = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode()
-    req = urllib.request.Request(
-        f"{ollama_url.rstrip('/')}/api/generate",
-        data=payload, headers={"Content-Type": "application/json"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read()).get("response", "")
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors="replace")
-        if e.code == 404:
-            raise HTTPException(
-                502, f"Model '{model}' not found in Ollama. Pull it first: `ollama pull {model}`",
-            )
-        raise HTTPException(502, f"Ollama error {e.code}: {body}")
-    except urllib.error.URLError as e:
-        raise HTTPException(
-            502, f"Can't reach Ollama at {ollama_url} — is it running? ({e.reason})",
-        )
+# ── LLM authoring assist (Ollama / Anthropic / OpenAI) ──────────────
 
 
 def _clean_generated(text: str) -> str:
@@ -509,8 +469,7 @@ def _lab_prompt(title: str, outline: str | None, kind: str) -> str:
         if kind == "page"
         else "Each `## ` heading is a hands-on step the learner ticks off."
     )
-    return f"""You are a technical curriculum author for hands-on Pentaho workshops.
-Write a complete lab guide in GitHub-flavored Markdown for a lab titled "{title}".
+    return f"""Write a complete lab guide in GitHub-flavored Markdown for a lab titled "{title}".
 {outline_block}
 Follow these conventions exactly:
 - Start with a single `# {title}` line.
@@ -550,10 +509,12 @@ def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
         raise HTTPException(400, "Lab title is required")
     kind = "page" if req.kind == "page" else "workshop"
 
-    ollama_url, model = _assistant_cfg(course_path)
-    body = _clean_generated(
-        _ollama_generate(model, _lab_prompt(title, req.outline, kind), ollama_url)
-    )
+    system = "You are a technical curriculum author for hands-on Pentaho workshops."
+    try:
+        raw = providers.generate(_lab_prompt(title, req.outline, kind), system)
+    except providers.ProviderError as e:
+        raise HTTPException(502, str(e))
+    body = _clean_generated(raw)
     if not body.strip():
         raise HTTPException(502, "The model returned an empty draft — try again.")
 
@@ -582,17 +543,52 @@ def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
     return GeneratedLab(slug=slug, structure=Structure(topics=_parse_structure(course_path)))
 
 
+# ── Settings (LLM provider config) ──────────────────────────────────
+
+
+class SettingsPatch(BaseModel):
+    provider: str | None = None
+    ollama: dict[str, Any] | None = None
+    anthropic: dict[str, Any] | None = None
+    openai: dict[str, Any] | None = None
+
+
+def _settings_view(settings: dict[str, Any]) -> dict[str, Any]:
+    """Settings plus non-secret runtime facts the UI needs: which keys are
+    detected (bool only) and the Ollama model list."""
+    return {
+        **settings,
+        "keys": providers.key_status(),
+        "ollamaModels": providers.ollama_models(settings["ollama"]["url"]),
+    }
+
+
+@app.get("/api/settings")
+def get_settings() -> dict[str, Any]:
+    return _settings_view(providers.load_settings())
+
+
+@app.put("/api/settings")
+def put_settings(patch: SettingsPatch) -> dict[str, Any]:
+    try:
+        saved = providers.save_settings(patch.model_dump(exclude_none=True))
+    except providers.ProviderError as e:
+        raise HTTPException(400, str(e))
+    return _settings_view(saved)
+
+
+@app.get("/api/providers/health")
+def providers_health() -> dict[str, Any]:
+    """Connection status for the ACTIVE provider — drives the header
+    indicator and enables/disables the AI button."""
+    return providers.health()
+
+
+# Back-compat alias for the earlier Ollama-only endpoint.
 @app.get("/api/ollama/health")
 def ollama_health() -> dict[str, Any]:
-    """Best-effort check that Ollama is reachable + which models it has,
-    so the editor can enable/disable the AI button and show guidance."""
-    try:
-        with urllib.request.urlopen(f"{DEFAULT_OLLAMA_URL}/api/tags", timeout=3) as resp:
-            tags = json.loads(resp.read())
-        models = [m.get("name") for m in tags.get("models", [])]
-        return {"ok": True, "models": models}
-    except Exception as e:  # noqa: BLE001 — health probe, any failure = not ready
-        return {"ok": False, "error": str(e)}
+    h = providers.health()
+    return {"ok": h["ok"], "models": h.get("models", []), "error": None if h["ok"] else h.get("detail")}
 
 
 @app.get("/api/health")
