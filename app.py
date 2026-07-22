@@ -454,20 +454,27 @@ def create_lab(course: str, req: NewLabRequest) -> Structure:
 # ── LLM authoring assist (Ollama / Anthropic / OpenAI) ──────────────
 
 
-def _ground(query: str) -> str:
+class Source(BaseModel):
+    title: str
+    url: str
+
+
+def _ground(query: str) -> tuple[str, list[Source]]:
     """When GitBook-MCP grounding is enabled in Settings, search the
-    Pentaho docs and return a context block for the prompt. Best-effort —
-    a docs failure never blocks generation."""
+    Pentaho docs and return (prompt-suffix, sources). Best-effort — a docs
+    failure never blocks generation. `sources` lets the UI cite the docs
+    the model was grounded in."""
     s = providers.load_settings()
     docs = s.get("docs") or {}
     if not docs.get("enabled") or not docs.get("url") or not query.strip():
-        return ""
+        return "", []
     try:
         hits = mcp.search(docs["url"], query.strip()[:200], limit=5, timeout=15)
     except mcp.McpError:
-        return ""
+        return "", []
     ctx = mcp.as_context(hits)
-    return ("\n\n" + ctx) if ctx else ""
+    sources = [Source(title=h["title"], url=h["url"]) for h in hits if h.get("url")]
+    return (("\n\n" + ctx) if ctx else ""), sources
 
 
 def _clean_generated(text: str) -> str:
@@ -515,6 +522,7 @@ class GenerateLabRequest(BaseModel):
 class GeneratedLab(BaseModel):
     slug: str
     structure: Structure
+    sources: list[Source] = []
 
 
 @app.post("/api/courses/{course}/generate-lab", response_model=GeneratedLab)
@@ -529,7 +537,8 @@ def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
     kind = "page" if req.kind == "page" else "workshop"
 
     system = "You are a technical curriculum author for hands-on Pentaho workshops."
-    prompt = _lab_prompt(title, req.outline, kind) + _ground(f"{title}. {req.outline or ''}")
+    ground, sources = _ground(f"{title}. {req.outline or ''}")
+    prompt = _lab_prompt(title, req.outline, kind) + ground
     try:
         raw = providers.generate(prompt, system)
     except providers.ProviderError as e:
@@ -560,7 +569,7 @@ def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
     man["estimatedMinutes"] = estimate_minutes(steps)
     _write_json(lab_dir / "manifest.json", man)
 
-    return GeneratedLab(slug=slug, structure=Structure(topics=_parse_structure(course_path)))
+    return GeneratedLab(slug=slug, structure=Structure(topics=_parse_structure(course_path)), sources=sources)
 
 
 # ── Settings (LLM provider config) ──────────────────────────────────
@@ -571,6 +580,7 @@ class SettingsPatch(BaseModel):
     ollama: dict[str, Any] | None = None
     anthropic: dict[str, Any] | None = None
     openai: dict[str, Any] | None = None
+    docs: dict[str, Any] | None = None
 
 
 def _settings_view(settings: dict[str, Any]) -> dict[str, Any]:
@@ -634,8 +644,13 @@ class RewriteRequest(BaseModel):
     instruction: str | None = None
 
 
-@app.post("/api/rewrite")
-def rewrite(req: RewriteRequest) -> dict[str, str]:
+class RewriteResponse(BaseModel):
+    text: str
+    sources: list[Source] = []
+
+
+@app.post("/api/rewrite", response_model=RewriteResponse)
+def rewrite(req: RewriteRequest) -> RewriteResponse:
     """Rewrite a selected passage of a lab guide with the active LLM,
     preserving Markdown structure."""
     text = req.text.strip()
@@ -651,12 +666,13 @@ def rewrite(req: RewriteRequest) -> dict[str, str]:
         "links, and `::: tabs` blocks). Output ONLY the rewritten passage — no "
         f"preamble, no code fence around the whole thing.\n\n---\n{text}"
     )
-    prompt += _ground(text)
+    ground, sources = _ground(text)
+    prompt += ground
     try:
         out = providers.generate(prompt, system)
     except providers.ProviderError as e:
         raise HTTPException(502, str(e))
-    return {"text": _clean_generated(out).rstrip("\n")}
+    return RewriteResponse(text=_clean_generated(out).rstrip("\n"), sources=sources)
 
 
 @app.get("/api/ollama/health")
@@ -767,6 +783,7 @@ class ImportBuildRequest(BaseModel):
 class ImportBuildResponse(BaseModel):
     courseId: str
     labCount: int
+    sources: list[Source] = []
 
 
 @app.post("/api/import/build", response_model=ImportBuildResponse)
@@ -795,6 +812,7 @@ def import_build(req: ImportBuildRequest) -> ImportBuildResponse:
     system = "You are a technical curriculum author for hands-on Pentaho workshops."
     context = source[:_MAX_CONTEXT_CHARS]
     count = 0
+    all_sources: dict[str, Source] = {}  # unique by url
     for topic in req.outline.topics:
         for lab in topic.labs:
             title = lab.title.strip()
@@ -811,7 +829,10 @@ def import_build(req: ImportBuildRequest) -> ImportBuildResponse:
                     "\n\nGround the lab in this source material where relevant "
                     f"(do not invent facts that contradict it):\n{context}"
                 )
-            body_prompt += _ground(f"{title}. {outline_note}")
+            ground, srcs = _ground(f"{title}. {outline_note}")
+            body_prompt += ground
+            for s in srcs:
+                all_sources[s.url] = s
             try:
                 body = _clean_generated(providers.generate(body_prompt, system))
             except providers.ProviderError as e:
@@ -839,7 +860,7 @@ def import_build(req: ImportBuildRequest) -> ImportBuildResponse:
             count += 1
 
     _IMPORTS.pop(req.importId, None)
-    return ImportBuildResponse(courseId=course, labCount=count)
+    return ImportBuildResponse(courseId=course, labCount=count, sources=list(all_sources.values()))
 
 
 @app.get("/api/health")
