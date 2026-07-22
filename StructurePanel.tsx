@@ -23,6 +23,8 @@ type Addr = { t: number; l: number };
 export function StructurePanel({ course, activeSlug, onSelect, refreshKey }: StructurePanelProps) {
   const [structure, setStructure] = useState<Structure>({ topics: [] });
   const [busy, setBusy] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
 
@@ -32,6 +34,11 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey }: Str
   }, [course]);
 
   useEffect(() => { load(); }, [load, refreshKey]);
+
+  // Probe Ollama once so the AI button can enable/disable + explain itself.
+  useEffect(() => {
+    api.ollamaHealth().then((h) => setAiReady(h.ok)).catch(() => setAiReady(false));
+  }, []);
 
   const persist = useCallback(async (next: Structure) => {
     setStructure(next); // optimistic
@@ -99,13 +106,50 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey }: Str
     }
   }
 
+  async function aiLab() {
+    const title = window.prompt("Lab title for the AI to draft?");
+    if (!title) return;
+    const outline = window.prompt(
+      "Optional: outline the points to cover (one line, e.g. 'open Spoon; add CSV input; preview; run').",
+      "",
+    ) ?? "";
+    const topics = structure.topics.map((t) => t.title);
+    const topic =
+      window.prompt(`Topic?`, topics[topics.length - 1] ?? "Workshops") ?? "Workshops";
+    setGenerating(true);
+    try {
+      const res = await api.generateLab(course, title, outline, topic, "workshop");
+      setStructure(res.structure);
+      onSelect(res.slug);
+    } catch (e) {
+      window.alert(`AI draft failed: ${(e as Error).message}`);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   return (
     <aside className="author-structure">
       <div className="author-structure-head">
         <span>Structure</span>
-        <button type="button" className="author-mini-btn" onClick={newLab} disabled={busy} title="New lab">
-          + Lab
-        </button>
+        <span className="author-structure-actions">
+          <button
+            type="button"
+            className="author-mini-btn"
+            onClick={aiLab}
+            disabled={busy || generating || aiReady === false}
+            title={
+              aiReady === false
+                ? "Ollama not reachable — start it to draft with AI"
+                : "Draft a new lab with the local AI (Ollama)"
+            }
+          >
+            {generating ? "Drafting…" : "✨ AI Lab"}
+          </button>
+          <button type="button" className="author-mini-btn" onClick={newLab} disabled={busy || generating} title="New blank lab">
+            + Lab
+          </button>
+        </span>
       </div>
       <div className="author-structure-body">
         {structure.topics.map((topic, ti) => (

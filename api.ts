@@ -116,6 +116,26 @@ export const api = {
     );
   },
 
+  async ollamaHealth(): Promise<{ ok: boolean; models?: string[]; error?: string }> {
+    return json(await fetch(`${API_BASE}/api/ollama/health`));
+  },
+
+  async generateLab(
+    course: string,
+    title: string,
+    outline: string,
+    topic: string,
+    kind: "workshop" | "page",
+  ): Promise<{ slug: string; structure: Structure }> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}/generate-lab`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, outline, topic, kind }),
+      }),
+    );
+  },
+
   async createLab(
     course: string,
     title: string,
