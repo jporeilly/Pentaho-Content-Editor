@@ -181,6 +181,46 @@ export const api = {
     return json(await fetch(`${API_BASE}/api/docs/test?url=${encodeURIComponent(url)}`));
   },
 
+  async uploadAsset(course: string, file: File | Blob, filename?: string): Promise<{ name: string; path: string }> {
+    const form = new FormData();
+    form.append("file", file, filename ?? (file as File).name ?? "image.png");
+    return json(await fetch(`${API_BASE}/api/courses/${course}/assets`, { method: "POST", body: form }));
+  },
+
+  async listLabFiles(course: string, lab: string): Promise<string[]> {
+    return json(await fetch(`${API_BASE}/api/courses/${course}/labs/${lab}/files`));
+  },
+
+  async uploadLabFile(course: string, lab: string, file: File): Promise<{ name: string; path: string }> {
+    const form = new FormData();
+    form.append("file", file);
+    return json(await fetch(`${API_BASE}/api/courses/${course}/labs/${lab}/files`, { method: "POST", body: form }));
+  },
+
+  async getCourse(course: string): Promise<Record<string, unknown>> {
+    return json(await fetch(`${API_BASE}/api/courses/${course}`));
+  },
+
+  async putCourse(course: string, patch: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      }),
+    );
+  },
+
+  async review(body: string): Promise<{ review: string; sources: Source[] }> {
+    return json(
+      await fetch(`${API_BASE}/api/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      }),
+    );
+  },
+
   async rewrite(text: string, instruction?: string): Promise<{ text: string; sources: Source[] }> {
     return json(
       await fetch(`${API_BASE}/api/rewrite`, {

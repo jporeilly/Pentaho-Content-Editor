@@ -8,7 +8,7 @@
 // manifest metadata forms, and new-course / new-lab UI (wrapping the
 // same logic as the CLI scaffolder).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { api, type CourseSummary, type LabDetail, type ProviderHealth, type Source } from "./api";
 import { Toolbar } from "./Toolbar";
 import { Preview } from "./Preview";
@@ -16,6 +16,8 @@ import { StructurePanel } from "./StructurePanel";
 import { SettingsModal } from "./SettingsModal";
 import { ImportModal } from "./ImportModal";
 import { NewCourseModal } from "./NewCourseModal";
+import { LabFilesModal } from "./LabFilesModal";
+import { CourseSettingsModal } from "./CourseSettingsModal";
 
 export function App() {
   const [apiUp, setApiUp] = useState<boolean | null>(null);
@@ -41,6 +43,10 @@ export function App() {
   const [showNewCourse, setShowNewCourse] = useState(false);
   // Pentaho docs the last AI action was grounded in (shown as citations).
   const [sources, setSources] = useState<Source[]>([]);
+  const [reviewOut, setReviewOut] = useState<string | null>(null);
+  const [showLabFiles, setShowLabFiles] = useState(false);
+  const [showCourseSettings, setShowCourseSettings] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -197,6 +203,60 @@ export function App() {
     });
   }, [body, lastRewrite]);
 
+  const insertAtCaret = useCallback((text: string) => {
+    const ta = textareaRef.current;
+    const start = ta?.selectionStart ?? body.length;
+    const end = ta?.selectionEnd ?? body.length;
+    onBodyChange(body.slice(0, start) + text + body.slice(end), start + text.length);
+  }, [body, onBodyChange]);
+
+  const uploadAndInsertImage = useCallback(async (file: File | Blob, filename?: string) => {
+    if (!course) return;
+    setWorking(true);
+    setStatus("Uploading image…");
+    try {
+      const { name, path } = await api.uploadAsset(course, file, filename);
+      insertAtCaret(`![${name}](${path})\n\n`);
+      setStatus(`Inserted ${name}.`);
+      setStructureKey((k) => k + 1);
+    } catch (e) {
+      setStatus(`Image upload failed: ${(e as Error).message}`);
+    } finally {
+      setWorking(false);
+    }
+  }, [course, insertAtCaret]);
+
+  const onEditorPaste = useCallback((e: ClipboardEvent<HTMLTextAreaElement>) => {
+    for (const it of Array.from(e.clipboardData?.items ?? [])) {
+      if (it.type.startsWith("image/")) {
+        const f = it.getAsFile();
+        if (f) { e.preventDefault(); uploadAndInsertImage(f, `pasted-${Date.now()}.png`); return; }
+      }
+    }
+  }, [uploadAndInsertImage]);
+
+  const onEditorDrop = useCallback((e: DragEvent<HTMLTextAreaElement>) => {
+    const imgs = Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+    if (imgs.length) { e.preventDefault(); imgs.forEach((f) => uploadAndInsertImage(f)); }
+  }, [uploadAndInsertImage]);
+
+  const runReview = useCallback(async () => {
+    if (!body.trim()) { setStatus("Nothing to review yet."); return; }
+    setWorking(true);
+    setStatus("Reviewing lab with AI…");
+    setReviewOut(null);
+    try {
+      const { review, sources: srcs } = await api.review(body);
+      setReviewOut(review);
+      setSources(srcs ?? []);
+      setStatus("Review ready — see the panel.");
+    } catch (e) {
+      setStatus(`Review failed: ${(e as Error).message}`);
+    } finally {
+      setWorking(false);
+    }
+  }, [body]);
+
   const runVerify = useCallback(async () => {
     if (!course) return;
     setWorking(true);
@@ -258,6 +318,9 @@ uvicorn app:app --reload --port 8000`}</pre>
         <button type="button" className="author-tool" onClick={() => setShowImport(true)} disabled={working} title="Create a course from a PDF / DOCX / PPTX / Markdown document">
           ⬆ Import
         </button>
+        <button type="button" className="author-tool" onClick={() => setShowCourseSettings(true)} disabled={working || !course} title="Edit course title, description, accent, and assistant models">
+          ⚙ Course
+        </button>
         <button type="button" className="author-tool" onClick={runVerify} disabled={working || !course} title="Check this course against the publishing guidelines">
           ✓ Verify
         </button>
@@ -292,6 +355,16 @@ uvicorn app:app --reload --port 8000`}</pre>
             </a>
           ))}
           <button type="button" className="author-mini-btn" onClick={() => setSources([])}>Dismiss</button>
+        </div>
+      )}
+
+      {reviewOut && (
+        <div className="author-verify is-review">
+          <div className="author-verify-head">
+            <span>🔍 AI review</span>
+            <button type="button" className="author-mini-btn" onClick={() => setReviewOut(null)}>Dismiss</button>
+          </div>
+          <pre className="author-verify-body">{reviewOut}</pre>
         </div>
       )}
 
@@ -333,6 +406,26 @@ uvicorn app:app --reload --port 8000`}</pre>
                 >
                   {lastRewrite ? "↺ Reset" : "✨ Rewrite"}
                 </button>
+                <button type="button" className="author-toolbar-btn" onClick={() => imageInputRef.current?.click()} disabled={working} title="Upload an image (or paste / drop one into the editor)">
+                  🖼 Image
+                </button>
+                <button type="button" className="author-toolbar-btn" onClick={() => setShowLabFiles(true)} disabled={working} title="Manage this lab's downloadable files (.ktr / .kjb / data)">
+                  📎 Files
+                </button>
+                <button type="button" className="author-toolbar-btn author-review-btn" onClick={runReview} disabled={working || health?.ok === false} title={health?.ok === false ? "AI provider not ready — see Settings" : "AI review of this lab (quality, accuracy, completeness)"}>
+                  🔍 Review
+                </button>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadAndInsertImage(f);
+                    e.target.value = "";
+                  }}
+                />
               </div>
               <textarea
                 ref={textareaRef}
@@ -340,6 +433,8 @@ uvicorn app:app --reload --port 8000`}</pre>
                 value={body}
                 spellCheck
                 onChange={(e) => onBodyChange(e.target.value)}
+                onPaste={onEditorPaste}
+                onDrop={onEditorDrop}
               />
             </section>
             <section className="author-preview">
@@ -362,6 +457,23 @@ uvicorn app:app --reload --port 8000`}</pre>
         <NewCourseModal
           onClose={() => setShowNewCourse(false)}
           onCreated={onCourseCreated}
+        />
+      )}
+
+      {showLabFiles && course && lab && (
+        <LabFilesModal
+          course={course}
+          lab={lab}
+          onClose={() => setShowLabFiles(false)}
+          onInsert={(text) => { insertAtCaret(text); setShowLabFiles(false); }}
+        />
+      )}
+
+      {showCourseSettings && course && (
+        <CourseSettingsModal
+          course={course}
+          onClose={() => setShowCourseSettings(false)}
+          onSaved={() => { api.listCourses().then(setCourses); setStructureKey((k) => k + 1); }}
         />
       )}
 

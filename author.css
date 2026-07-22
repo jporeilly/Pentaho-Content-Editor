@@ -185,6 +185,7 @@ body {
 }
 .author-verify.is-ok { border-left: 3px solid var(--author-accent); }
 .author-verify.is-bad { border-left: 3px solid #f59e0b; }
+.author-verify.is-review { border-left: 3px solid #6ea8fe; }
 .author-verify-head {
   display: flex;
   align-items: center;
