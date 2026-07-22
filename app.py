@@ -986,6 +986,99 @@ def review_lab(req: ReviewRequest) -> ReviewResponse:
     return ReviewResponse(review=out.strip(), sources=sources)
 
 
+# ── Chat (assistant panel) ──────────────────────────────────────────
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+    # Optional editor context (e.g. the current lab body) woven into the
+    # system prompt so the assistant can answer about what's on screen.
+    context: str | None = None
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    sources: list[Source] = []
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+def chat(req: ChatRequest) -> ChatResponse:
+    """Multi-turn assistant for the editor — answers questions and helps
+    write lab content / code, using the configured provider (and the docs
+    when grounding is on)."""
+    if not req.messages:
+        raise HTTPException(400, "No messages.")
+    system = (
+        "You are a helpful assistant embedded in a Pentaho course-authoring tool. "
+        "Help the author write and improve lab content and answer Pentaho / PDI "
+        "questions. Use Markdown; put code in fenced blocks. Be concise."
+    )
+    if req.context and req.context.strip():
+        system += f"\n\nThe author is currently editing this lab (for reference):\n{req.context[:4000]}"
+    last_user = next((m.content for m in reversed(req.messages) if m.role == "user"), "")
+    ground, sources = _ground(last_user)
+    system += ground
+    try:
+        reply = providers.chat([m.model_dump() for m in req.messages], system)
+    except providers.ProviderError as e:
+        raise HTTPException(502, str(e))
+    return ChatResponse(reply=reply.strip(), sources=sources)
+
+
+# ── Export / install a course ───────────────────────────────────────
+
+
+@app.get("/api/courses/{course}/export")
+def export_course(course: str):
+    """Stream a .zip of the course folder — hand it to install-course or a
+    VM provisioning step."""
+    import io
+    import zipfile
+
+    course_path = _course_dir(course)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in course_path.rglob("*"):
+            if path.is_file() and ".venv" not in path.parts and "__pycache__" not in path.parts:
+                zf.write(path, path.relative_to(course_path.parent).as_posix())
+    buf.seek(0)
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        buf, media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{course}.zip"'},
+    )
+
+
+@app.post("/api/courses/{course}/install")
+def install_course(course: str) -> dict[str, Any]:
+    """Run the install-course script locally so the course lands in this
+    machine's app content dir (to preview it in the real app)."""
+    import sys
+
+    _course_dir(course)  # 404 if unknown
+    if sys.platform.startswith("win"):
+        cmd = [
+            "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-File", "scripts/install-course.ps1", "-CourseId", course, "-Force",
+        ]
+    else:
+        cmd = ["bash", "scripts/install-course.sh", "--course-id", course, "--force"]
+    try:
+        proc = subprocess.run(
+            cmd, cwd=str(REPO_ROOT), capture_output=True, text=True,
+            encoding="utf-8", timeout=120,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(500, f"Couldn't run the installer: {e}")
+    ok = proc.returncode == 0
+    return {"ok": ok, "output": (proc.stdout + proc.stderr).strip()[-4000:]}
+
+
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"ok": True, "coursesDir": str(COURSES_DIR), "exists": COURSES_DIR.exists()}

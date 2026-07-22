@@ -252,6 +252,72 @@ def generate(prompt: str, system: str, timeout: int = 240) -> str:
     raise ProviderError(f"Unknown provider '{provider}'")
 
 
+# ── Multi-turn chat (for the assistant panel) ───────────────────────
+
+
+def _ollama_chat(model: str, messages: list[dict], system: str, url: str, timeout: int) -> str:
+    msgs = ([{"role": "system", "content": system}] if system else []) + messages
+    payload = json.dumps({"model": model, "messages": msgs, "stream": False}).encode()
+    req = urllib.request.Request(
+        f"{url.rstrip('/')}/api/chat",
+        data=payload, headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return (json.loads(resp.read()).get("message") or {}).get("content", "")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise ProviderError(f"Model '{model}' not found. Pull it: `ollama pull {model}`")
+        raise ProviderError(f"Ollama error {e.code}: {e.read().decode(errors='replace')}")
+    except urllib.error.URLError as e:
+        raise ProviderError(f"Can't reach Ollama at {url} — is it running? ({e.reason})")
+
+
+def chat(messages: list[dict], system: str, timeout: int = 240) -> str:
+    """Multi-turn chat. `messages` is a list of {role, content} with roles
+    'user' / 'assistant'; `system` is the system prompt."""
+    s = load_settings()
+    provider = s["provider"]
+    if provider == "ollama":
+        o = s["ollama"]
+        return _ollama_chat(o["model"], messages, system, o["url"], timeout)
+    if provider == "anthropic":
+        key = os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise ProviderError("ANTHROPIC_API_KEY is not set in the environment.")
+        try:
+            from anthropic import Anthropic
+        except ImportError:
+            raise ProviderError("The `anthropic` package isn't installed: pip install anthropic")
+        try:
+            client = Anthropic(api_key=key, timeout=timeout)
+            resp = client.messages.create(
+                model=s["anthropic"]["model"], max_tokens=4000, system=system, messages=messages,
+            )
+            return "".join(getattr(b, "text", "") for b in resp.content if getattr(b, "type", None) == "text")
+        except Exception as e:  # noqa: BLE001
+            raise ProviderError(f"Anthropic request failed: {e}")
+    if provider == "openai":
+        key = os.environ.get("OPENAI_API_KEY")
+        if not key:
+            raise ProviderError("OPENAI_API_KEY is not set in the environment.")
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise ProviderError("The `openai` package isn't installed: pip install openai")
+        try:
+            client = OpenAI(api_key=key, timeout=timeout)
+            full = ([{"role": "system", "content": system}] if system else []) + messages
+            try:
+                resp = client.chat.completions.create(model=s["openai"]["model"], messages=full, max_tokens=4000)
+            except Exception:
+                resp = client.chat.completions.create(model=s["openai"]["model"], messages=full)
+            return resp.choices[0].message.content or ""
+        except Exception as e:  # noqa: BLE001
+            raise ProviderError(f"OpenAI request failed: {e}")
+    raise ProviderError(f"Unknown provider '{provider}'")
+
+
 def health() -> dict[str, Any]:
     """Best-effort connection status for the ACTIVE provider — no paid
     API call is made for the cloud providers (key presence + SDK import
