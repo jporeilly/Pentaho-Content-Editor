@@ -152,6 +152,29 @@ body {
 .author-outline-lab { display: flex; gap: 6px; padding-left: 16px; }
 .author-outline-lab .author-input { flex: 1 1 auto; }
 
+/* ── Docs sources bar ───────────────────────────────────────────── */
+.author-sources {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 7px 14px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+  border-left: 3px solid var(--author-accent);
+  font-size: 12px;
+}
+.author-sources-label { color: var(--author-muted); font-weight: 600; }
+.author-source-link {
+  color: #6ea8fe;
+  text-decoration: none;
+  border: 1px solid var(--author-border);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.author-source-link:hover { border-color: var(--author-accent); text-decoration: underline; }
+
 /* ── Verify results panel ───────────────────────────────────────── */
 .author-verify {
   flex: 0 0 auto;

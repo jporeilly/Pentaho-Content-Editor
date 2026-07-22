@@ -66,6 +66,8 @@ export interface ProviderHealth {
   models?: string[];
 }
 
+export interface Source { title: string; url: string }
+
 export interface OutlineLab { title: string; summary: string }
 export interface OutlineTopic { title: string; labs: OutlineLab[] }
 export interface Outline { courseTitle: string; topics: OutlineTopic[] }
@@ -179,7 +181,7 @@ export const api = {
     return json(await fetch(`${API_BASE}/api/docs/test?url=${encodeURIComponent(url)}`));
   },
 
-  async rewrite(text: string, instruction?: string): Promise<{ text: string }> {
+  async rewrite(text: string, instruction?: string): Promise<{ text: string; sources: Source[] }> {
     return json(
       await fetch(`${API_BASE}/api/rewrite`, {
         method: "POST",
@@ -201,7 +203,7 @@ export const api = {
     importId: string,
     outline: Outline,
     kind: "workshop" | "academy",
-  ): Promise<{ courseId: string; labCount: number }> {
+  ): Promise<{ courseId: string; labCount: number; sources: Source[] }> {
     return json(
       await fetch(`${API_BASE}/api/import/build`, {
         method: "POST",
@@ -217,7 +219,7 @@ export const api = {
     outline: string,
     topic: string,
     kind: "workshop" | "page",
-  ): Promise<{ slug: string; structure: Structure }> {
+  ): Promise<{ slug: string; structure: Structure; sources: Source[] }> {
     return json(
       await fetch(`${API_BASE}/api/courses/${course}/generate-lab`, {
         method: "POST",

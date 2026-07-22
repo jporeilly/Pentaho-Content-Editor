@@ -4,12 +4,12 @@
 // source). Requires an LLM provider to be configured (Settings ⚙).
 
 import { useState } from "react";
-import { api, type Outline } from "./api";
+import { api, type Outline, type Source } from "./api";
 
 interface ImportModalProps {
   onClose: () => void;
-  /** Called with the new course id after a successful build. */
-  onBuilt: (courseId: string) => void;
+  /** Called with the new course id (+ grounding sources) after a build. */
+  onBuilt: (courseId: string, sources: Source[]) => void;
 }
 
 type Phase = "pick" | "review" | "building";
@@ -46,7 +46,7 @@ export function ImportModal({ onClose, onBuilt }: ImportModalProps) {
     setError("");
     try {
       const res = await api.importBuild(importId, outline, kind);
-      onBuilt(res.courseId);
+      onBuilt(res.courseId, res.sources ?? []);
       onClose();
     } catch (e) {
       setError((e as Error).message);

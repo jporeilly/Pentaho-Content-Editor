@@ -9,7 +9,7 @@
 // same logic as the CLI scaffolder).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, type CourseSummary, type LabDetail, type ProviderHealth } from "./api";
+import { api, type CourseSummary, type LabDetail, type ProviderHealth, type Source } from "./api";
 import { Toolbar } from "./Toolbar";
 import { Preview } from "./Preview";
 import { StructurePanel } from "./StructurePanel";
@@ -39,6 +39,8 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showNewCourse, setShowNewCourse] = useState(false);
+  // Pentaho docs the last AI action was grounded in (shown as citations).
+  const [sources, setSources] = useState<Source[]>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -163,11 +165,12 @@ export function App() {
     setWorking(true);
     setStatus("Rewriting selection…");
     try {
-      const { text } = await api.rewrite(selected);
+      const { text, sources: srcs } = await api.rewrite(selected);
       const next = body.slice(0, start) + text + body.slice(end);
       setBody(next);
       setDirty(true);
       setLastRewrite({ start, end: start + text.length, original: selected });
+      setSources(srcs ?? []);
       setStatus("Rewrote selection — review, Reset to undo, or Save.");
       requestAnimationFrame(() => {
         ta.focus();
@@ -280,6 +283,18 @@ uvicorn app:app --reload --port 8000`}</pre>
         </button>
       </header>
 
+      {sources.length > 0 && (
+        <div className="author-sources">
+          <span className="author-sources-label">📚 Grounded in Pentaho docs:</span>
+          {sources.map((s, i) => (
+            <a key={i} className="author-source-link" href={s.url} target="_blank" rel="noopener noreferrer" title={s.url}>
+              {s.title}
+            </a>
+          ))}
+          <button type="button" className="author-mini-btn" onClick={() => setSources([])}>Dismiss</button>
+        </div>
+      )}
+
       {verifyOut && (
         <div className={`author-verify ${verifyOut.ok ? "is-ok" : "is-bad"}`}>
           <div className="author-verify-head">
@@ -296,6 +311,7 @@ uvicorn app:app --reload --port 8000`}</pre>
           activeSlug={lab}
           onSelect={setLab}
           refreshKey={structureKey}
+          onSources={setSources}
         />
         {detail ? (
           <div className="author-panes">
@@ -352,8 +368,9 @@ uvicorn app:app --reload --port 8000`}</pre>
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
-          onBuilt={(courseId) => {
+          onBuilt={(courseId, srcs) => {
             onCourseCreated(courseId);
+            setSources(srcs);
             setStatus(`Imported “${courseId}” — review the AI-drafted labs.`);
           }}
         />

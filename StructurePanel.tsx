@@ -5,7 +5,7 @@
 // labs go through the Node scaffolder via POST /labs.
 
 import { useCallback, useEffect, useState } from "react";
-import { api, type Structure, type StructureLab } from "./api";
+import { api, type Structure, type StructureLab, type Source } from "./api";
 
 interface StructurePanelProps {
   course: string;
@@ -15,12 +15,14 @@ interface StructurePanelProps {
   onSelect: (slug: string) => void;
   /** Bumped by the parent after a save so titles refresh. */
   refreshKey?: number;
+  /** Report the docs an AI action was grounded in, for citation display. */
+  onSources?: (sources: Source[]) => void;
 }
 
 /** Flattened [topicIndex, labIndex] address of a lab, for reordering. */
 type Addr = { t: number; l: number };
 
-export function StructurePanel({ course, activeSlug, onSelect, refreshKey }: StructurePanelProps) {
+export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources }: StructurePanelProps) {
   const [structure, setStructure] = useState<Structure>({ topics: [] });
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -122,6 +124,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey }: Str
       const res = await api.generateLab(course, title, outline, topic, "workshop");
       setStructure(res.structure);
       onSelect(res.slug);
+      onSources?.(res.sources ?? []);
     } catch (e) {
       window.alert(`AI draft failed: ${(e as Error).message}`);
     } finally {
