@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "./api";
+import { Modal } from "./Modal";
 
 interface CourseSettingsModalProps {
   course: string;
@@ -72,15 +73,21 @@ export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettings
   }
 
   return (
-    <div className="author-modal-backdrop" onClick={busy ? undefined : onClose}>
-      <div className="author-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="author-modal-head">
-          <span>Course settings</span>
-          {!busy && <button type="button" className="author-mini-btn" onClick={onClose}>✕</button>}
-        </div>
-        <div className="author-modal-body">
-          {!loaded ? <p>Loading…</p> : (
-            <>
+    <Modal
+      title="Course settings"
+      onClose={onClose}
+      busy={busy}
+      footer={
+        <>
+          <button type="button" className="author-tool" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="button" className="author-save" onClick={save} disabled={busy || !loaded}>
+            {busy ? "Saving…" : "Save"}
+          </button>
+        </>
+      }
+    >
+      {!loaded ? <p>Loading…</p> : (
+        <>
               <label className="author-field">
                 <span>Title</span>
                 <input className="author-input" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -130,14 +137,6 @@ export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettings
               {error && <p className="author-error">{error}</p>}
             </>
           )}
-        </div>
-        <div className="author-modal-foot">
-          <button type="button" className="author-tool" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="author-save" onClick={save} disabled={busy || !loaded}>
-            {busy ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

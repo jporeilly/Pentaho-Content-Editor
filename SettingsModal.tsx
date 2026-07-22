@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { api, type Settings, type Provider } from "./api";
+import { Modal } from "./Modal";
 
 type HwProfile = "auto" | "cpu" | "gpu";
 
@@ -86,17 +87,22 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
   }
 
   return (
-    <div className="author-modal-backdrop" onClick={onClose}>
-      <div className="author-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="author-modal-head">
-          <span>AI provider settings</span>
-          <button type="button" className="author-mini-btn" onClick={onClose}>✕</button>
-        </div>
-
-        {!s ? (
-          <div className="author-modal-body"><p>Loading…</p></div>
-        ) : (
-          <div className="author-modal-body">
+    <Modal
+      title="AI provider settings"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="author-tool" onClick={onClose}>Cancel</button>
+          <button type="button" className="author-save" onClick={save} disabled={!s || saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </>
+      }
+    >
+      {!s ? (
+        <p>Loading…</p>
+      ) : (
+        <>
             <fieldset className="author-fieldset">
               <legend>Provider</legend>
               {PROVIDERS.map((p) => {
@@ -242,16 +248,8 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
             </fieldset>
 
             {error && <p className="author-error">{error}</p>}
-          </div>
-        )}
-
-        <div className="author-modal-foot">
-          <button type="button" className="author-tool" onClick={onClose}>Cancel</button>
-          <button type="button" className="author-save" onClick={save} disabled={!s || saving}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </Modal>
   );
 }

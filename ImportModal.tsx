@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { api, type Outline, type Source } from "./api";
+import { Modal } from "./Modal";
 
 interface ImportModalProps {
   onClose: () => void;
@@ -87,15 +88,31 @@ export function ImportModal({ onClose, onBuilt }: ImportModalProps) {
 
   const labCount = outline?.topics.reduce((n, t) => n + t.labs.length, 0) ?? 0;
 
-  return (
-    <div className="author-modal-backdrop" onClick={busy ? undefined : onClose}>
-      <div className="author-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="author-modal-head">
-          <span>Create a course from a document</span>
-          {!busy && <button type="button" className="author-mini-btn" onClick={onClose}>✕</button>}
-        </div>
+  const footer = (
+    <>
+      {phase === "pick" && (
+        <>
+          <button type="button" className="author-tool" onClick={onClose}>Cancel</button>
+          <button type="button" className="author-save" onClick={analyze} disabled={!file || busy}>
+            {busy ? "Analyzing…" : "Analyze"}
+          </button>
+        </>
+      )}
+      {phase === "review" && (
+        <>
+          <button type="button" className="author-tool" onClick={() => setPhase("pick")} disabled={busy}>Back</button>
+          <button type="button" className="author-save" onClick={build} disabled={busy || labCount === 0}>
+            Build course ({labCount})
+          </button>
+        </>
+      )}
+      {phase === "building" && <span className="author-status">Building…</span>}
+    </>
+  );
 
-        <div className="author-modal-body">
+  return (
+    <Modal title="Create a course from a document" onClose={onClose} busy={busy} footer={footer}>
+      <>
           {phase === "pick" && (
             <>
               <p className="author-hint">
@@ -150,28 +167,7 @@ export function ImportModal({ onClose, onBuilt }: ImportModalProps) {
           )}
 
           {error && <p className="author-error">{error}</p>}
-        </div>
-
-        <div className="author-modal-foot">
-          {phase === "pick" && (
-            <>
-              <button type="button" className="author-tool" onClick={onClose}>Cancel</button>
-              <button type="button" className="author-save" onClick={analyze} disabled={!file || busy}>
-                {busy ? "Analyzing…" : "Analyze"}
-              </button>
-            </>
-          )}
-          {phase === "review" && (
-            <>
-              <button type="button" className="author-tool" onClick={() => setPhase("pick")} disabled={busy}>Back</button>
-              <button type="button" className="author-save" onClick={build} disabled={busy || labCount === 0}>
-                Build course ({labCount})
-              </button>
-            </>
-          )}
-          {phase === "building" && <span className="author-status">Building…</span>}
-        </div>
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }

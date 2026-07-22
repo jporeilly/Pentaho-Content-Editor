@@ -14,3 +14,18 @@ export async function invoke<T = unknown>(cmd: string): Promise<T> {
 export function convertFileSrc(filePath: string): string {
   return filePath;
 }
+
+// `@tauri-apps/plugin-fs` imports these from core at module load (pulled
+// into the graph via MarkdownBody). The editor preview never touches the
+// filesystem, so inert stubs are enough to satisfy the imports — the
+// stricter rolldown/Vite bundler errors on a missing export where esbuild
+// used to tree-shake them away.
+export class Resource {
+  get rid(): number { return 0; }
+  async close(): Promise<void> {}
+}
+
+export class Channel<T = unknown> {
+  id = 0;
+  onmessage: ((response: T) => void) | null = null;
+}

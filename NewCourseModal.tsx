@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { api } from "./api";
+import { Modal } from "./Modal";
 
 interface NewCourseModalProps {
   onClose: () => void;
@@ -33,37 +34,35 @@ export function NewCourseModal({ onClose, onCreated }: NewCourseModalProps) {
   }
 
   return (
-    <div className="author-modal-backdrop" onClick={busy ? undefined : onClose}>
-      <div className="author-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="author-modal-head">
-          <span>New course</span>
-          {!busy && <button type="button" className="author-mini-btn" onClick={onClose}>✕</button>}
-        </div>
-        <div className="author-modal-body">
-          <label className="author-field">
-            <span>Course title</span>
-            <input
-              className="author-input"
-              value={title}
-              autoFocus
-              placeholder="e.g. Pentaho Data Integration Basics"
-              onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") create(); }}
-            />
-          </label>
-          <p className="author-hint">
-            Creates a hands-on workshop with a starter “Getting Started” lab
-            you can edit right away.
-          </p>
-          {error && <p className="author-error">{error}</p>}
-        </div>
-        <div className="author-modal-foot">
+    <Modal
+      title="New course"
+      onClose={onClose}
+      busy={busy}
+      footer={
+        <>
           <button type="button" className="author-tool" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="button" className="author-save" onClick={create} disabled={busy || !title.trim()}>
             {busy ? "Creating…" : "Create course"}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <label className="author-field">
+        <span>Course title</span>
+        <input
+          className="author-input"
+          value={title}
+          autoFocus
+          placeholder="e.g. Pentaho Data Integration Basics"
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") create(); }}
+        />
+      </label>
+      <p className="author-hint">
+        Creates a hands-on workshop with a starter “Getting Started” lab
+        you can edit right away.
+      </p>
+      {error && <p className="author-error">{error}</p>}
+    </Modal>
   );
 }

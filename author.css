@@ -230,7 +230,6 @@ body {
   flex: 1 1 auto;
   min-height: 0;
 }
-.author-body.has-chat { grid-template-columns: 260px 1fr 360px; }
 .author-tool.is-active { border-color: var(--author-accent); color: #fff; }
 
 /* ── Structure drag-and-drop ────────────────────────────────────── */
@@ -244,13 +243,14 @@ body {
 .author-lab-row.is-dragging { opacity: 0.4; }
 .author-lab-row.is-drop { box-shadow: inset 0 2px 0 var(--author-accent); }
 
-/* ── Chat panel ─────────────────────────────────────────────────── */
+/* ── Chat panel (docked under the markdown editor) ──────────────── */
 .author-chat {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  flex: 0 0 42%;
+  min-height: 180px;
   background: var(--author-panel);
-  border-left: 1px solid var(--author-border);
+  border-top: 1px solid var(--author-border);
   overflow: hidden;
 }
 .author-chat-head {
@@ -376,7 +376,16 @@ body {
   min-height: 0;
   overflow: hidden;
 }
-.author-editor { border-right: 1px solid var(--author-border); }
+/* Left pane: the markdown editor with the chat docked beneath it. */
+.author-editor-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--author-border);
+}
+.author-editor-col .author-editor { flex: 1 1 auto; }
 
 /* ── Toolbar ────────────────────────────────────────────────────── */
 .author-toolbar {
