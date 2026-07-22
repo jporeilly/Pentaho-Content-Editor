@@ -1,0 +1,35 @@
+// Live preview pane — reuses the app's REAL MarkdownBody renderer so the
+// author sees exactly what a learner will see (callouts, :::tabs, code
+// copy, videos, glossary terms, launcher/graph buttons). The Tauri-only
+// bits MarkdownBody depends on are satisfied by:
+//   • Vite aliases (vite.author.config.ts) that shim the @tauri-apps
+//     imports to inert browser versions, and
+//   • the ToolPanelProvider + GlossaryProvider wrappers below, which the
+//     renderer's hooks require.
+
+import { useMemo } from "react";
+import { MarkdownBody } from "../components/MarkdownBody";
+import { ToolPanelProvider } from "../components/ToolPanelContext";
+import { GlossaryProvider, normaliseGlossary } from "../components/GlossaryContext";
+
+interface PreviewProps {
+  body: string;
+  /** Asset base URL for this lab (api.assetBaseUrl(course, lab)). */
+  baseUrl: string;
+  labSlug: string;
+  glossary?: Record<string, string>;
+}
+
+export function Preview({ body, baseUrl, labSlug, glossary }: PreviewProps) {
+  const normalised = useMemo(() => normaliseGlossary(glossary ?? {}), [glossary]);
+
+  return (
+    <GlossaryProvider glossary={normalised}>
+      <ToolPanelProvider>
+        <div className="pcm-guide author-preview-guide">
+          <MarkdownBody body={body} baseUrl={baseUrl} labSlug={labSlug} />
+        </div>
+      </ToolPanelProvider>
+    </GlossaryProvider>
+  );
+}

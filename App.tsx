@@ -1,0 +1,205 @@
+// Course Editor — MVP vertical slice.
+//
+// Pick a course -> pick a lab -> edit its guide.md with the insert-block
+// toolbar -> see a live preview rendered by the app's own MarkdownBody
+// -> save to disk (which re-stamps the manifest's derived metrics).
+//
+// Later phases add: structure tree with drag-reorder, course.json /
+// manifest metadata forms, and new-course / new-lab UI (wrapping the
+// same logic as the CLI scaffolder).
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api, type CourseSummary, type LabSummary, type LabDetail } from "./api";
+import { Toolbar } from "./Toolbar";
+import { Preview } from "./Preview";
+
+export function App() {
+  const [apiUp, setApiUp] = useState<boolean | null>(null);
+  const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const [course, setCourse] = useState<string>("");
+  const [labs, setLabs] = useState<LabSummary[]>([]);
+  const [lab, setLab] = useState<string>("");
+
+  const [detail, setDetail] = useState<LabDetail | null>(null);
+  const [body, setBody] = useState<string>("");
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string>("");
+  const [glossary, setGlossary] = useState<Record<string, string>>({});
+
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // ── Boot: health + course list ────────────────────────────────────
+  useEffect(() => {
+    api
+      .health()
+      .then(() => {
+        setApiUp(true);
+        return api.listCourses();
+      })
+      .then((cs) => {
+        setCourses(cs);
+        if (cs.length) setCourse(cs[0].id);
+      })
+      .catch(() => setApiUp(false));
+  }, []);
+
+  // ── Course change: load labs + glossary ───────────────────────────
+  useEffect(() => {
+    if (!course) return;
+    setLabs([]);
+    setLab("");
+    setDetail(null);
+    setBody("");
+    api
+      .listLabs(course)
+      .then((ls) => {
+        setLabs(ls);
+        if (ls.length) setLab(ls[0].slug);
+      })
+      .catch((e) => setStatus(`Couldn’t load labs: ${(e as Error).message}`));
+    // Glossary is best-effort — served through the tree endpoint.
+    fetch(`${api.base}/api/courses/${course}/tree/glossary.json`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((g) => setGlossary(g ?? {}))
+      .catch(() => setGlossary({}));
+  }, [course]);
+
+  // ── Lab change: load body ─────────────────────────────────────────
+  useEffect(() => {
+    if (!course || !lab) return;
+    let cancelled = false;
+    api
+      .getLab(course, lab)
+      .then((d) => {
+        if (cancelled) return;
+        setDetail(d);
+        setBody(d.body);
+        setDirty(false);
+        setStatus("");
+      })
+      .catch((e) => {
+        if (!cancelled) setStatus(`Couldn’t load lab: ${(e as Error).message}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [course, lab]);
+
+  const baseUrl = useMemo(
+    () => (course && lab ? api.assetBaseUrl(course, lab) : ""),
+    [course, lab],
+  );
+
+  const onBodyChange = useCallback((next: string, caret?: number) => {
+    setBody(next);
+    setDirty(true);
+    if (caret !== undefined && textareaRef.current) {
+      requestAnimationFrame(() => {
+        textareaRef.current?.setSelectionRange(caret, caret);
+      });
+    }
+  }, []);
+
+  const save = useCallback(async () => {
+    if (!course || !lab) return;
+    setSaving(true);
+    setStatus("Saving…");
+    try {
+      const updated = await api.saveLab(course, lab, body);
+      setDetail(updated);
+      setDirty(false);
+      const m = updated.manifest as any;
+      setStatus(`Saved · ${m.stepCount} steps · ~${m.estimatedMinutes} min${m.hasVideo ? " · has video" : ""}`);
+    } catch (e) {
+      setStatus(`Save failed: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [course, lab, body]);
+
+  // Ctrl/Cmd+S to save.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (dirty && !saving) save();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dirty, saving, save]);
+
+  if (apiUp === false) {
+    return (
+      <div className="author-splash">
+        <h1>Course Editor</h1>
+        <p className="author-error">Can’t reach the editor API at {api.base}.</p>
+        <p>Start it in a second terminal:</p>
+        <pre>{`cd editor/api
+pip install -r requirements.txt
+uvicorn app:app --reload --port 8000`}</pre>
+      </div>
+    );
+  }
+
+  return (
+    <div className="author-root">
+      <header className="author-header">
+        <span className="author-brand">Course Editor</span>
+        <select
+          className="author-select"
+          value={course}
+          onChange={(e) => setCourse(e.target.value)}
+          disabled={!courses.length}
+        >
+          {courses.map((c) => (
+            <option key={c.id} value={c.id}>{c.title}</option>
+          ))}
+        </select>
+        <select
+          className="author-select"
+          value={lab}
+          onChange={(e) => setLab(e.target.value)}
+          disabled={!labs.length}
+        >
+          {labs.map((l) => (
+            <option key={l.slug} value={l.slug}>
+              {l.order}. {l.title}{l.kind === "page" ? " (page)" : ""}
+            </option>
+          ))}
+        </select>
+        <div className="author-header-spacer" />
+        <span className="author-status">{status}</span>
+        <button
+          type="button"
+          className="author-save"
+          onClick={save}
+          disabled={!dirty || saving || !detail}
+        >
+          {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+        </button>
+      </header>
+
+      {detail ? (
+        <div className="author-panes">
+          <section className="author-editor">
+            <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
+            <textarea
+              ref={textareaRef}
+              className="author-textarea"
+              value={body}
+              spellCheck
+              onChange={(e) => onBodyChange(e.target.value)}
+            />
+          </section>
+          <section className="author-preview">
+            <Preview body={body} baseUrl={baseUrl} labSlug={lab} glossary={glossary} />
+          </section>
+        </div>
+      ) : (
+        <div className="author-splash"><p>Loading…</p></div>
+      )}
+    </div>
+  );
+}

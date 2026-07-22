@@ -1,0 +1,155 @@
+/* Editor chrome. Layered on top of the app's app.css so the preview
+   pane inherits the exact learner-facing styling. Dark theme to match
+   the app. */
+
+:root {
+  --author-bg: #0f1115;
+  --author-panel: #171a21;
+  --author-border: #262b36;
+  --author-text: #e6e8ec;
+  --author-muted: #9aa3b2;
+  --author-accent: #16a34a;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--author-bg);
+  color: var(--author-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.author-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.author-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
+}
+.author-brand {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.author-select {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  max-width: 320px;
+}
+.author-header-spacer { flex: 1 1 auto; }
+.author-status {
+  color: var(--author-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.author-save {
+  background: var(--author-accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.author-save:disabled {
+  background: #2a2f3a;
+  color: var(--author-muted);
+  cursor: default;
+}
+
+/* ── Panes ──────────────────────────────────────────────────────── */
+.author-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.author-editor,
+.author-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.author-editor { border-right: 1px solid var(--author-border); }
+
+/* ── Toolbar ────────────────────────────────────────────────────── */
+.author-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
+}
+.author-toolbar-btn {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.author-toolbar-btn:hover {
+  border-color: var(--author-accent);
+  color: #fff;
+}
+
+/* ── Editor textarea ────────────────────────────────────────────── */
+.author-textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 14px 16px;
+  background: var(--author-bg);
+  color: var(--author-text);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+/* ── Preview pane ───────────────────────────────────────────────── */
+.author-preview {
+  overflow-y: auto;
+  background: #fff; /* the guide renders on a light surface like the app */
+}
+.author-preview-guide {
+  padding: 20px 26px;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* ── Splash / error ─────────────────────────────────────────────── */
+.author-splash {
+  padding: 40px;
+  max-width: 640px;
+}
+.author-splash pre {
+  background: var(--author-panel);
+  border: 1px solid var(--author-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+.author-error { color: #f87171; font-weight: 600; }
