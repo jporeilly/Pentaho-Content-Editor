@@ -312,7 +312,7 @@ body {
   border-bottom: 1px solid var(--author-border);
   flex: 0 0 auto;
 }
-.author-toolbar-btn {
+.author-toolbar-btn, .author-toolbar-select {
   background: var(--author-bg);
   color: var(--author-text);
   border: 1px solid var(--author-border);
@@ -321,10 +321,28 @@ body {
   font-size: 12px;
   cursor: pointer;
 }
-.author-toolbar-btn:hover {
+.author-toolbar-select { padding-right: 4px; }
+.author-toolbar-btn:hover, .author-toolbar-select:hover {
   border-color: var(--author-accent);
   color: #fff;
 }
+
+.author-editor-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+}
+.author-editor-bar .author-toolbar { flex: 1 1 auto; border-bottom: none; }
+.author-rewrite {
+  flex: 0 0 auto;
+  margin: 8px 10px 0 0;
+  background: rgba(22, 163, 74, 0.15);
+  border-color: var(--author-accent);
+  white-space: nowrap;
+}
+.author-rewrite:disabled { opacity: 0.4; cursor: default; }
 
 /* ── Editor textarea ────────────────────────────────────────────── */
 .author-textarea {

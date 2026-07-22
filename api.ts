@@ -47,6 +47,14 @@ export interface Settings {
   openai: { model: string };
   keys: { anthropic: boolean; openai: boolean };
   ollamaModels: string[];
+  gpu: boolean;
+}
+
+export interface ModelSuggestion {
+  profile: "cpu" | "gpu";
+  gpu: boolean;
+  model: string | null;
+  reason: string;
 }
 
 export interface ProviderHealth {
@@ -160,6 +168,20 @@ export const api = {
 
   async providerHealth(): Promise<ProviderHealth> {
     return json(await fetch(`${API_BASE}/api/providers/health`));
+  },
+
+  async suggestModel(profile: "auto" | "cpu" | "gpu"): Promise<ModelSuggestion> {
+    return json(await fetch(`${API_BASE}/api/providers/suggest?profile=${profile}`));
+  },
+
+  async rewrite(text: string, instruction?: string): Promise<{ text: string }> {
+    return json(
+      await fetch(`${API_BASE}/api/rewrite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, instruction }),
+      }),
+    );
   },
 
   async importOutline(file: File): Promise<ImportOutline> {

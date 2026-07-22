@@ -15,6 +15,7 @@ import { Preview } from "./Preview";
 import { StructurePanel } from "./StructurePanel";
 import { SettingsModal } from "./SettingsModal";
 import { ImportModal } from "./ImportModal";
+import { NewCourseModal } from "./NewCourseModal";
 
 export function App() {
   const [apiUp, setApiUp] = useState<boolean | null>(null);
@@ -34,6 +35,7 @@ export function App() {
   const [health, setHealth] = useState<ProviderHealth | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showNewCourse, setShowNewCourse] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -130,26 +132,47 @@ export function App() {
     }
   }, [course, lab, body]);
 
-  const newCourse = useCallback(async () => {
-    const title = window.prompt("New course title?");
-    if (!title) return;
-    const kind = window.confirm("OK = workshop (hands-on, themed), Cancel = academy (reference catalogue)")
-      ? "workshop"
-      : "academy";
-    setWorking(true);
-    setStatus("Creating course…");
+  // After a course is created/imported: refresh the list, select it, and
+  // announce it. Shared by New Course and Import.
+  const onCourseCreated = useCallback(async (courseId: string) => {
     try {
-      const created = await api.createCourse(title, kind);
       const list = await api.listCourses();
       setCourses(list);
-      setCourse(created.id); // switches, loads its starter lab
-      setStatus(`Created course “${created.title}”. Edit the Getting Started lab, then Save.`);
+      setCourse(courseId); // switches, loads its starter lab
+      setStatus(`Opened course “${courseId}”.`);
     } catch (e) {
-      setStatus(`Couldn’t create course: ${(e as Error).message}`);
+      setStatus(`Created, but couldn’t refresh: ${(e as Error).message}`);
+    }
+  }, []);
+
+  const rewriteSelection = useCallback(async () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = body.slice(start, end);
+    if (!selected.trim()) {
+      setStatus("Select some text in the editor first, then Rewrite.");
+      return;
+    }
+    setWorking(true);
+    setStatus("Rewriting selection…");
+    try {
+      const { text } = await api.rewrite(selected);
+      const next = body.slice(0, start) + text + body.slice(end);
+      setBody(next);
+      setDirty(true);
+      setStatus("Rewrote selection — review, then Save.");
+      requestAnimationFrame(() => {
+        ta.focus();
+        ta.setSelectionRange(start, start + text.length);
+      });
+    } catch (e) {
+      setStatus(`Rewrite failed: ${(e as Error).message}`);
     } finally {
       setWorking(false);
     }
-  }, []);
+  }, [body]);
 
   const runVerify = useCallback(async () => {
     if (!course) return;
@@ -206,7 +229,7 @@ uvicorn app:app --reload --port 8000`}</pre>
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
-        <button type="button" className="author-tool" onClick={newCourse} disabled={working} title="Scaffold a new course from the blank template">
+        <button type="button" className="author-tool" onClick={() => setShowNewCourse(true)} disabled={working} title="Create a new workshop course from scratch">
           ✚ New Course
         </button>
         <button type="button" className="author-tool" onClick={() => setShowImport(true)} disabled={working} title="Create a course from a PDF / DOCX / PPTX / Markdown document">
@@ -257,7 +280,18 @@ uvicorn app:app --reload --port 8000`}</pre>
         {detail ? (
           <div className="author-panes">
             <section className="author-editor">
-              <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
+              <div className="author-editor-bar">
+                <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
+                <button
+                  type="button"
+                  className="author-toolbar-btn author-rewrite"
+                  onClick={rewriteSelection}
+                  disabled={working || health?.ok === false}
+                  title={health?.ok === false ? "AI provider not ready — see Settings" : "Rewrite the selected text with AI"}
+                >
+                  ✨ Rewrite
+                </button>
+              </div>
               <textarea
                 ref={textareaRef}
                 className="author-textarea"
@@ -282,14 +316,19 @@ uvicorn app:app --reload --port 8000`}</pre>
         />
       )}
 
+      {showNewCourse && (
+        <NewCourseModal
+          onClose={() => setShowNewCourse(false)}
+          onCreated={onCourseCreated}
+        />
+      )}
+
       {showImport && (
         <ImportModal
           onClose={() => setShowImport(false)}
-          onBuilt={async (courseId) => {
-            const list = await api.listCourses();
-            setCourses(list);
-            setCourse(courseId);
-            setStatus(`Imported course “${courseId}” — review the AI-drafted labs.`);
+          onBuilt={(courseId) => {
+            onCourseCreated(courseId);
+            setStatus(`Imported “${courseId}” — review the AI-drafted labs.`);
           }}
         />
       )}

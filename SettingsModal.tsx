@@ -7,6 +7,8 @@
 import { useEffect, useState } from "react";
 import { api, type Settings, type Provider } from "./api";
 
+type HwProfile = "auto" | "cpu" | "gpu";
+
 interface SettingsModalProps {
   onClose: () => void;
   /** Called after a successful save so the header indicator refreshes. */
@@ -23,6 +25,8 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
   const [s, setS] = useState<Settings | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [hw, setHw] = useState<HwProfile>("auto");
+  const [suggestNote, setSuggestNote] = useState("");
 
   useEffect(() => {
     api.getSettings().then(setS).catch((e) => setError((e as Error).message));
@@ -30,6 +34,22 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
 
   function patch(next: Partial<Settings>) {
     setS((cur) => (cur ? { ...cur, ...next } : cur));
+  }
+
+  async function suggest() {
+    if (!s) return;
+    setSuggestNote("Checking hardware…");
+    try {
+      const r = await api.suggestModel(hw);
+      if (r.model) {
+        patch({ ollama: { ...s.ollama, model: r.model } });
+        setSuggestNote(`${r.reason} → ${r.model}`);
+      } else {
+        setSuggestNote(r.reason);
+      }
+    } catch (e) {
+      setSuggestNote((e as Error).message);
+    }
   }
 
   async function save() {
@@ -123,6 +143,28 @@ export function SettingsModal({ onClose, onSaved }: SettingsModalProps) {
                     />
                   )}
                 </label>
+                <label className="author-field">
+                  <span>
+                    Hardware
+                    <span className={`author-key ${s.gpu ? "is-ok" : "is-bad"}`} style={{ marginLeft: 8 }}>
+                      {s.gpu ? "GPU detected" : "no GPU detected"}
+                    </span>
+                  </span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select
+                      className="author-input"
+                      value={hw}
+                      onChange={(e) => setHw(e.target.value as HwProfile)}
+                      style={{ flex: "0 0 auto" }}
+                    >
+                      <option value="auto">Auto-detect</option>
+                      <option value="cpu">Force CPU (small model)</option>
+                      <option value="gpu">Force GPU (larger model)</option>
+                    </select>
+                    <button type="button" className="author-tool" onClick={suggest}>Suggest model</button>
+                  </div>
+                </label>
+                {suggestNote && <p className="author-hint">{suggestNote}</p>}
               </fieldset>
             )}
 
