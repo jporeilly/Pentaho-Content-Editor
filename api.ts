@@ -38,6 +38,23 @@ export interface Structure {
   topics: StructureTopic[];
 }
 
+export interface PublishDiff {
+  course: string;
+  remoteCommit: string;
+  newCourse: boolean;
+  upToDate: boolean;
+  added: string[];
+  modified: string[];
+  removed: string[];
+}
+
+export interface PublishResult {
+  ok: boolean;
+  upToDate: boolean;
+  commit: string;
+  changed?: { added: number; modified: number; removed: number };
+}
+
 export type Provider = "ollama" | "anthropic" | "openai";
 
 export interface Settings {
@@ -227,6 +244,34 @@ export const api = {
 
   async installCourse(course: string): Promise<{ ok: boolean; output: string }> {
     return json(await fetch(`${API_BASE}/api/courses/${course}/install`, { method: "POST" }));
+  },
+
+  async publishConfig(): Promise<{ url: string; ref: string }> {
+    return json(await fetch(`${API_BASE}/api/publish/config`));
+  },
+
+  async publishDiff(course: string): Promise<PublishDiff> {
+    return json(await fetch(`${API_BASE}/api/courses/${course}/publish/diff`));
+  },
+
+  async publishCourse(course: string, message?: string): Promise<PublishResult> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: message || null }),
+      }),
+    );
+  },
+
+  async publishTag(tag: string, message?: string): Promise<{ ok: boolean; tag: string; commit: string }> {
+    return json(
+      await fetch(`${API_BASE}/api/publish/tag`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag, message: message || null }),
+      }),
+    );
   },
 
   async review(body: string): Promise<{ review: string; sources: Source[] }> {
