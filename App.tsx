@@ -253,6 +253,16 @@ uvicorn app:app --reload --port 8000`}</pre>
           course={course}
           onClose={() => setShowCourseSettings(false)}
           onSaved={() => { api.listCourses().then(setCourses); bumpStructure(); }}
+          onDeleted={() => {
+            setShowCourseSettings(false);
+            setLab("");
+            // Re-fetch the course list and land on the first remaining
+            // course (or none — the picker shows the empty state).
+            api.listCourses().then((cs) => {
+              setCourses(cs);
+              setCourse(cs[0]?.id ?? "");
+            });
+          }}
         />
       )}
 

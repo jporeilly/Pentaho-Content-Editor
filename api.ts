@@ -246,6 +246,16 @@ export const api = {
     return json(await fetch(`${API_BASE}/api/courses/${course}/install`, { method: "POST" }));
   },
 
+  async deleteCourse(course: string, confirm: string): Promise<{ ok: boolean; id: string }> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm }),
+      }),
+    );
+  },
+
   async publishConfig(): Promise<{ url: string; ref: string }> {
     return json(await fetch(`${API_BASE}/api/publish/config`));
   },

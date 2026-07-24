@@ -10,6 +10,8 @@ interface CourseSettingsModalProps {
   course: string;
   onClose: () => void;
   onSaved: () => void;
+  /** Called after the course folder has been deleted from disk. */
+  onDeleted: () => void;
 }
 
 interface Assistant {
@@ -18,7 +20,7 @@ interface Assistant {
   models?: { cpu?: string; gpu?: string };
 }
 
-export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettingsModalProps) {
+export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: CourseSettingsModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [accent, setAccent] = useState("#16a34a");
@@ -32,6 +34,9 @@ export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettings
   const [publishNote, setPublishNote] = useState("");
   const [commitMsg, setCommitMsg] = useState("");
   const [tag, setTag] = useState("");
+  const [deletePhrase, setDeletePhrase] = useState("");
+  const [deleteNote, setDeleteNote] = useState("");
+  const deleteArmed = deletePhrase.trim().toLowerCase() === "delete";
 
   async function install() {
     setInstallNote("Installing locally…");
@@ -96,6 +101,19 @@ export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettings
       setPublishNote(`✗ ${(e as Error).message}`);
     } finally {
       setPublishBusy(false);
+    }
+  }
+
+  async function deleteCourse() {
+    if (!deleteArmed) return;
+    setBusy(true);
+    setDeleteNote("Deleting…");
+    try {
+      await api.deleteCourse(course, deletePhrase.trim());
+      onDeleted();
+    } catch (e) {
+      setDeleteNote(`✗ ${(e as Error).message}`);
+      setBusy(false);
     }
   }
 
@@ -240,6 +258,34 @@ export function CourseSettingsModal({ course, onClose, onSaved }: CourseSettings
                   to a tag stay frozen until you retag.
                 </p>
                 {publishNote && <p className="author-hint">{publishNote}</p>}
+              </fieldset>
+              <fieldset className="author-fieldset" style={{ borderColor: "#b91c1c" }}>
+                <legend style={{ color: "#ef4444" }}>Danger zone</legend>
+                <p className="author-hint">
+                  Permanently deletes <code>courses/{course}/</code> from disk —
+                  labs, images, exam, everything. Copies already installed in
+                  the app or published to Pentaho-Courses are not touched.
+                  Type <strong>delete</strong> to confirm.
+                </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    className="author-input"
+                    style={{ flex: "1 1 auto" }}
+                    placeholder='Type "delete" to enable the button'
+                    value={deletePhrase}
+                    onChange={(e) => setDeletePhrase(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="author-tool"
+                    style={deleteArmed ? { background: "#b91c1c", color: "#fff", borderColor: "#b91c1c" } : undefined}
+                    onClick={deleteCourse}
+                    disabled={!deleteArmed || busy}
+                  >
+                    🗑 Delete course
+                  </button>
+                </div>
+                {deleteNote && <p className="author-hint">{deleteNote}</p>}
               </fieldset>
               {error && <p className="author-error">{error}</p>}
             </>
