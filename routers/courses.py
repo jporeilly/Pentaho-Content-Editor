@@ -1,8 +1,9 @@
-"""Course-level CRUD: list / create / read / update course.json, and the
-course verifier. Lab and structure endpoints live in ``labs``."""
+"""Course-level CRUD: list / create / read / update / delete course.json,
+and the course verifier. Lab and structure endpoints live in ``labs``."""
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from typing import Any
 
@@ -66,6 +67,30 @@ def create_course(req: NewCourseRequest) -> dict[str, str]:
 @router.get("/api/courses/{course}")
 def get_course(course: str) -> dict[str, Any]:
     return _read_json(_course_dir(course) / "course.json")
+
+
+class DeleteCourseRequest(BaseModel):
+    confirm: str = ""
+
+
+@router.delete("/api/courses/{course}")
+def delete_course(course: str, body: DeleteCourseRequest) -> dict[str, Any]:
+    """Permanently delete a course's authoring folder (courses/<slug>/).
+
+    Destructive and unrecoverable for anything not in git, so the
+    client must send the literal confirmation phrase ``delete`` — the
+    UI makes the author type it. Only touches the authoring tree: an
+    installed copy in the app's content dir / store, and anything
+    already published to the distribution repo, are left alone.
+    """
+    course_path = _course_dir(course)  # 404 if unknown (and traversal-safe)
+    if body.confirm.strip().lower() != "delete":
+        raise HTTPException(428, 'Type "delete" to confirm — this permanently removes the course folder.')
+    try:
+        shutil.rmtree(course_path)
+    except OSError as e:
+        raise HTTPException(500, f"Couldn't delete the course folder: {e}")
+    return {"ok": True, "id": course}
 
 
 @router.put("/api/courses/{course}")

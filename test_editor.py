@@ -197,6 +197,29 @@ def test_export_zip(env, client):
     assert "sample/course.json" in names and "sample/01-intro/guide.md" in names
 
 
+# ── delete course ───────────────────────────────────────────────────
+
+def test_delete_requires_confirmation_phrase(env, client):
+    r = client.request("DELETE", "/api/courses/sample", json={"confirm": ""})
+    assert r.status_code == 428
+    r = client.request("DELETE", "/api/courses/sample", json={"confirm": "yes"})
+    assert r.status_code == 428
+    assert (env / "sample").is_dir()  # still there
+
+
+def test_delete_removes_course_dir(env, client):
+    r = client.request("DELETE", "/api/courses/sample", json={"confirm": "delete"})
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert not (env / "sample").exists()
+    # Gone → subsequent operations 404.
+    assert client.get("/api/courses/sample").status_code == 404
+
+
+def test_delete_unknown_course_404(env, client):
+    r = client.request("DELETE", "/api/courses/nope", json={"confirm": "delete"})
+    assert r.status_code == 404
+
+
 # ── publish ─────────────────────────────────────────────────────────
 # A local bare repo stands in for Pentaho-Courses; a seeded working
 # clone pushes the initial state so diffs have something to compare to.
