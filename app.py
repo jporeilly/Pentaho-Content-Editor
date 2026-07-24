@@ -28,7 +28,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import core
-from routers import courses, labs, assets, ai, settings, imports, export
+from routers import courses, labs, assets, ai, settings, imports, export, publish
 
 app = FastAPI(title="Pentaho Content Manager — Course Editor API")
 
@@ -41,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _module in (courses, labs, assets, ai, settings, imports, export):
+for _module in (courses, labs, assets, ai, settings, imports, export, publish):
     app.include_router(_module.router)
 
 

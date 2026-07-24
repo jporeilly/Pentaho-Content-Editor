@@ -195,3 +195,102 @@ def test_export_zip(env, client):
     assert r.status_code == 200 and r.headers["content-type"] == "application/zip"
     names = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
     assert "sample/course.json" in names and "sample/01-intro/guide.md" in names
+
+
+# ── publish ─────────────────────────────────────────────────────────
+# A local bare repo stands in for Pentaho-Courses; a seeded working
+# clone pushes the initial state so diffs have something to compare to.
+
+import subprocess
+
+from routers import publish as publishmod
+
+
+def _run(args, cwd):
+    subprocess.run(args, cwd=str(cwd), check=True, capture_output=True)
+
+
+@pytest.fixture
+def publish_env(env, tmp_path, monkeypatch):
+    origin = tmp_path / "origin.git"
+    origin.mkdir()
+    _run(["git", "init", "--bare", "-b", "main", "-q"], origin)
+
+    seed = tmp_path / "seed"
+    _run(["git", "clone", "-q", str(origin), str(seed)], tmp_path)
+    remote_course = seed / "sample"
+    remote_course.mkdir()
+    (remote_course / "course.json").write_text(json.dumps({"id": "sample", "title": "Sample"}))
+    (remote_course / "old.md").write_text("stale file that local no longer has\n")
+    _run(["git", "add", "-A"], seed)
+    _run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "seed"], seed)
+    _run(["git", "push", "-q", "origin", "main"], seed)
+
+    monkeypatch.setattr(publishmod, "REPO_URL", str(origin))
+    monkeypatch.setattr(publishmod, "CACHE_DIR", tmp_path / "publish-cache")
+    return origin
+
+
+def _origin_files(origin, tmp_path):
+    check = tmp_path / "check"
+    _run(["git", "clone", "-q", str(origin), str(check)], tmp_path)
+    return {p.relative_to(check).as_posix()
+            for p in check.rglob("*") if p.is_file() and ".git" not in p.parts}
+
+
+def test_publish_diff_reports_changes(publish_env, client):
+    body = client.get("/api/courses/sample/publish/diff").json()
+    assert body["upToDate"] is False and body["newCourse"] is False
+    # Local has files the seed lacks, and lacks the seed's old.md.
+    assert "SUMMARY.md" in body["added"]
+    assert body["removed"] == ["old.md"]
+    # course.json content differs between local and seed.
+    assert "course.json" in body["modified"]
+
+
+def test_publish_pushes_and_prunes(publish_env, client, tmp_path):
+    r = client.post("/api/courses/sample/publish", json={"message": "test publish"})
+    body = r.json()
+    assert r.status_code == 200 and body["ok"] is True and body["upToDate"] is False
+    files = _origin_files(publish_env, tmp_path)
+    assert "sample/SUMMARY.md" in files          # added
+    assert "sample/old.md" not in files          # removal propagated
+    # Second publish with no edits is a no-op.
+    again = client.post("/api/courses/sample/publish", json={}).json()
+    assert again["upToDate"] is True
+
+
+def test_publish_diff_up_to_date_after_publish(publish_env, client):
+    client.post("/api/courses/sample/publish", json={})
+    body = client.get("/api/courses/sample/publish/diff").json()
+    assert body["upToDate"] is True
+    assert body["added"] == [] and body["modified"] == [] and body["removed"] == []
+
+
+def test_publish_tag_validates_and_pushes(publish_env, client, tmp_path):
+    assert client.post("/api/publish/tag", json={"tag": "not a tag!"}).status_code == 422
+    r = client.post("/api/publish/tag", json={"tag": "v2026.07"})
+    assert r.status_code == 200 and r.json()["tag"] == "v2026.07"
+    # Tag exists on the origin now; retagging collides.
+    out = subprocess.run(["git", "tag", "--list"], cwd=str(publish_env),
+                         capture_output=True, text=True, check=True)
+    assert "v2026.07" in out.stdout
+    assert client.post("/api/publish/tag", json={"tag": "v2026.07"}).status_code == 409
+
+
+def test_publish_unknown_course_404(publish_env, client):
+    assert client.get("/api/courses/nope/publish/diff").status_code == 404
+
+
+def test_publish_diff_ignores_line_endings(publish_env, client):
+    # Regression: git's autocrlf means the same committed file can read
+    # back CRLF in one checkout and LF in another — that must not count
+    # as "modified" (it made every text file look dirty on Windows).
+    client.post("/api/courses/sample/publish", json={})
+    guide = core.COURSES_DIR / "sample" / "01-intro" / "guide.md"
+    raw = guide.read_bytes()
+    normalized = raw.replace(b"\r\n", b"\n")
+    flipped = normalized if b"\r\n" in raw else normalized.replace(b"\n", b"\r\n")
+    guide.write_bytes(flipped)  # same content, opposite endings
+    body = client.get("/api/courses/sample/publish/diff").json()
+    assert body["upToDate"] is True, body
