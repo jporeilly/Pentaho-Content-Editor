@@ -23,6 +23,7 @@ interface Assistant {
 export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: CourseSettingsModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [version, setVersion] = useState("");
   const [accent, setAccent] = useState("#16a34a");
   const [assistant, setAssistant] = useState<Assistant>({});
   const [busy, setBusy] = useState(false);
@@ -121,6 +122,7 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
     api.getCourse(course).then((c: any) => {
       setTitle(c.title ?? "");
       setDescription(c.description ?? "");
+      setVersion(c.version ?? "");
       setAccent(c.theme?.accent ?? "#16a34a");
       setAssistant(c.assistant ?? {});
       setLoaded(true);
@@ -139,6 +141,7 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
       await api.putCourse(course, {
         title: title.trim(),
         description: description.trim(),
+        version: version.trim() || undefined,
         theme: { accent },
         assistant,
       });
@@ -174,6 +177,14 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
               <label className="author-field">
                 <span>Description</span>
                 <textarea className="author-input" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+              </label>
+              <label className="author-field">
+                <span>Version</span>
+                <input
+                  className="author-input" placeholder="e.g. 1.2.0"
+                  value={version} onChange={(e) => setVersion(e.target.value)}
+                />
+                <span className="author-hint">Course content version — bump it when you publish meaningful changes. Independent of the app's version.</span>
               </label>
               <label className="author-field">
                 <span>Accent colour</span>

@@ -28,6 +28,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   const [generating, setGenerating] = useState(false);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingTopic, setEditingTopic] = useState<number | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [dragSlug, setDragSlug] = useState<string | null>(null);
   const [dropSlug, setDropSlug] = useState<string | null>(null);
@@ -101,6 +102,22 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
     persist(next);
   }
 
+  // Topic (section header) rename — same double-click flow as labs.
+  // Topic titles are the `## …` headers in SUMMARY.md; put_structure
+  // rewrites them, and lab links inside the section are untouched.
+  function beginTopicRename(ti: number) {
+    setEditingTopic(ti);
+    setDraftTitle(structure.topics[ti].title);
+  }
+  function commitTopicRename(ti: number) {
+    const title = draftTitle.trim();
+    setEditingTopic(null);
+    if (!title || title === structure.topics[ti].title) return;
+    const next: Structure = structuredClone(structure);
+    next.topics[ti].title = title;
+    persist(next);
+  }
+
   function openLabModal(mode: "new" | "ai") {
     setLabModalError("");
     setLabModal(mode);
@@ -166,7 +183,27 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
             onDragOver={(e) => { if (dragSlug) e.preventDefault(); }}
             onDrop={(e) => { if (dragSlug) { e.preventDefault(); dropOnTopic(dragSlug, topic.title); setDragSlug(null); setDropSlug(null); } }}
           >
-            <div className="author-topic-title">{topic.title}</div>
+            {editingTopic === ti ? (
+              <input
+                className="author-lab-rename"
+                value={draftTitle}
+                autoFocus
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onBlur={() => commitTopicRename(ti)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitTopicRename(ti);
+                  if (e.key === "Escape") setEditingTopic(null);
+                }}
+              />
+            ) : (
+              <div
+                className="author-topic-title"
+                onDoubleClick={() => beginTopicRename(ti)}
+                title="Double-click to rename this section"
+              >
+                {topic.title}
+              </div>
+            )}
             {topic.labs.map((lab, li) => (
               <div
                 key={lab.slug}
