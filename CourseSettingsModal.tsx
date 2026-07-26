@@ -25,6 +25,8 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
   const [description, setDescription] = useState("");
   const [version, setVersion] = useState("");
   const [accent, setAccent] = useState("#16a34a");
+  const [welcomeVideo, setWelcomeVideo] = useState("");
+  const [welcomeCaption, setWelcomeCaption] = useState("");
   const [assistant, setAssistant] = useState<Assistant>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -124,6 +126,8 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
       setDescription(c.description ?? "");
       setVersion(c.version ?? "");
       setAccent(c.theme?.accent ?? "#16a34a");
+      setWelcomeVideo(c.welcome?.video ?? "");
+      setWelcomeCaption(c.welcome?.caption ?? "");
       setAssistant(c.assistant ?? {});
       setLoaded(true);
     }).catch((e) => setError((e as Error).message));
@@ -144,6 +148,12 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
         version: version.trim() || undefined,
         theme: { accent },
         assistant,
+        welcome: welcomeVideo.trim() || welcomeCaption.trim()
+          ? {
+              video: welcomeVideo.trim() || undefined,
+              caption: welcomeCaption.trim() || undefined,
+            }
+          : undefined,
       });
       onSaved();
       onClose();
@@ -193,6 +203,30 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                   <input className="author-input" style={{ flex: "1 1 auto" }} value={accent} onChange={(e) => setAccent(e.target.value)} />
                 </div>
               </label>
+              <fieldset className="author-fieldset">
+                <legend>Welcome screen</legend>
+                <label className="author-field">
+                  <span>Course tour video</span>
+                  <input
+                    className="author-input"
+                    placeholder="YouTube / Vimeo / Loom URL, or _assets/videos/tour.mp4"
+                    value={welcomeVideo} onChange={(e) => setWelcomeVideo(e.target.value)}
+                  />
+                </label>
+                <label className="author-field">
+                  <span>Video caption (optional)</span>
+                  <input
+                    className="author-input" placeholder="Course tour (3 min)"
+                    value={welcomeCaption} onChange={(e) => setWelcomeCaption(e.target.value)}
+                  />
+                </label>
+                <p className="author-hint">
+                  Shown at the top of the course's Welcome page — a walkthrough
+                  of the course's features before the learner begins. Paste a
+                  YouTube / Vimeo / Loom link, or a path to a bundled video
+                  (upload to _assets first).
+                </p>
+              </fieldset>
               <fieldset className="author-fieldset">
                 <legend>Learner AI assistant (Ollama)</legend>
                 <label className="author-field">
