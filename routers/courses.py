@@ -100,7 +100,7 @@ def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
     course_path = _course_dir(course)
     cj_path = course_path / "course.json"
     cj = _read_json(cj_path)
-    for key in ("title", "description", "version", "theme", "launchers", "assistant", "mode"):
+    for key in ("title", "description", "version", "theme", "launchers", "assistant", "mode", "welcome"):
         if key in body:
             cj[key] = body[key]
     if isinstance(cj.get("title"), str):
