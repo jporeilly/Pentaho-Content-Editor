@@ -170,18 +170,55 @@ def publish_diff(course: str) -> dict[str, Any]:
 
 class PublishBody(BaseModel):
     message: str | None = None
+    #: Also commit + push the course folder in the AUTHORING repo
+    #: (Pentaho-Content-Manager) before publishing — the editor's
+    #: "Commit & Publish" one-button flow.
+    commit: bool = False
+
+
+def _commit_authoring(course: str, message: str) -> dict[str, Any]:
+    """Commit this course's folder in the authoring repo and push.
+
+    Stages and commits ONLY ``courses/<course>`` (pathspec commit), so
+    anything else the author has staged or modified in the repo is
+    left untouched. No-op when the folder has no changes.
+    """
+    root = core.REPO_ROOT
+    spec = f"courses/{course}"
+    _git(["add", "--", spec], root)
+    if not _git(["status", "--porcelain", "--", spec], root).strip():
+        return {"committed": False, "upToDate": True}
+    _git([
+        "-c", "user.name=Pentaho Course Editor",
+        "-c", "user.email=jporeilly@users.noreply.github.com",
+        "commit", "-m", message, "--", spec,
+    ], root)
+    commit = _git(["rev-parse", "HEAD"], root)
+    _git(["push", "--quiet"], root)
+    return {"committed": True, "commit": commit}
 
 
 @router.post("/api/courses/{course}/publish")
 def publish_course(course: str, body: PublishBody | None = None) -> dict[str, Any]:
-    """Copy the course into the distribution repo, commit, push."""
+    """Copy the course into the distribution repo, commit, push.
+    With ``commit: true``, first commit + push the authoring repo."""
     local = _course_dir(course)
+    message = (body.message.strip() if body and body.message and body.message.strip()
+               else f"Update {course} from the course editor")
+    # Authoring-repo commit first: if the distribution push then fails,
+    # the edits are at least safely in history.
+    authoring = _commit_authoring(course, message) if body and body.commit else None
+
     clone = _fresh_clone()
     target = clone / course
 
     diff = _diff_course(local, target)
     if not (diff["added"] or diff["modified"] or diff["removed"]):
-        return {"ok": True, "upToDate": True, "commit": _git(["rev-parse", "HEAD"], clone)}
+        return {
+            "ok": True, "upToDate": True,
+            "commit": _git(["rev-parse", "HEAD"], clone),
+            "authoring": authoring,
+        }
 
     # Replace the course dir wholesale — removals propagate too.
     shutil.rmtree(target, ignore_errors=True)
@@ -191,8 +228,6 @@ def publish_course(course: str, body: PublishBody | None = None) -> dict[str, An
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
 
-    message = (body.message.strip() if body and body.message and body.message.strip()
-               else f"Update {course} from the course editor")
     _git(["add", "-A", "--", course], clone)
     _git([
         "-c", "user.name=Pentaho Course Editor",
@@ -206,6 +241,7 @@ def publish_course(course: str, body: PublishBody | None = None) -> dict[str, An
         "upToDate": False,
         "commit": commit,
         "changed": {k: len(v) for k, v in diff.items()},
+        "authoring": authoring,
     }
 
 

@@ -71,9 +71,12 @@ def save_lab(course: str, lab: str, req: SaveLabRequest) -> LabDetail:
     # derived metrics from the new body.
     manifest = _read_json(manifest_path)
     if req.manifest:
-        for key in ("title", "description", "kind"):
+        for key in ("title", "description", "kind", "noProgress"):
             if key in req.manifest:
                 manifest[key] = req.manifest[key]
+        # Dropping the flag entirely (noProgress: null) removes it.
+        if req.manifest.get("noProgress", True) is None:
+            manifest.pop("noProgress", None)
     stamp_metrics(manifest, req.body)
     _write_json(manifest_path, manifest)
 

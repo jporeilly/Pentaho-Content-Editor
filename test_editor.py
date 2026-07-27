@@ -305,6 +305,43 @@ def test_publish_unknown_course_404(publish_env, client):
     assert client.get("/api/courses/nope/publish/diff").status_code == 404
 
 
+def test_publish_with_commit_pushes_authoring_repo(publish_env, client, tmp_path, monkeypatch):
+    # Authoring repo = a git repo whose courses/ IS core.COURSES_DIR,
+    # with its own bare origin. commit:true must commit ONLY the course
+    # folder there and push, then publish to the distribution repo.
+    root = core.COURSES_DIR.parent
+    origin2 = tmp_path / "authoring-origin.git"
+    origin2.mkdir()
+    _run(["git", "init", "--bare", "-b", "main", "-q"], origin2)
+    _run(["git", "init", "-b", "main", "-q"], root)
+    _run(["git", "remote", "add", "origin", str(origin2)], root)
+    (root / "unrelated.txt").write_text("must stay uncommitted\n")
+    _run(["git", "add", "courses"], root)
+    _run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+          "commit", "-q", "-m", "seed authoring"], root)
+    _run(["git", "push", "-q", "-u", "origin", "main"], root)
+    monkeypatch.setattr(core, "REPO_ROOT", root)
+
+    # Change the course, then Commit & Publish.
+    (core.COURSES_DIR / "sample" / "01-intro" / "guide.md").write_text("# Intro\n\nEdited.\n")
+    r = client.post("/api/courses/sample/publish", json={"commit": True, "message": "editor edits"})
+    body = r.json()
+    assert r.status_code == 200 and body["ok"] is True
+    assert body["authoring"]["committed"] is True
+
+    # Authoring origin received the commit; unrelated file untouched.
+    log = subprocess.run(["git", "log", "--oneline", "main"], cwd=str(origin2),
+                         capture_output=True, text=True, check=True).stdout
+    assert "editor edits" in log
+    status = subprocess.run(["git", "status", "--porcelain"], cwd=str(root),
+                            capture_output=True, text=True, check=True).stdout
+    assert "unrelated.txt" in status  # still uncommitted
+
+    # Second run with no edits: authoring is a clean no-op.
+    r2 = client.post("/api/courses/sample/publish", json={"commit": True}).json()
+    assert r2["authoring"]["committed"] is False
+
+
 def test_publish_diff_ignores_line_endings(publish_env, client):
     # Regression: git's autocrlf means the same committed file can read
     # back CRLF in one checkout and LF in another — that must not count
