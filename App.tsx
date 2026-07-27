@@ -29,7 +29,7 @@ export function App() {
   const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, onCourseCreated } =
     useCourses(setStatus);
   const {
-    detail, body, setBody, setDirty, dirty, saving, save,
+    detail, setDetail, body, setBody, setDirty, dirty, saving, save,
     onBodyChange, insertAtCaret, textareaRef, baseUrl,
     structureKey, bumpStructure, lastRewrite, setLastRewrite,
   } = useLab(course, lab, setStatus);
@@ -41,6 +41,49 @@ export function App() {
     course, body, setBody, setDirty, setStatus,
     textareaRef, insertAtCaret, bumpStructure, lastRewrite, setLastRewrite,
   });
+
+  // One-click "commit + publish everything" from the toolbar: commits
+  // this course's folder in the authoring repo (and pushes), then
+  // publishes it to the distribution repo VMs sync from.
+  const [publishing, setPublishing] = useState(false);
+  async function publishAll() {
+    if (!course) return;
+    setPublishing(true);
+    setStatus("Publishing…");
+    try {
+      const r = await api.publishCourse(course, undefined, true);
+      const a = r.authoring;
+      const authorNote = a
+        ? a.committed
+          ? `authoring ${String(a.commit).slice(0, 7)}`
+          : "authoring clean"
+        : "";
+      const distNote = r.upToDate
+        ? "distribution up to date"
+        : `distribution ${r.commit.slice(0, 7)}`;
+      setStatus(`✓ Published — ${authorNote}, ${distNote}`);
+    } catch (e) {
+      setStatus(`✗ Publish failed: ${(e as Error).message}`);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  // Per-lab progress-tracking toggle (manifest.noProgress). Saves the
+  // current body along with the flag so nothing pending is lost.
+  async function toggleTracking() {
+    if (!course || !lab || !detail) return;
+    const next = detail.manifest?.noProgress ? null : true;
+    try {
+      const updated = await api.saveLab(course, lab, body, { noProgress: next });
+      setDetail(updated); // response carries the new manifest
+      setDirty(false);
+      setStatus(next ? "Tracking off for this lab." : "Tracking on for this lab.");
+      bumpStructure();
+    } catch (e) {
+      setStatus(`✗ Couldn't change tracking: ${(e as Error).message}`);
+    }
+  }
 
   // Modal / panel visibility.
   const [showSettings, setShowSettings] = useState(false);
@@ -89,6 +132,15 @@ uvicorn app:app --reload --port 8000`}</pre>
         </button>
         <button type="button" className="author-tool" onClick={runVerify} disabled={working || !course} title="Check this course against the publishing guidelines">
           ✓ Verify
+        </button>
+        <button
+          type="button"
+          className="author-tool"
+          onClick={publishAll}
+          disabled={working || publishing || !course}
+          title="One click, whole loop: commit + push the authoring repo, then publish this course to the distribution repo VMs sync from"
+        >
+          {publishing ? "Publishing…" : "⇧ Publish"}
         </button>
         <div className="author-header-spacer" />
         <span className="author-status">{status}</span>
@@ -181,6 +233,21 @@ uvicorn app:app --reload --port 8000`}</pre>
                 </button>
                 <button type="button" className="author-toolbar-btn" onClick={() => setShowLabFiles(true)} disabled={working} title="Manage this lab's downloadable files (.ktr / .kjb / data)">
                   📎 Files
+                </button>
+                <button
+                  type="button"
+                  className={`author-toolbar-btn${detail?.manifest?.noProgress ? " is-active" : ""}`}
+                  onClick={toggleTracking}
+                  disabled={working || !detail || detail.manifest?.kind === "page"}
+                  title={
+                    detail?.manifest?.kind === "page"
+                      ? "Pages never track steps"
+                      : detail?.manifest?.noProgress
+                        ? "Tracking is OFF for this lab (no checkboxes / step numbers) — click to turn it on"
+                        : "Tracking is ON — click to turn off checkboxes, progress, and step numbers for this lab"
+                  }
+                >
+                  {detail?.manifest?.noProgress ? "◻ No tracking" : "☑ Tracking"}
                 </button>
                 <button type="button" className="author-toolbar-btn author-review-btn" onClick={runReview} disabled={working || health?.ok === false} title={health?.ok === false ? "AI provider not ready — see Settings" : "AI review of this lab (quality, accuracy, completeness)"}>
                   🔍 Review

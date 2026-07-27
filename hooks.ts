@@ -179,7 +179,7 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
   }, [dirty, saving, save]);
 
   return {
-    detail, body, setBody, dirty, setDirty, saving, save,
+    detail, setDetail, body, setBody, dirty, setDirty, saving, save,
     onBodyChange, insertAtCaret, textareaRef, baseUrl,
     structureKey, bumpStructure, lastRewrite, setLastRewrite,
   };

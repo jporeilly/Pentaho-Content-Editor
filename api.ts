@@ -53,6 +53,8 @@ export interface PublishResult {
   upToDate: boolean;
   commit: string;
   changed?: { added: number; modified: number; removed: number };
+  /** Present when the publish also committed the authoring repo. */
+  authoring?: { committed: boolean; commit?: string; upToDate?: boolean } | null;
 }
 
 export type Provider = "ollama" | "anthropic" | "openai";
@@ -264,12 +266,12 @@ export const api = {
     return json(await fetch(`${API_BASE}/api/courses/${course}/publish/diff`));
   },
 
-  async publishCourse(course: string, message?: string): Promise<PublishResult> {
+  async publishCourse(course: string, message?: string, commit = false): Promise<PublishResult> {
     return json(
       await fetch(`${API_BASE}/api/courses/${course}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: message || null }),
+        body: JSON.stringify({ message: message || null, commit }),
       }),
     );
   },
