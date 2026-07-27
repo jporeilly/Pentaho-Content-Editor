@@ -52,8 +52,8 @@ def create_course(req: NewCourseRequest) -> dict[str, str]:
         "scripts/new-course.mjs",
         "--title", title,
         "--kind", "academy" if req.kind == "academy" else "workshop",
-        "--lab-title", "Getting Started",
-        "--topic", "Getting Started",
+        "--lab-title", "Please read ...!",
+        "--topic", "Please read ...!",
     ]
     if req.accent:
         args += ["--accent", req.accent]
