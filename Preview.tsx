@@ -9,6 +9,11 @@
 
 import { useMemo } from "react";
 import { MarkdownBody } from "../components/MarkdownBody";
+
+// Inert progress plumbing for the preview — stable identities so
+// MarkdownBody doesn't re-render on every keystroke because of them.
+const EMPTY_PROGRESS = new Set<string>();
+const noopToggle = () => {};
 import { ToolPanelProvider } from "../components/ToolPanelContext";
 import { GlossaryProvider, normaliseGlossary } from "../components/GlossaryContext";
 
@@ -27,7 +32,16 @@ export function Preview({ body, baseUrl, labSlug, glossary }: PreviewProps) {
     <GlossaryProvider glossary={normalised}>
       <ToolPanelProvider>
         <div className="pcm-guide author-preview-guide">
-          <MarkdownBody body={body} baseUrl={baseUrl} labSlug={labSlug} />
+          {/* Pass inert progress props so the preview shows exactly
+              what learners see: step checkboxes and the renderer-added
+              "Step N:" heading prefixes (nothing persists here). */}
+          <MarkdownBody
+            body={body}
+            baseUrl={baseUrl}
+            labSlug={labSlug}
+            completed={EMPTY_PROGRESS}
+            toggle={noopToggle}
+          />
         </div>
       </ToolPanelProvider>
     </GlossaryProvider>
