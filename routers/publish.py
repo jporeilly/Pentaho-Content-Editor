@@ -196,7 +196,7 @@ def publish_course(course: str, body: PublishBody | None = None) -> dict[str, An
     _git(["add", "-A", "--", course], clone)
     _git([
         "-c", "user.name=Pentaho Course Editor",
-        "-c", "user.email=jp.oreilly@hotmail.com",
+        "-c", "user.email=jporeilly@users.noreply.github.com",
         "commit", "-m", message,
     ], clone)
     commit = _git(["rev-parse", "HEAD"], clone)
@@ -227,7 +227,7 @@ def publish_tag(body: TagBody) -> dict[str, Any]:
         raise HTTPException(409, f"Tag '{tag}' already exists.")
     message = (body.message or f"Workshop release {tag}").strip()
     _git(["-c", "user.name=Pentaho Course Editor",
-          "-c", "user.email=jp.oreilly@hotmail.com",
+          "-c", "user.email=jporeilly@users.noreply.github.com",
           "tag", "-a", tag, "-m", message], clone)
     _git(["push", "--quiet", "origin", tag], clone)
     return {"ok": True, "tag": tag, "commit": _git(["rev-parse", "HEAD"], clone)}
