@@ -126,6 +126,12 @@ def _walk_files(root: Path) -> dict[str, Path]:
         rel = path.relative_to(root)
         if any(part in _SKIP_PARTS for part in rel.parts):
             continue
+        # A course-root README.md is the internal ops runbook (e.g. the
+        # try-it lab's marketing checklist) - authoring-repo only, never
+        # published to the distribution repo learners sync from. Nested
+        # README.md files (inside files/ etc.) still publish.
+        if rel.as_posix().lower() == "readme.md":
+            continue
         out[rel.as_posix()] = path
     return out
 
