@@ -27,9 +27,11 @@ const BLOCKS: Block[] = [
   { group: "Heading", label: "Sub-step (H3)", title: "Sub-heading (also a tracked step)",
     build: (s) => ({ text: `### ${s || "Sub-step"}\n\n` }) },
 
-  // ── Callouts (note / tip / warning / critical / objectives) ──
+  // ── Callouts (note / tip / warning / critical / objectives / under the hood) ──
   { group: "Callout", label: "Note", title: "Informational note",
     build: (s) => ({ text: `> **Note:**\n>\n> ${s || "Something worth highlighting."}\n\n` }) },
+  { group: "Callout", label: "Under the hood", title: "Explain what the engine just did — put it AFTER the action",
+    build: (s) => ({ text: `> **Under the hood:**\n>\n> ${s || "What just happened, and why the tool could do it that way."}\n\n` }) },
   { group: "Callout", label: "Tip", title: "Helpful tip",
     build: (s) => ({ text: `> **Tip:**\n>\n> ${s || "A handy shortcut or idiom."}\n\n` }) },
   { group: "Callout", label: "Warning", title: "Warning callout",
