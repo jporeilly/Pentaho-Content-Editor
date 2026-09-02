@@ -80,6 +80,30 @@ def test_suggest_model_cpu_vs_gpu(env, monkeypatch):
     assert providers.suggest_model("gpu", "http://x")["model"] == "qwen2.5:7b"
 
 
+def test_detect_gpu_finds_nvidia_smi_under_wow64_redirection(monkeypatch, tmp_path):
+    """A 32-bit Python sees System32 redirected to SysWOW64, where
+    nvidia-smi.exe isn't — so a PATH lookup alone reported "no GPU" on a
+    machine with two RTX 3060s. Sysnative is the way back to the real
+    System32; detection must consult it."""
+    monkeypatch.setattr(providers.shutil, "which", lambda _n: None)
+    for var in ("CUDA_VISIBLE_DEVICES", "CUDA_PATH", "HIP_VISIBLE_DEVICES", "GPU_DEVICE_ORDINAL"):
+        monkeypatch.delenv(var, raising=False)
+
+    # Nothing anywhere → no GPU.
+    monkeypatch.setattr(providers, "_nvidia_smi_paths", lambda: [str(tmp_path / "nope.exe")])
+    assert providers.detect_gpu() is False
+
+    # Present only via the Sysnative alias → still detected.
+    smi = tmp_path / "nvidia-smi.exe"
+    smi.write_text("")
+    monkeypatch.setattr(providers, "_nvidia_smi_paths", lambda: [str(smi)])
+    assert providers.detect_gpu() is True
+
+
+def test_nvidia_smi_paths_include_sysnative():
+    assert any("Sysnative" in p for p in providers._nvidia_smi_paths())
+
+
 def test_model_size_parsing():
     assert providers._model_size("qwen2.5:7b") == 7.0
     assert providers._model_size("x:0.5b") == 0.5

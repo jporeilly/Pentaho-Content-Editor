@@ -96,11 +96,34 @@ def key_status() -> dict[str, bool]:
 # ── Ollama (stdlib) ─────────────────────────────────────────────────
 
 
+def _nvidia_smi_paths() -> list[str]:
+    """Candidate locations for nvidia-smi beyond a plain PATH lookup.
+
+    On Windows the driver installs nvidia-smi.exe into System32. A
+    **32-bit** Python (which this venv may well be) hits WOW64
+    filesystem redirection: every read of ``C:\\Windows\\System32`` is
+    silently rewritten to ``SysWOW64``, where the exe does NOT exist —
+    so ``shutil.which`` returns None on a machine with working GPUs.
+    ``Sysnative`` is the alias that lets a 32-bit process reach the real
+    System32, and is meaningless (harmlessly absent) to a 64-bit one.
+    """
+    root = os.environ.get("SystemRoot", r"C:\Windows")
+    program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
+    return [
+        os.path.join(root, "Sysnative", "nvidia-smi.exe"),
+        os.path.join(root, "System32", "nvidia-smi.exe"),
+        os.path.join(program_files, "NVIDIA Corporation", "NVSMI", "nvidia-smi.exe"),
+    ]
+
+
 def detect_gpu() -> bool:
     """Best-effort GPU detection from the OS environment — an NVIDIA
-    driver on PATH or a CUDA/GPU env var. Not exhaustive (won't spot every
-    Apple-silicon / ROCm setup), just a useful hint for model suggestion."""
+    driver on PATH or in a known install location, or a CUDA/GPU env
+    var. Not exhaustive (won't spot every Apple-silicon / ROCm setup),
+    just a useful hint for model suggestion."""
     if shutil.which("nvidia-smi") or shutil.which("nvidia-smi.exe"):
+        return True
+    if any(os.path.exists(p) for p in _nvidia_smi_paths()):
         return True
     for var in ("CUDA_VISIBLE_DEVICES", "CUDA_PATH", "HIP_VISIBLE_DEVICES", "GPU_DEVICE_ORDINAL"):
         v = os.environ.get(var)
