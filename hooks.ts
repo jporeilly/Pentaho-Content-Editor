@@ -262,7 +262,9 @@ export function useAi(args: UseAiArgs) {
     setStatus("Uploading image…");
     try {
       const { name, path } = await api.uploadAsset(course, file, filename);
-      insertAtCaret(`![${name}](${path})\n\n`);
+      // Standard image insert — mirrors Toolbar's "Image" entry: figure,
+      // flush-left image, centred <figcaption> (theme caption style).
+      insertAtCaret(`<figure>\n\n![${name}](${path})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n`);
       setStatus(`Inserted ${name}.`);
       bumpStructure();
     } catch (e) {
