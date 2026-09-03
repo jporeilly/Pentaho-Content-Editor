@@ -14,7 +14,7 @@ import providers
 from core import (
     _course_dir, _read_json, _write_json, _run_node,
     _is_lab_dir, _lab_number, _parse_structure, _write_structure,
-    _ground, _clean_generated, _lab_prompt, stamp_metrics,
+    _ground, _clean_generated, _lab_prompt, stamp_metrics, body_hash,
     LabSummary, LabDetail, SaveLabRequest, Source,
     Structure, StructureTopic,
 )
@@ -49,10 +49,12 @@ def get_lab(course: str, lab: str) -> LabDetail:
     manifest = lab_dir / "manifest.json"
     if not guide.exists() or not manifest.exists():
         raise HTTPException(404, f"Lab not found: {lab}")
+    body = guide.read_text(encoding="utf-8")
     return LabDetail(
         slug=lab,
-        body=guide.read_text(encoding="utf-8"),
+        body=body,
         manifest=_read_json(manifest),
+        bodyHash=body_hash(body),
     )
 
 
@@ -68,8 +70,21 @@ def save_lab(course: str, lab: str, req: SaveLabRequest) -> LabDetail:
         if minutes is not None and not (isinstance(minutes, int) and not isinstance(minutes, bool) and 1 <= minutes <= 600):
             raise HTTPException(400, "estimatedMinutes must be a whole number of minutes (1-600), or null for automatic")
 
-    # Write the body.
-    guide.write_text(req.body, encoding="utf-8")
+    # Write the body — unless this is a manifest-only save (body None),
+    # which leaves the guide on disk exactly as it is.
+    current = guide.read_text(encoding="utf-8") if guide.exists() else ""
+    if req.body is None:
+        body = current
+    else:
+        if (req.baseHash and not req.force
+                and body_hash(current) != req.baseHash and req.body != current):
+            raise HTTPException(409, (
+                "This lab changed on disk since it was opened - another editor "
+                "tab or an external edit saved it. Reload to see the newer text, "
+                "or save again to overwrite it."
+            ))
+        guide.write_text(req.body, encoding="utf-8")
+        body = req.body
 
     # Merge author-editable manifest fields, then always recompute the
     # derived metrics from the new body.
@@ -89,10 +104,10 @@ def save_lab(course: str, lab: str, req: SaveLabRequest) -> LabDetail:
                 manifest.pop("estimatedMinutes", None)
             else:
                 manifest["estimatedMinutes"] = req.manifest["estimatedMinutes"]
-    stamp_metrics(manifest, req.body)
+    stamp_metrics(manifest, body)
     _write_json(manifest_path, manifest)
 
-    return LabDetail(slug=lab, body=req.body, manifest=manifest)
+    return LabDetail(slug=lab, body=body, manifest=manifest, bodyHash=body_hash(body))
 
 
 # ── Structure (sidebar tree) ────────────────────────────────────────

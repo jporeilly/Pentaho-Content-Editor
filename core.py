@@ -13,6 +13,7 @@ time) — never ``from core import COURSES_DIR`` — so the patch is seen.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -188,14 +189,30 @@ class LabDetail(BaseModel):
     slug: str
     body: str
     manifest: dict[str, Any]
+    # sha1 of ``body`` as stored on disk. The client sends it back as
+    # ``baseHash`` on save so a stale tab cannot overwrite newer text.
+    bodyHash: str | None = None
 
 
 class SaveLabRequest(BaseModel):
-    body: str
-    # Optional metadata edits (title / description / kind). Derived
-    # metrics are always recomputed server-side, never trusted from the
-    # client.
+    # None = manifest-only save: the guide on disk is left untouched.
+    # The timing / tracking controls use this so a tab holding an older
+    # copy of the text can never write it back by accident.
+    body: str | None = None
+    # Optional metadata edits (title / description / kind / timing).
+    # Derived metrics are always recomputed server-side, never trusted
+    # from the client.
     manifest: dict[str, Any] | None = None
+    # Conflict guard: hash of the body this client loaded. If the disk
+    # copy has changed since (another tab, an external edit) and the new
+    # body differs from it, the save is refused with 409 unless ``force``.
+    baseHash: str | None = None
+    force: bool = False
+
+
+def body_hash(text: str) -> str:
+    """Fingerprint of a guide body — what ``LabDetail.bodyHash`` carries."""
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
 class StructureLab(BaseModel):

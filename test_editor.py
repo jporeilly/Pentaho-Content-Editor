@@ -416,3 +416,33 @@ def test_save_lab_timing_is_author_owned(env, client):
         r = client.put("/api/courses/sample/labs/01-intro", json={"body": "# changed", "manifest": {"estimatedMinutes": bad}})
         assert r.status_code == 400, bad
     assert (env / "sample" / "01-intro" / "guide.md").read_text(encoding="utf-8") == before
+
+
+# ── save safety: manifest-only saves and the stale-tab conflict guard ──
+
+def test_get_lab_carries_body_hash_and_manifest_only_save_leaves_guide(env, client):
+    d = client.get("/api/courses/sample/labs/01-intro").json()
+    assert d["bodyHash"] and len(d["bodyHash"]) == 40
+    before = (env / "sample" / "01-intro" / "guide.md").read_text(encoding="utf-8")
+    # body: null → the manifest changes, the guide on disk does not.
+    r = client.put("/api/courses/sample/labs/01-intro", json={"body": None, "manifest": {"estimatedMinutes": 25}})
+    assert r.status_code == 200 and r.json()["manifest"]["estimatedMinutes"] == 25
+    assert (env / "sample" / "01-intro" / "guide.md").read_text(encoding="utf-8") == before
+    assert r.json()["body"] == before and r.json()["bodyHash"] == d["bodyHash"]
+
+
+def test_save_lab_refuses_stale_tab_unless_forced(env, client):
+    d = client.get("/api/courses/sample/labs/01-intro").json()
+    # Tab B saves first.
+    assert client.put("/api/courses/sample/labs/01-intro", json={"body": "# Newer text from tab B"}).status_code == 200
+    # Tab A still holds the old hash and tries to save different text: refused, disk untouched.
+    r = client.put("/api/courses/sample/labs/01-intro", json={"body": "# Tab A text", "baseHash": d["bodyHash"]})
+    assert r.status_code == 409 and "changed on disk" in r.json()["detail"]
+    assert (env / "sample" / "01-intro" / "guide.md").read_text(encoding="utf-8") == "# Newer text from tab B"
+    # Saving text identical to the disk copy is never a conflict.
+    assert client.put("/api/courses/sample/labs/01-intro", json={"body": "# Newer text from tab B", "baseHash": d["bodyHash"]}).status_code == 200
+    # force overwrites on purpose.
+    r = client.put("/api/courses/sample/labs/01-intro", json={"body": "# Tab A text", "baseHash": d["bodyHash"], "force": True})
+    assert r.status_code == 200 and r.json()["body"] == "# Tab A text"
+    # No baseHash (older clients / scripts) keeps the old last-writer-wins behaviour.
+    assert client.put("/api/courses/sample/labs/01-intro", json={"body": "# Script text"}).status_code == 200
