@@ -75,12 +75,18 @@ def estimate_minutes(step_count: int) -> int:
 
 
 def stamp_metrics(manifest: dict[str, Any], body: str) -> dict[str, Any]:
-    """Recompute the derived manifest fields from a guide body (never
-    trusted from the client). Mutates and returns the manifest."""
+    """Recompute the derived manifest fields from a guide body (step count
+    and video are never trusted from the client) and fill in a missing
+    timing. Mutates and returns the manifest."""
     steps = count_steps(body)
     manifest["stepCount"] = steps
     manifest["hasVideo"] = detect_has_video(body)
-    manifest["estimatedMinutes"] = estimate_minutes(steps)
+    # Timing is author-owned once set (same rule as scripts/stamp-manifests.mjs):
+    # only fill it in when missing, so a hand-set or editor-set value survives
+    # every guide save. save_lab drops the key on estimatedMinutes: null, and
+    # this refills it from the step count.
+    if not isinstance(manifest.get("estimatedMinutes"), int):
+        manifest["estimatedMinutes"] = estimate_minutes(steps)
     return manifest
 
 

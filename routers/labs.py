@@ -63,6 +63,10 @@ def save_lab(course: str, lab: str, req: SaveLabRequest) -> LabDetail:
     manifest_path = lab_dir / "manifest.json"
     if not manifest_path.exists():
         raise HTTPException(404, f"Lab not found: {lab}")
+    if req.manifest and "estimatedMinutes" in req.manifest:
+        minutes = req.manifest["estimatedMinutes"]
+        if minutes is not None and not (isinstance(minutes, int) and not isinstance(minutes, bool) and 1 <= minutes <= 600):
+            raise HTTPException(400, "estimatedMinutes must be a whole number of minutes (1-600), or null for automatic")
 
     # Write the body.
     guide.write_text(req.body, encoding="utf-8")
@@ -77,6 +81,14 @@ def save_lab(course: str, lab: str, req: SaveLabRequest) -> LabDetail:
         # Dropping the flag entirely (noProgress: null) removes it.
         if req.manifest.get("noProgress", True) is None:
             manifest.pop("noProgress", None)
+        # Timing: an integer is the author's estimate and stamp_metrics
+        # leaves it alone from then on; null drops it so the estimate is
+        # recomputed from the step count.
+        if "estimatedMinutes" in req.manifest:
+            if req.manifest["estimatedMinutes"] is None:
+                manifest.pop("estimatedMinutes", None)
+            else:
+                manifest["estimatedMinutes"] = req.manifest["estimatedMinutes"]
     stamp_metrics(manifest, req.body)
     _write_json(manifest_path, manifest)
 

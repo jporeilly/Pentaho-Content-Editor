@@ -378,3 +378,41 @@ def test_publish_diff_ignores_line_endings(publish_env, client):
     guide.write_bytes(flipped)  # same content, opposite endings
     body = client.get("/api/courses/sample/publish/diff").json()
     assert body["upToDate"] is True, body
+
+
+# ── course settings + lab timing (the editor owns these course.json / manifest fields) ──
+
+def test_put_course_welcome_round_trip_and_mode(env, client):
+    welcome = {"eyebrow": "Try-It Lab", "analyticsNote": "Nothing personal leaves this machine.", "video": "tour.mp4"}
+    r = client.put("/api/courses/sample", json={"mode": "sequential", "welcome": welcome})
+    assert r.status_code == 200
+    cj = json.loads((env / "sample" / "course.json").read_text(encoding="utf-8"))
+    assert cj["mode"] == "sequential"
+    assert cj["welcome"] == welcome
+    # Emptying the block removes the key instead of leaving "welcome": {} behind.
+    assert client.put("/api/courses/sample", json={"welcome": {}}).status_code == 200
+    assert "welcome" not in json.loads((env / "sample" / "course.json").read_text(encoding="utf-8"))
+
+
+def test_put_course_rejects_unknown_mode(env, client):
+    assert client.put("/api/courses/sample", json={"mode": "random"}).status_code == 400
+
+
+def test_save_lab_timing_is_author_owned(env, client):
+    body = "# Intro\n\n## Step one\n\n## Step two\n"
+    # An author-set timing is stored and survives later guide saves
+    # (the same rule scripts/stamp-manifests.mjs applies on disk).
+    r = client.put("/api/courses/sample/labs/01-intro", json={"body": body, "manifest": {"estimatedMinutes": 45}})
+    assert r.status_code == 200 and r.json()["manifest"]["estimatedMinutes"] == 45
+    r = client.put("/api/courses/sample/labs/01-intro", json={"body": body + "\n## Step three\n"})
+    assert r.json()["manifest"]["stepCount"] == 3
+    assert r.json()["manifest"]["estimatedMinutes"] == 45
+    # null hands the estimate back to the step-count heuristic (10 + 2/step, to the nearest 5).
+    r = client.put("/api/courses/sample/labs/01-intro", json={"body": body, "manifest": {"estimatedMinutes": None}})
+    assert r.json()["manifest"]["estimatedMinutes"] == 15
+    # Bad values are refused before anything is written.
+    before = (env / "sample" / "01-intro" / "guide.md").read_text(encoding="utf-8")
+    for bad in (0, 601, 12.5, "20", True):
+        r = client.put("/api/courses/sample/labs/01-intro", json={"body": "# changed", "manifest": {"estimatedMinutes": bad}})
+        assert r.status_code == 400, bad
+    assert (env / "sample" / "01-intro" / "guide.md").read_text(encoding="utf-8") == before

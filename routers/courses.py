@@ -100,9 +100,15 @@ def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
     course_path = _course_dir(course)
     cj_path = course_path / "course.json"
     cj = _read_json(cj_path)
+    if "mode" in body and body["mode"] not in ("free", "sequential"):
+        raise HTTPException(400, "mode must be 'free' or 'sequential'")
     for key in ("title", "description", "version", "theme", "launchers", "assistant", "mode", "welcome"):
         if key in body:
             cj[key] = body[key]
+    # An emptied welcome block (or null) removes the key rather than
+    # leaving "welcome": {} behind in course.json.
+    if "welcome" in body and not body["welcome"]:
+        cj.pop("welcome", None)
     if isinstance(cj.get("title"), str):
         cj["title"] = cj["title"].strip()
     if not cj.get("title"):
