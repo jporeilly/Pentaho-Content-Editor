@@ -407,6 +407,14 @@ body {
   cursor: pointer;
 }
 .author-toolbar-select { padding-right: 4px; }
+.author-toolbar-timing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--author-text);
+}
+.author-toolbar-timing input { width: 64px; }
 .author-toolbar-btn:hover, .author-toolbar-select:hover {
   border-color: var(--author-accent);
   color: #fff;

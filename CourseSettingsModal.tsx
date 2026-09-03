@@ -27,6 +27,11 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
   const [accent, setAccent] = useState("#16a34a");
   const [welcomeVideo, setWelcomeVideo] = useState("");
   const [welcomeCaption, setWelcomeCaption] = useState("");
+  const [welcomeEyebrow, setWelcomeEyebrow] = useState("");
+  const [analyticsNote, setAnalyticsNote] = useState("");
+  // Any welcome keys this dialog doesn't edit ride along untouched on save.
+  const [welcomeRest, setWelcomeRest] = useState<Record<string, unknown>>({});
+  const [mode, setMode] = useState<"free" | "sequential">("free");
   const [assistant, setAssistant] = useState<Assistant>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -128,6 +133,14 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
       setAccent(c.theme?.accent ?? "#16a34a");
       setWelcomeVideo(c.welcome?.video ?? "");
       setWelcomeCaption(c.welcome?.caption ?? "");
+      setWelcomeEyebrow(c.welcome?.eyebrow ?? "");
+      setAnalyticsNote(c.welcome?.analyticsNote ?? "");
+      const rest: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(c.welcome ?? {})) {
+        if (!["video", "caption", "eyebrow", "analyticsNote"].includes(k)) rest[k] = v;
+      }
+      setWelcomeRest(rest);
+      setMode(c.mode === "sequential" ? "sequential" : "free");
       setAssistant(c.assistant ?? {});
       setLoaded(true);
     }).catch((e) => setError((e as Error).message));
@@ -148,12 +161,16 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
         version: version.trim() || undefined,
         theme: { accent },
         assistant,
-        welcome: welcomeVideo.trim() || welcomeCaption.trim()
-          ? {
-              video: welcomeVideo.trim() || undefined,
-              caption: welcomeCaption.trim() || undefined,
-            }
-          : undefined,
+        mode,
+        // Blank fields are dropped by JSON.stringify; an all-blank block
+        // arrives as {} and the API removes the key.
+        welcome: {
+          ...welcomeRest,
+          video: welcomeVideo.trim() || undefined,
+          caption: welcomeCaption.trim() || undefined,
+          eyebrow: welcomeEyebrow.trim() || undefined,
+          analyticsNote: analyticsNote.trim() || undefined,
+        },
       });
       onSaved();
       onClose();
@@ -203,6 +220,14 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                   <input className="author-input" style={{ flex: "1 1 auto" }} value={accent} onChange={(e) => setAccent(e.target.value)} />
                 </div>
               </label>
+              <label className="author-field">
+                <span>Lab order</span>
+                <select className="author-input" value={mode} onChange={(e) => setMode(e.target.value as "free" | "sequential")}>
+                  <option value="free">Free — learners can open any lab</option>
+                  <option value="sequential">Sequential — each lab unlocks when the previous one is complete</option>
+                </select>
+                <span className="author-hint">Learners can still override this for themselves in the app's own settings.</span>
+              </label>
               <fieldset className="author-fieldset">
                 <legend>Welcome screen</legend>
                 <label className="author-field">
@@ -226,6 +251,28 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                   YouTube / Vimeo / Loom link, or a path to a bundled video
                   (upload to _assets first).
                 </p>
+                <label className="author-field">
+                  <span>Eyebrow label (optional)</span>
+                  <input
+                    className="author-input" placeholder="Practitioner Workshop"
+                    value={welcomeEyebrow} onChange={(e) => setWelcomeEyebrow(e.target.value)}
+                  />
+                  <span className="author-hint">The small-caps line above the course title. Blank uses the tier default (Practitioner Workshop / Specialty / Certified).</span>
+                </label>
+                <label className="author-field">
+                  <span>Analytics &amp; privacy note (optional)</span>
+                  <textarea
+                    className="author-input" rows={6}
+                    placeholder="This course reports anonymous usage analytics…"
+                    value={analyticsNote} onChange={(e) => setAnalyticsNote(e.target.value)}
+                  />
+                  <span className="author-hint">
+                    Replaces the default disclosure on the Welcome page. Say exactly what
+                    leaves the machine for this course: what the analytics record, and what
+                    each form (exam, feedback, contact) sends, to whom and why. Blank shows
+                    the default, which describes a course with an exam certificate.
+                  </span>
+                </label>
               </fieldset>
               <fieldset className="author-fieldset">
                 <legend>Learner AI assistant (Ollama)</legend>

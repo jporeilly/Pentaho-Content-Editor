@@ -85,6 +85,33 @@ export function App() {
     }
   }
 
+  // Per-lab timing (manifest.estimatedMinutes). The Welcome page's total
+  // time is the sum of these, so authors set them here. Blank hands the
+  // estimate back to the step-count heuristic. Saves the current body
+  // along with the value so nothing pending is lost.
+  async function saveTiming(raw: string) {
+    if (!course || !lab || !detail) return;
+    const trimmed = raw.trim();
+    const minutes = trimmed === "" ? null : Number(trimmed);
+    if (minutes !== null && (!Number.isInteger(minutes) || minutes < 1 || minutes > 600)) {
+      setStatus("✗ Timing must be a whole number of minutes (1–600), or blank for automatic.");
+      return;
+    }
+    const current = (detail.manifest?.estimatedMinutes as number | undefined) ?? null;
+    if (minutes === current) return;
+    try {
+      const updated = await api.saveLab(course, lab, body, { estimatedMinutes: minutes });
+      setDetail(updated); // response carries the new manifest
+      setDirty(false);
+      setStatus(minutes === null
+        ? `Timing back to automatic: ${String(updated.manifest?.estimatedMinutes)} min from the step count.`
+        : `Timing set to ${minutes} min.`);
+      bumpStructure();
+    } catch (e) {
+      setStatus(`✗ Couldn't change timing: ${(e as Error).message}`);
+    }
+  }
+
   // Modal / panel visibility.
   const [showSettings, setShowSettings] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -249,6 +276,24 @@ uvicorn app:app --reload --port 8000`}</pre>
                 >
                   {detail?.manifest?.noProgress ? "◻ No tracking" : "☑ Tracking"}
                 </button>
+                <label
+                  className="author-toolbar-timing"
+                  title="Estimated minutes for this lab — the Welcome page's total time is the sum across labs. Blank = estimate from the step count."
+                >
+                  ⏱
+                  <input
+                    // Uncontrolled + keyed so switching labs (or a save) re-seeds the
+                    // value without saving on every keystroke; blur / Enter commits.
+                    key={`${lab ?? ""}:${String(detail?.manifest?.estimatedMinutes ?? "")}`}
+                    type="number" min={1} max={600} step={5}
+                    className="author-toolbar-select"
+                    defaultValue={(detail?.manifest?.estimatedMinutes as number | undefined) ?? ""}
+                    disabled={working || !detail}
+                    onBlur={(e) => saveTiming(e.currentTarget.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  />
+                  min
+                </label>
                 <button type="button" className="author-toolbar-btn author-review-btn" onClick={runReview} disabled={working || health?.ok === false} title={health?.ok === false ? "AI provider not ready — see Settings" : "AI review of this lab (quality, accuracy, completeness)"}>
                   🔍 Review
                 </button>
