@@ -91,6 +91,27 @@ export function useCourses(setStatus: (s: string) => void) {
   return { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, onCourseCreated };
 }
 
+// ── Unsaved-draft backup ──────────────────────────────────────────
+// Every edit is mirrored to localStorage so a page reload (F5, a crash,
+// the dev server's full reload) doesn't lose the text. A draft is put
+// back only while the disk copy is still the one it was typed against
+// (same bodyHash) — if someone saved the lab in between, the draft is
+// stale and is dropped in favour of the newer text.
+interface Draft { body: string; baseHash?: string; at: number }
+const draftKey = (course: string, lab: string) => `pcm-author-draft:${course}/${lab}`;
+function readDraft(course: string, lab: string): Draft | null {
+  try {
+    const raw = localStorage.getItem(draftKey(course, lab));
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch { return null; }
+}
+function writeDraft(course: string, lab: string, draft: Draft) {
+  try { localStorage.setItem(draftKey(course, lab), JSON.stringify(draft)); } catch { /* best effort */ }
+}
+function clearDraft(course: string, lab: string) {
+  try { localStorage.removeItem(draftKey(course, lab)); } catch { /* ignore */ }
+}
+
 // ── Lab content: body, dirty/save, caret insert ───────────────────
 
 export function useLab(course: string, lab: string, setStatus: (s: string) => void) {
@@ -102,6 +123,8 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
   // Cleared on any manual edit or lab switch; set by an AI rewrite.
   const [lastRewrite, setLastRewrite] = useState<RewriteUndo | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  // Set after a 409 so the very next Save overwrites the disk copy.
+  const forceNext = useRef(false);
 
   const bumpStructure = useCallback(() => setStructureKey((k) => k + 1), []);
 
@@ -114,10 +137,22 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
       .then((d) => {
         if (cancelled) return;
         setDetail(d);
-        setBody(d.body);
-        setDirty(false);
         setLastRewrite(null);
-        setStatus("");
+        forceNext.current = false;
+        const draft = readDraft(course, lab);
+        if (draft && draft.body !== d.body && draft.baseHash === d.bodyHash) {
+          // The page went away with unsaved text and nobody has saved this
+          // lab since: bring the text back, still unsaved.
+          setBody(draft.body);
+          setDirty(true);
+          const at = new Date(draft.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          setStatus(`Restored unsaved text from ${at} — not saved yet. Ctrl+S keeps it.`);
+        } else {
+          if (draft) clearDraft(course, lab); // stale: the lab was saved after it was typed
+          setBody(d.body);
+          setDirty(false);
+          setStatus("");
+        }
       })
       .catch((e) => {
         if (!cancelled) setStatus(`Couldn’t load lab: ${(e as Error).message}`);
@@ -130,16 +165,18 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
     [course, lab],
   );
 
+  const baseHash = detail?.bodyHash;
   const onBodyChange = useCallback((next: string, caret?: number) => {
     setBody(next);
     setDirty(true);
     setLastRewrite(null); // a manual edit invalidates the rewrite undo range
+    if (course && lab) writeDraft(course, lab, { body: next, baseHash, at: Date.now() });
     if (caret !== undefined && textareaRef.current) {
       requestAnimationFrame(() => {
         textareaRef.current?.setSelectionRange(caret, caret);
       });
     }
-  }, []);
+  }, [course, lab, baseHash]);
 
   const insertAtCaret = useCallback((text: string) => {
     const ta = textareaRef.current;
@@ -153,18 +190,40 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
     setSaving(true);
     setStatus("Saving…");
     try {
-      const updated = await api.saveLab(course, lab, body);
+      const updated = await api.saveLab(course, lab, body, undefined, {
+        baseHash: detail?.bodyHash,
+        force: forceNext.current,
+      });
+      forceNext.current = false;
+      clearDraft(course, lab);
       setDetail(updated);
       setDirty(false);
       bumpStructure(); // refresh titles/metadata in the tree
       const m = updated.manifest as any;
       setStatus(`Saved · ${m.stepCount} steps · ~${m.estimatedMinutes} min${m.hasVideo ? " · has video" : ""}`);
     } catch (e) {
-      setStatus(`Save failed: ${(e as Error).message}`);
+      const msg = (e as Error).message;
+      if (/changed on disk/i.test(msg)) {
+        // Another tab (or an external edit) saved this lab after we loaded
+        // it. Nothing was written. One more Save overwrites on purpose.
+        forceNext.current = true;
+        setStatus("✗ Not saved: this lab changed on disk since you opened it (another editor tab?). Press Save again to overwrite it, or press F5 to load the newer text.");
+      } else {
+        setStatus(`Save failed: ${msg}`);
+      }
     } finally {
       setSaving(false);
     }
-  }, [course, lab, body, bumpStructure, setStatus]);
+  }, [course, lab, body, detail?.bodyHash, bumpStructure, setStatus]);
+
+  // Warn before the page unloads with unsaved text — F5, closing the tab,
+  // and the dev server's full reloads all pass through here.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   // Ctrl/Cmd+S to save.
   useEffect(() => {

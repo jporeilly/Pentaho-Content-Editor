@@ -20,6 +20,10 @@ interface Block {
   build: (sel: string) => { text: string };
 }
 
+// A selection is used as image alt text only when it looks like one: a
+// single line with no markdown link/image syntax. Selecting a whole block
+// and choosing Image used to wrap that block as the alt text.
+const altFrom = (s: string) => (s && !/[\n\[\]()]/.test(s) ? s : "alt text");
 const BLOCKS: Block[] = [
   // ── Headings ──
   { group: "Heading", label: "Step (H2)", title: "Heading — a tracked step with a checkbox",
@@ -53,18 +57,18 @@ const BLOCKS: Block[] = [
   // every caption gets the theme's 12.5px italic caption style rather
   // than body-text size.
   { group: "Media", label: "Image", title: "Shared course image with a centred caption (../_assets/images/…)",
-    build: (s) => ({ text: `<figure>\n\n![${s || "alt text"}](../_assets/images/example.png)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+    build: (s) => ({ text: `<figure>\n\n![${altFrom(s)}](../_assets/images/example.png)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
   { group: "Media", label: "Video", title: "Loom / YouTube / inline video",
     build: (s) => ({ text: `![${s || "Walkthrough"}](https://www.loom.com/share/REPLACE_ID)\n\n` }) },
   // Alignment wrappers. The blank lines INSIDE the wrapper are load-bearing:
   // without them CommonMark keeps the ![…] line inside the HTML block and
   // renders it as literal text instead of an image.
   { group: "Media", label: "Image — centred", title: "Centred image with an optional caption (house pattern for dialog screenshots)",
-    build: (s) => ({ text: `<div align="center">\n<figure>\n\n![${s || "alt text"}](../_assets/images/example.png#w=420)\n\n<figcaption><em>Caption</em></figcaption>\n</figure>\n</div>\n\n` }) },
+    build: (s) => ({ text: `<div align="center">\n<figure>\n\n![${altFrom(s)}](../_assets/images/example.png#w=420)\n\n<figcaption><em>Caption</em></figcaption>\n</figure>\n</div>\n\n` }) },
   { group: "Media", label: "Image — float right", title: "Image on the right with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-right">\n\n![${s || "alt text"}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+    build: (s) => ({ text: `<figure class="pcm-float-right">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
   { group: "Media", label: "Image — float left", title: "Image on the left with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${s || "alt text"}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+    build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
 
   // ── Block ──
   { group: "Block", label: "Code", title: "Fenced code block with copy button",

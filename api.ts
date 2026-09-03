@@ -21,6 +21,8 @@ export interface LabDetail {
   slug: string;
   body: string;
   manifest: Record<string, unknown>;
+  /** Fingerprint of the body on disk; sent back as baseHash on save. */
+  bodyHash?: string;
 }
 
 export interface StructureLab {
@@ -141,17 +143,23 @@ export const api = {
     return json(await fetch(`${API_BASE}/api/courses/${course}/labs/${lab}`));
   },
 
+  /**
+   * Save a lab. `body: null` is a manifest-only save (the guide on disk is
+   * left untouched). `opts.baseHash` is the bodyHash this tab loaded; the
+   * API answers 409 if the disk copy changed since, unless `opts.force`.
+   */
   async saveLab(
     course: string,
     lab: string,
-    body: string,
+    body: string | null,
     manifest?: Record<string, unknown>,
+    opts?: { baseHash?: string; force?: boolean },
   ): Promise<LabDetail> {
     return json(
       await fetch(`${API_BASE}/api/courses/${course}/labs/${lab}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body, manifest }),
+        body: JSON.stringify({ body, manifest, baseHash: opts?.baseHash, force: opts?.force ?? false }),
       }),
     );
   },

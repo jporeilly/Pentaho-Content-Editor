@@ -69,15 +69,15 @@ export function App() {
     }
   }
 
-  // Per-lab progress-tracking toggle (manifest.noProgress). Saves the
-  // current body along with the flag so nothing pending is lost.
+  // Per-lab progress-tracking toggle (manifest.noProgress). Manifest-only
+  // save: the guide text on disk is never touched by this control, so a
+  // tab holding an older copy can't write it back. Pending edits stay pending.
   async function toggleTracking() {
     if (!course || !lab || !detail) return;
     const next = detail.manifest?.noProgress ? null : true;
     try {
-      const updated = await api.saveLab(course, lab, body, { noProgress: next });
+      const updated = await api.saveLab(course, lab, null, { noProgress: next });
       setDetail(updated); // response carries the new manifest
-      setDirty(false);
       setStatus(next ? "Tracking off for this lab." : "Tracking on for this lab.");
       bumpStructure();
     } catch (e) {
@@ -87,8 +87,8 @@ export function App() {
 
   // Per-lab timing (manifest.estimatedMinutes). The Welcome page's total
   // time is the sum of these, so authors set them here. Blank hands the
-  // estimate back to the step-count heuristic. Saves the current body
-  // along with the value so nothing pending is lost.
+  // estimate back to the step-count heuristic. Manifest-only save: the
+  // guide text on disk is never touched by this control.
   async function saveTiming(raw: string) {
     if (!course || !lab || !detail) return;
     const trimmed = raw.trim();
@@ -100,9 +100,8 @@ export function App() {
     const current = (detail.manifest?.estimatedMinutes as number | undefined) ?? null;
     if (minutes === current) return;
     try {
-      const updated = await api.saveLab(course, lab, body, { estimatedMinutes: minutes });
+      const updated = await api.saveLab(course, lab, null, { estimatedMinutes: minutes });
       setDetail(updated); // response carries the new manifest
-      setDirty(false);
       setStatus(minutes === null
         ? `Timing back to automatic: ${String(updated.manifest?.estimatedMinutes)} min from the step count.`
         : `Timing set to ${minutes} min.`);
