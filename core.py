@@ -63,6 +63,9 @@ def detect_has_video(body: str) -> bool:
     patterns = [
         r"loom\.com/(share|embed)/",
         r"(?:youtube\.com/(watch|embed)|youtu\.be/)",
+        # Vimeo: vimeo.com/<id>, vimeo.com/<id>/<unlisted-hash>,
+        # player.vimeo.com/video/<id> — the hosts VideoEmbed.tsx renders.
+        r"(?:vimeo\.com/(?:video/)?|player\.vimeo\.com/video/)\d+",
         r"!\[[^\]]*\]\([^)]+\.(?:mp4|webm|mov|m4v)(?:[#?][^)]*)?\)",
         r"<video[\s>]",
     ]

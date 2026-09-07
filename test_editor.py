@@ -446,3 +446,19 @@ def test_save_lab_refuses_stale_tab_unless_forced(env, client):
     assert r.status_code == 200 and r.json()["body"] == "# Tab A text"
     # No baseHash (older clients / scripts) keeps the old last-writer-wins behaviour.
     assert client.put("/api/courses/sample/labs/01-intro", json={"body": "# Script text"}).status_code == 200
+
+
+def test_detect_has_video_matches_every_host_the_renderer_embeds():
+    # The guide renders vimeo.com links as a player (VideoEmbed.tsx), so the
+    # sidebar's play badge must agree — Vimeo joined Loom, YouTube and local
+    # files here on 2026-09-07 after a Vimeo embed left the badge dark.
+    assert core.detect_has_video("![Tour](https://vimeo.com/123456789)")
+    assert core.detect_has_video("![Tour](https://vimeo.com/123456789/abcdef0123#t=1m30s)")
+    assert core.detect_has_video("[Watch](https://player.vimeo.com/video/123456789?h=abcdef0123)")
+    assert core.detect_has_video("![Tour](https://www.loom.com/share/abc123def456)")
+    assert core.detect_has_video("![Tour](https://youtu.be/dQw4w9WgXcQ)")
+    assert core.detect_has_video("![Clip](files/clip.mp4)")
+    # A Vimeo page with no video id, plain prose, and a fenced example are not embeds.
+    assert not core.detect_has_video("Background reading: https://vimeo.com/about")
+    assert not core.detect_has_video("No video in this lab.")
+    assert not core.detect_has_video("```markdown\n![Tour](https://vimeo.com/123456789)\n```")
