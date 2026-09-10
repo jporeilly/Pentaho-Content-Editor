@@ -20,6 +20,9 @@ import { LabFilesModal } from "./LabFilesModal";
 import { CourseSettingsModal } from "./CourseSettingsModal";
 import { ChatPanel } from "./ChatPanel";
 import { Splitter, useSplit } from "./Splitter";
+import { Menu } from "./Menu";
+import { useEditorTheme } from "./theme";
+import { handleMarkdownKey } from "./markdownKeys";
 import { WelcomePane } from "./WelcomePane";
 import { useProviderHealth, useCourses, useLab, useAi } from "./hooks";
 
@@ -67,12 +70,13 @@ export function App() {
     MIN_PREVIEW + SPLITTER_PX,
   );
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const theme = useEditorTheme();
   // The Welcome page has no guide.md — it is generated from
   // course.json — so it gets its own pane rather than a lab slug.
   const [welcomeMode, setWelcomeMode] = useState(false);
 
   const { health, refreshHealth } = useProviderHealth();
-  const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, onCourseCreated } =
+  const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, onCourseCreated } =
     useCourses(setStatus);
   const {
     detail, setDetail, body, setBody, setDirty, dirty, saving, save,
@@ -215,6 +219,24 @@ uvicorn app:app --reload --port 8000`}</pre>
           {publishing ? "Publishing…" : "⇧ Publish"}
         </button>
         <div className="author-header-spacer" />
+        <Menu
+          label="Theme"
+          title="Editor appearance, and which theme the preview renders in"
+          items={[
+            { label: `${theme.editor === "dark" ? "* " : "\u00a0\u00a0"}Editor - Dark`,
+              title: "Dark chrome around your work",
+              onSelect: () => theme.setEditor("dark") },
+            { label: `${theme.editor === "light" ? "* " : "\u00a0\u00a0"}Editor - Light`,
+              title: "Light chrome around your work",
+              onSelect: () => theme.setEditor("light") },
+            { label: `${theme.preview === "light" ? "* " : "\u00a0\u00a0"}Preview - Light`,
+              title: "Render the preview the way a learner on the light theme sees it",
+              onSelect: () => theme.setPreview("light") },
+            { label: `${theme.preview === "dark" ? "* " : "\u00a0\u00a0"}Preview - Dark`,
+              title: "Render the preview on the app's dark surface - catches hard-coded colours and white-background screenshots",
+              onSelect: () => theme.setPreview("dark") },
+          ]}
+        />
         <button type="button" className={`author-tool${showChat ? " is-active" : ""}`} onClick={() => setShowChat((v) => !v)} title="Toggle the AI assistant chat">
           💬 Chat
         </button>
@@ -400,6 +422,21 @@ uvicorn app:app --reload --port 8000`}</pre>
                 value={body}
                 spellCheck
                 onChange={(e) => onBodyChange(e.target.value)}
+                onKeyDown={(e) => {
+                  // Ctrl+B/I/K, Tab indent, Enter continues a list.
+                  // handleMarkdownKey returns null for anything it
+                  // doesn't own, so Ctrl+S still reaches the save
+                  // handler and ordinary typing is untouched.
+                  const ta = e.currentTarget;
+                  const edit = handleMarkdownKey(e, {
+                    text: body, start: ta.selectionStart, end: ta.selectionEnd,
+                  });
+                  if (!edit) return;
+                  e.preventDefault();
+                  onBodyChange(edit.text);
+                  // After React commits the new value, not before.
+                  requestAnimationFrame(() => ta.setSelectionRange(edit.start, edit.end));
+                }}
                 onPaste={onEditorPaste}
                 onDrop={onEditorDrop}
               />
@@ -501,6 +538,15 @@ uvicorn app:app --reload --port 8000`}</pre>
             Clear
           </button>
         )}
+        {/* Which content and which build - the same pairing the
+            learner's sidebar shows, so a screenshot from either side
+            identifies itself. */}
+        <span
+          className="author-version"
+          title="Course content version (course.json) and the app build this editor ships with"
+        >
+          {courseVersion ? `Course v${courseVersion} \u00b7 ` : ""}Editor v{__APP_VERSION__}
+        </span>
       </footer>
     </div>
   );

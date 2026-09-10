@@ -9,7 +9,48 @@
   --author-text: #e6e8ec;
   --author-muted: #9aa3b2;
   --author-accent: #16a34a;
+  /* Surfaces that sit above the panel (menu buttons, popovers) and
+     below it (disabled controls). Tokens so the light theme can flip
+     them; hard-coded hexes here used to survive the theme switch. */
+  --author-raised: #1d212a;
+  --author-raised-hi: #2a3040;
+  --author-sunken: #2a2f3a;
+  --author-hover: rgba(255, 255, 255, 0.05);
+  --author-shadow: rgba(0, 0, 0, 0.5);
+  /* Emphasised text over the page ground - hover, the active row.
+     Must flip with the theme: a literal #fff here is invisible on
+     light chrome. NOT for text on a filled accent button, which stays
+     white in both themes because the fill stays green. */
+  --author-text-strong: #ffffff;
+  /* Status severities. The dark values are pale so they read on the
+     dark bar; on a white bar those same pastels drop to ~1.7:1, so
+     the light theme takes the saturated end of each hue. */
+  --author-ok: #86efac;
+  --author-warn: #fcd34d;
+  --author-bad: #fca5a5;
 }
+
+/* Light editor chrome. Only the tokens change - every rule below is
+   written against them, so nothing else needs a light variant. The
+   PREVIEW is themed separately, by the app's own `pcm-dark` class. */
+:root.author-light {
+  --author-bg: #f4f6f8;
+  --author-panel: #ffffff;
+  --author-border: #d9dee6;
+  --author-text: #1c2230;
+  --author-muted: #5d6675;
+  --author-accent: #15803d;
+  --author-raised: #eef1f5;
+  --author-raised-hi: #e2e7ef;
+  --author-sunken: #e6e9ee;
+  --author-hover: rgba(0, 0, 0, 0.05);
+  --author-shadow: rgba(15, 23, 42, 0.18);
+  --author-text-strong: #0b1220;
+  --author-ok: #15803d;
+  --author-warn: #a16207;
+  --author-bad: #b91c1c;
+}
+
 
 html, body, #root {
   height: 100%;
@@ -61,7 +102,7 @@ body {
   cursor: pointer;
   white-space: nowrap;
 }
-.author-tool:hover:not(:disabled) { border-color: var(--author-accent); color: #fff; }
+.author-tool:hover:not(:disabled) { border-color: var(--author-accent); color: var(--author-text-strong); }
 .author-tool:disabled { opacity: 0.4; cursor: default; }
 .author-header-spacer { flex: 1 1 auto; }
 
@@ -221,9 +262,17 @@ body {
 }
 .author-statusbar-text { flex: 1 1 auto; white-space: pre-wrap; }
 .author-statusbar-clear { flex: 0 0 auto; }
-.author-statusbar.is-ok { border-left-color: var(--author-accent); color: #86efac; }
-.author-statusbar.is-warn { border-left-color: #f59e0b; color: #fcd34d; }
-.author-statusbar.is-bad { border-left-color: #ef4444; color: #fca5a5; }
+.author-version {
+  flex: 0 0 auto;
+  color: var(--author-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+.author-statusbar.is-ok { border-left-color: var(--author-accent); color: var(--author-ok); }
+.author-statusbar.is-warn { border-left-color: #f59e0b; color: var(--author-warn); }
+.author-statusbar.is-bad { border-left-color: #ef4444; color: var(--author-bad); }
 .author-save {
   background: var(--author-accent);
   color: #fff;
@@ -234,7 +283,7 @@ body {
   cursor: pointer;
 }
 .author-save:disabled {
-  background: #2a2f3a;
+  background: var(--author-sunken);
   color: var(--author-muted);
   cursor: default;
 }
@@ -276,8 +325,8 @@ body {
   font-size: 12px;
   padding: 0;
 }
-.author-rail:hover { color: #fff; background: #1d212a; }
-.author-tool.is-active { border-color: var(--author-accent); color: #fff; }
+.author-rail:hover { color: var(--author-text-strong); background: var(--author-raised); }
+.author-tool.is-active { border-color: var(--author-accent); color: var(--author-text-strong); }
 
 /* ── Structure drag-and-drop ────────────────────────────────────── */
 .author-lab-grip {
@@ -386,12 +435,12 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.author-lab-row.is-active .author-lab-label { color: #fff; font-weight: 600; }
+.author-lab-row.is-active .author-lab-label { color: var(--author-text-strong); font-weight: 600; }
 /* The icon stays quieter than the title until the row is active. */
 .author-lab-icon { flex: 0 0 auto; opacity: 0.65; }
 .author-lab-row.is-active .author-lab-icon { opacity: 1; color: var(--author-accent); }
 .author-lab-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.author-lab-label:hover { background: rgba(255, 255, 255, 0.05); }
+.author-lab-label:hover { background: var(--author-hover); }
 .author-lab-rename {
   flex: 1 1 auto;
   background: var(--author-bg);
@@ -413,7 +462,7 @@ body {
   cursor: pointer;
   line-height: 1.4;
 }
-.author-mini-btn:hover:not(:disabled) { border-color: var(--author-accent); color: #fff; }
+.author-mini-btn:hover:not(:disabled) { border-color: var(--author-accent); color: var(--author-text-strong); }
 .author-mini-btn:disabled { opacity: 0.3; cursor: default; }
 
 /* ── Panes ──────────────────────────────────────────────────────── */
@@ -472,7 +521,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #1d212a;
+  background: var(--author-raised);
   color: var(--author-text);
   border: none;
   border-radius: 5px;
@@ -481,7 +530,7 @@ body {
   cursor: pointer;
   white-space: nowrap;
 }
-.author-menu-btn:hover, .author-menu-btn.is-open { background: #2a3040; color: #fff; }
+.author-menu-btn:hover, .author-menu-btn.is-open { background: var(--author-raised-hi); color: var(--author-text-strong); }
 .author-menu-btn.is-open { box-shadow: inset 0 -2px 0 var(--author-accent); }
 .author-menu-caret { opacity: 0.6; font-size: 10px; }
 .author-menu-pop {
@@ -494,10 +543,10 @@ body {
   display: flex;
   flex-direction: column;
   padding: 4px;
-  background: #1d212a;
+  background: var(--author-raised);
   border: 1px solid var(--author-border);
   border-radius: 8px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 28px var(--author-shadow);
 }
 .author-menu-item {
   text-align: left;
@@ -510,7 +559,7 @@ body {
   cursor: pointer;
   white-space: nowrap;
 }
-.author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: #fff; }
+.author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: var(--author-text-strong); }
 .author-toolbar-btn, .author-toolbar-select {
   background: var(--author-bg);
   color: var(--author-text);
@@ -531,7 +580,7 @@ body {
 .author-toolbar-timing input { width: 64px; }
 .author-toolbar-btn:hover, .author-toolbar-select:hover {
   border-color: var(--author-accent);
-  color: #fff;
+  color: var(--author-text-strong);
 }
 
 /* Lab actions — this lab's own controls, kept apart from the insert
@@ -578,7 +627,9 @@ body {
 /* ── Preview pane ───────────────────────────────────────────────── */
 .author-preview {
   overflow-y: auto;
-  background: var(--pcm-bg, #fff); /* the guide renders on a light surface like the app */
+  /* Follows --pcm-*, i.e. the app's own theme tokens, so the Theme
+     menu's Preview choice shows the real learner surface. */
+  background: var(--pcm-bg, #fff);
   /* Take the APP's text colour, not the editor chrome's. Without this
      the dark --author-text is inherited from <body> and any element
      app.css doesn't colour explicitly (a mid-body <h1>, say) renders

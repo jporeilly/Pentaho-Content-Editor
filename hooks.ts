@@ -43,6 +43,10 @@ export function useCourses(setStatus: (s: string) => void) {
   const [course, setCourse] = useState<string>("");
   const [lab, setLab] = useState<string>("");
   const [glossary, setGlossary] = useState<Record<string, string>>({});
+  // course.json's `version` - the CONTENT version, which moves
+  // independently of the app build and is what a learner quotes
+  // in a support question.
+  const [courseVersion, setCourseVersion] = useState<string>("");
 
   // Boot: API health, then the course list (select the first).
   useEffect(() => {
@@ -74,6 +78,11 @@ export function useCourses(setStatus: (s: string) => void) {
       .then((r) => (r.ok ? r.json() : {}))
       .then((g) => setGlossary(g ?? {}))
       .catch(() => setGlossary({}));
+    // Content version, also best-effort — a course without one just
+    // shows the app version on its own.
+    api.getCourse(course)
+      .then((c) => setCourseVersion(typeof c.version === "string" ? c.version : ""))
+      .catch(() => setCourseVersion(""));
   }, [course, setStatus]);
 
   // After a course is created/imported: refresh the list, select it, announce.
@@ -88,7 +97,7 @@ export function useCourses(setStatus: (s: string) => void) {
     }
   }, [setStatus]);
 
-  return { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, onCourseCreated };
+  return { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, onCourseCreated };
 }
 
 // ── Unsaved-draft backup ──────────────────────────────────────────
