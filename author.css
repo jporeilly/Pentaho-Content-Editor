@@ -203,11 +203,27 @@ body {
   color: var(--author-muted);
   white-space: pre-wrap;
 }
-.author-status {
+/* ── Status bar ─────────────────────────────────────────────────── */
+.author-statusbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 14px;
+  background: var(--author-panel);
+  border-top: 1px solid var(--author-border);
+  border-left: 3px solid transparent;
   color: var(--author-muted);
   font-size: 12px;
-  white-space: nowrap;
+  line-height: 1.5;
+  max-height: 20vh;
+  overflow-y: auto;
 }
+.author-statusbar-text { flex: 1 1 auto; white-space: pre-wrap; }
+.author-statusbar-clear { flex: 0 0 auto; }
+.author-statusbar.is-ok { border-left-color: var(--author-accent); color: #86efac; }
+.author-statusbar.is-warn { border-left-color: #f59e0b; color: #fcd34d; }
+.author-statusbar.is-bad { border-left-color: #ef4444; color: #fca5a5; }
 .author-save {
   background: var(--author-accent);
   color: #fff;
@@ -225,11 +241,42 @@ body {
 
 /* ── Body: structure sidebar + panes (+ optional chat) ──────────── */
 .author-body {
-  display: grid;
-  grid-template-columns: 260px 1fr;
+  display: flex;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
 }
+.author-structure-wrap {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.author-structure-wrap .author-structure { flex: 1 1 auto; }
+
+/* ── Pane dividers ──────────────────────────────────────────────── */
+.author-splitter {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--author-border);
+  transition: background 120ms ease;
+}
+.author-splitter:hover,
+.author-splitter:focus-visible,
+.author-splitter.is-dragging { background: var(--author-accent); outline: none; }
+
+/* Collapsed-sidebar rail — the way back. */
+.author-rail {
+  flex: 0 0 18px;
+  background: var(--author-panel);
+  border: none;
+  border-right: 1px solid var(--author-border);
+  color: var(--author-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+.author-rail:hover { color: #fff; background: #1d212a; }
 .author-tool.is-active { border-color: var(--author-accent); color: #fff; }
 
 /* ── Structure drag-and-drop ────────────────────────────────────── */
@@ -364,11 +411,12 @@ body {
 
 /* ── Panes ──────────────────────────────────────────────────────── */
 .author-panes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
 }
+.author-preview { flex: 1 1 0; min-width: 0; }
 .author-editor,
 .author-preview {
   display: flex;
@@ -380,23 +428,82 @@ body {
 .author-editor-col {
   display: flex;
   flex-direction: column;
+  flex: 0 0 auto;   /* flex-basis is set inline from the splitter */
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  border-right: 1px solid var(--author-border);
 }
 .author-editor-col .author-editor { flex: 1 1 auto; }
 
 /* ── Toolbar ────────────────────────────────────────────────────── */
 .author-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   background: var(--author-panel);
   border-bottom: 1px solid var(--author-border);
   flex: 0 0 auto;
+  /* One row. It scrolls rather than wrapping: six wrapped rows of
+     controls used to eat 249px above the textarea. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
 }
+.author-toolbar-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--author-muted);
+  margin-right: 2px;
+  flex: 0 0 auto;
+}
+
+/* ── Insert menus (button + popover, not <select>) ──────────────── */
+.author-menu { position: relative; flex: 0 0 auto; }
+.author-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #1d212a;
+  color: var(--author-text);
+  border: none;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.author-menu-btn:hover, .author-menu-btn.is-open { background: #2a3040; color: #fff; }
+.author-menu-btn.is-open { box-shadow: inset 0 -2px 0 var(--author-accent); }
+.author-menu-caret { opacity: 0.6; font-size: 10px; }
+.author-menu-pop {
+  /* Fixed, not absolute: the toolbar is an overflow scroller and would
+     clip an absolutely-positioned child. Coordinates come from the
+     button's rect in Menu.tsx. */
+  position: fixed;
+  z-index: 40;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: #1d212a;
+  border: 1px solid var(--author-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+.author-menu-item {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--author-text);
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: #fff; }
 .author-toolbar-btn, .author-toolbar-select {
   background: var(--author-bg);
   color: var(--author-text);
@@ -420,17 +527,20 @@ body {
   color: #fff;
 }
 
+/* Lab actions — this lab's own controls, kept apart from the insert
+   menus so neither row can squeeze the other off the pane. */
 .author-editor-bar {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 10px;
   background: var(--author-panel);
   border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
 }
-.author-editor-bar .author-toolbar { flex: 1 1 auto; border-bottom: none; }
 .author-rewrite {
   flex: 0 0 auto;
-  margin: 8px 10px 0 0;
   background: rgba(22, 163, 74, 0.15);
   border-color: var(--author-accent);
   white-space: nowrap;
@@ -461,7 +571,12 @@ body {
 /* ── Preview pane ───────────────────────────────────────────────── */
 .author-preview {
   overflow-y: auto;
-  background: #fff; /* the guide renders on a light surface like the app */
+  background: var(--pcm-bg, #fff); /* the guide renders on a light surface like the app */
+  /* Take the APP's text colour, not the editor chrome's. Without this
+     the dark --author-text is inherited from <body> and any element
+     app.css doesn't colour explicitly (a mid-body <h1>, say) renders
+     near-white on the white preview surface. */
+  color: var(--pcm-fg, #0f172a);
 }
 .author-preview-guide {
   padding: 20px 26px;
@@ -482,3 +597,31 @@ body {
   overflow-x: auto;
 }
 .author-error { color: #f87171; font-weight: 600; }
+
+/* ── Welcome-page editor ────────────────────────────────────────── */
+.author-welcome-row { border-bottom: 1px solid var(--author-border); margin-bottom: 4px; }
+.author-welcome-note { font-size: 11px; color: var(--author-muted); }
+.author-welcome-note code { background: var(--author-bg); padding: 1px 5px; border-radius: 4px; }
+.author-form {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.author-textarea-sm {
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+.author-summary-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--author-border);
+}
+.author-summary-row .author-input:first-child { grid-column: 1; }
+.author-summary-row .author-textarea-sm { grid-column: 1; }
+.author-summary-row .author-mini-btn { grid-column: 2; grid-row: 1; align-self: start; }

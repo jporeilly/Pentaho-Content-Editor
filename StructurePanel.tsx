@@ -18,11 +18,17 @@ interface StructurePanelProps {
   refreshKey?: number;
   /** Report the docs an AI action was grounded in, for citation display. */
   onSources?: (sources: Source[]) => void;
+  /** Hide the sidebar — the shell shows a thin rail to bring it back. */
+  onCollapse?: () => void;
+  /** True while the Welcome pane is open (no lab is selected). */
+  welcomeActive?: boolean;
+  /** Open the Welcome-page editor. */
+  onSelectWelcome?: () => void;
 }
 
 /** Flattened [topicIndex, labIndex] address of a lab, for reordering. */
 
-export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources }: StructurePanelProps) {
+export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources, onCollapse, welcomeActive, onSelectWelcome }: StructurePanelProps) {
   const [structure, setStructure] = useState<Structure>({ topics: [] });
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -173,9 +179,26 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
           <button type="button" className="author-mini-btn" onClick={() => openLabModal("new")} disabled={busy || generating} title="New blank lab">
             + Lab
           </button>
+          {onCollapse && (
+            <button type="button" className="author-mini-btn" onClick={onCollapse} title="Hide the structure sidebar">
+              «
+            </button>
+          )}
         </span>
       </div>
       <div className="author-structure-body">
+        {onSelectWelcome && (
+          <div className={`author-lab-row author-welcome-row${welcomeActive ? " is-active" : ""}`}>
+            <button
+              type="button"
+              className="author-lab-label"
+              onClick={onSelectWelcome}
+              title="The course landing page — generated from course.json"
+            >
+              🏠 Welcome
+            </button>
+          </div>
+        )}
         {structure.topics.map((topic, ti) => (
           <div
             key={topic.title + ti}
@@ -214,7 +237,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
                 onDragLeave={() => setDropSlug((s) => (s === lab.slug ? null : s))}
                 onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (dragSlug) dropOnLab(dragSlug, lab.slug); setDragSlug(null); setDropSlug(null); }}
                 className={
-                  `author-lab-row${lab.slug === activeSlug ? " is-active" : ""}` +
+                  `author-lab-row${lab.slug === activeSlug && !welcomeActive ? " is-active" : ""}` +
                   `${dropSlug === lab.slug ? " is-drop" : ""}${dragSlug === lab.slug ? " is-dragging" : ""}`
                 }
               >

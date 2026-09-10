@@ -19,11 +19,57 @@ import { NewCourseModal } from "./NewCourseModal";
 import { LabFilesModal } from "./LabFilesModal";
 import { CourseSettingsModal } from "./CourseSettingsModal";
 import { ChatPanel } from "./ChatPanel";
+import { Splitter, useSplit } from "./Splitter";
+import { WelcomePane } from "./WelcomePane";
 import { useProviderHealth, useCourses, useLab, useAi } from "./hooks";
 
+// Pane floors, in px. Narrower than these and the pane stops being
+// useful: the editor can no longer show a wrapped markdown line, and
+// the preview stops representing what a learner's window looks like.
+// Kept beside each other because the sidebar's clamp is derived from
+// both of them.
+const MIN_EDITOR = 320;
+const MIN_PREVIEW = 300;
+/** Width of a .author-splitter, matching the CSS `flex: 0 0 6px`. */
+const SPLITTER_PX = 6;
+
+/** Severity of a status message, read off the leader the callers use. */
+function statusTone(s: string): "" | "is-ok" | "is-bad" | "is-warn" {
+  if (!s) return "";
+  if (s.startsWith("✗") || /^Save failed|failed:/i.test(s)) return "is-bad";
+  if (s.startsWith("⚠")) return "is-warn";
+  if (s.startsWith("✓") || s.startsWith("Saved")) return "is-ok";
+  return "";
+}
+
 export function App() {
-  // The one header status line — shared across every action.
+  // The one status line — shared across every action. It lives in the
+  // bottom status bar, not the header: a long message (the save-conflict
+  // warning is a full sentence) used to stretch the header's flex row
+  // and push the Save button clean off the right of the window —
+  // precisely when the author most needed to press it.
   const [status, setStatus] = useState<string>("");
+
+  // Pane sizing. Both seams are draggable and remembered per browser;
+  // double-click a divider to restore the default.
+  //
+  // The last argument is what must be left for the OTHER side of the
+  // divider, and it differs per seam: drag the sidebar and the whole
+  // editor+preview area has to survive; drag the editor and only the
+  // preview does. Without it a wide sidebar could squeeze the panes to
+  // nothing on a small window.
+  const sidebar = useSplit(
+    "pcm-author-sidebar-px", 260, 180, 480,
+    MIN_EDITOR + SPLITTER_PX + MIN_PREVIEW,
+  );
+  const editor = useSplit(
+    "pcm-author-editor-px", 620, MIN_EDITOR, 1400,
+    MIN_PREVIEW + SPLITTER_PX,
+  );
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // The Welcome page has no guide.md — it is generated from
+  // course.json — so it gets its own pane rather than a lab slug.
+  const [welcomeMode, setWelcomeMode] = useState(false);
 
   const { health, refreshHealth } = useProviderHealth();
   const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, onCourseCreated } =
@@ -169,7 +215,6 @@ uvicorn app:app --reload --port 8000`}</pre>
           {publishing ? "Publishing…" : "⇧ Publish"}
         </button>
         <div className="author-header-spacer" />
-        <span className="author-status">{status}</span>
         <button type="button" className={`author-tool${showChat ? " is-active" : ""}`} onClick={() => setShowChat((v) => !v)} title="Toggle the AI assistant chat">
           💬 Chat
         </button>
@@ -225,20 +270,60 @@ uvicorn app:app --reload --port 8000`}</pre>
         </div>
       )}
 
-      <div className="author-body">
-        <StructurePanel
-          course={course}
-          activeSlug={lab}
-          onSelect={setLab}
-          refreshKey={structureKey}
-          onSources={setSources}
-        />
-        {detail ? (
-          <div className="author-panes">
-            <div className="author-editor-col">
+      <div className="author-body" ref={sidebar.containerRef}>
+        {sidebarOpen ? (
+          <>
+            <div className="author-structure-wrap" style={{ width: sidebar.px }}>
+              <StructurePanel
+                course={course}
+                activeSlug={lab}
+                onSelect={(slug) => { setWelcomeMode(false); setLab(slug); }}
+                refreshKey={structureKey}
+                onSources={setSources}
+                onCollapse={() => setSidebarOpen(false)}
+                welcomeActive={welcomeMode}
+                onSelectWelcome={() => setWelcomeMode(true)}
+              />
+            </div>
+            <Splitter
+              label="Sidebar width"
+              value={sidebar.px}
+              onDrag={sidebar.set}
+              onReset={sidebar.reset}
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            className="author-rail"
+            onClick={() => setSidebarOpen(true)}
+            title="Show the course structure"
+          >
+            »
+          </button>
+        )}
+        {welcomeMode ? (
+          <div className="author-panes" ref={editor.containerRef}>
+            <WelcomePane
+              course={course}
+              refreshKey={structureKey}
+              setStatus={setStatus}
+              editorPx={editor.px}
+              splitter={
+                <Splitter
+                  label="Editor / preview split"
+                  value={editor.px}
+                  onDrag={editor.set}
+                  onReset={editor.reset}
+                />
+              }
+            />
+          </div>
+        ) : detail ? (
+          <div className="author-panes" ref={editor.containerRef}>
+            <div className="author-editor-col" style={{ flexBasis: editor.px }}>
             <section className="author-editor">
               <div className="author-editor-bar">
-                <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
                 <button
                   type="button"
                   className={`author-toolbar-btn author-rewrite${lastRewrite ? " is-undo" : ""}`}
@@ -308,6 +393,7 @@ uvicorn app:app --reload --port 8000`}</pre>
                   }}
                 />
               </div>
+              <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
               <textarea
                 ref={textareaRef}
                 className="author-textarea"
@@ -327,8 +413,20 @@ uvicorn app:app --reload --port 8000`}</pre>
               />
             )}
             </div>
+            <Splitter
+              label="Editor / preview split"
+              value={editor.px}
+              onDrag={editor.set}
+              onReset={editor.reset}
+            />
             <section className="author-preview">
-              <Preview body={body} baseUrl={baseUrl} labSlug={lab} glossary={glossary} />
+              <Preview
+                body={body}
+                baseUrl={baseUrl}
+                labSlug={lab}
+                glossary={glossary}
+                manifest={detail.manifest}
+              />
             </section>
           </div>
         ) : (
@@ -387,6 +485,23 @@ uvicorn app:app --reload --port 8000`}</pre>
           }}
         />
       )}
+
+      {/* Status bar — the one place actions report back. Full width so
+          a long message wraps instead of shoving the header controls
+          off-screen, and it sits where the eye already is after a save. */}
+      <footer className={`author-statusbar ${statusTone(status)}`.trim()}>
+        <span className="author-statusbar-text">{status || " "}</span>
+        {status && (
+          <button
+            type="button"
+            className="author-mini-btn author-statusbar-clear"
+            onClick={() => setStatus("")}
+            title="Clear this message"
+          >
+            Clear
+          </button>
+        )}
+      </footer>
     </div>
   );
 }

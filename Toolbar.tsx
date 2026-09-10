@@ -1,7 +1,9 @@
 // Insert-block toolbar. Blocks are organised into a few grouped dropdown
 // menus (Callout / Heading / List / Media / Block / Pentaho) plus a couple
-// of standalone buttons, so the toolbar stays compact. Each dropdown
-// inserts the chosen block at the caret, then resets to its label.
+// of standalone buttons, so the toolbar stays compact. Each menu inserts
+// the chosen block at the caret.
+
+import { Menu } from "./Menu";
 
 interface ToolbarProps {
   /** The live textarea element, for selection-aware insertion. */
@@ -117,23 +119,18 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
 
   return (
     <div className="author-toolbar">
+      <span className="author-toolbar-label">Insert</span>
       {GROUP_ORDER.map((group) => (
-        <select
+        <Menu
           key={group}
-          className="author-toolbar-select"
-          value=""
+          label={group}
           title={`Insert a ${group.toLowerCase()} block`}
-          onChange={(e) => {
-            const block = byGroup(group).find((b) => b.label === e.target.value);
-            if (block) insert(block);
-            e.target.value = ""; // reset to the label
-          }}
-        >
-          <option value="" disabled>{group} ▾</option>
-          {byGroup(group).map((b) => (
-            <option key={b.label} value={b.label} title={b.title}>{b.label}</option>
-          ))}
-        </select>
+          items={byGroup(group).map((b) => ({
+            label: b.label,
+            title: b.title,
+            onSelect: () => insert(b),
+          }))}
+        />
       ))}
       {standalone.map((b) => (
         <button
