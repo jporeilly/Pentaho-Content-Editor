@@ -5,6 +5,10 @@
 // labs go through the Node scaffolder via POST /labs.
 
 import { useCallback, useEffect, useState } from "react";
+// Same icon set the learner sidebar uses (Sidebar.tsx), so the
+// author's tree reads exactly like the tree learners navigate:
+// Home for Welcome, FileText for a page, FlaskConical for a workshop.
+import { FileText, FlaskConical, Home } from "lucide-react";
 import { api, type Structure, type StructureLab, type Source } from "./api";
 import { LabModal, type LabDraft } from "./LabModal";
 
@@ -195,7 +199,8 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
               onClick={onSelectWelcome}
               title="The course landing page — generated from course.json"
             >
-              🏠 Welcome
+              <Home size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
+              Welcome
             </button>
           </div>
         )}
@@ -262,7 +267,12 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
                     onDoubleClick={() => beginRename(lab)}
                     title={`${lab.slug} — drag to reorder, double-click to rename`}
                   >
-                    {lab.kind === "page" ? "📄" : "🧪"} {lab.title}
+                    {lab.kind === "page" ? (
+                      <FileText size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
+                    ) : (
+                      <FlaskConical size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
+                    )}
+                    {lab.title}
                   </button>
                 )}
               </div>

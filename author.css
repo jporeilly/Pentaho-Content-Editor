@@ -371,6 +371,9 @@ body {
 .author-lab-row.is-active { background: rgba(22, 163, 74, 0.15); }
 .author-lab-label {
   flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   text-align: left;
   background: none;
   border: none;
@@ -384,6 +387,10 @@ body {
   white-space: nowrap;
 }
 .author-lab-row.is-active .author-lab-label { color: #fff; font-weight: 600; }
+/* The icon stays quieter than the title until the row is active. */
+.author-lab-icon { flex: 0 0 auto; opacity: 0.65; }
+.author-lab-row.is-active .author-lab-icon { opacity: 1; color: var(--author-accent); }
+.author-lab-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .author-lab-label:hover { background: rgba(255, 255, 255, 0.05); }
 .author-lab-rename {
   flex: 1 1 auto;
