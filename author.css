@@ -683,3 +683,29 @@ body {
 .author-summary-row .author-input:first-child { grid-column: 1; }
 .author-summary-row .author-textarea-sm { grid-column: 1; }
 .author-summary-row .author-mini-btn { grid-column: 2; grid-row: 1; align-self: start; }
+
+/* ── Format buttons (bold / italic / code / strike) ────────────
+   Narrow and fixed-width so four of them cost about as much row as
+   one Insert menu. The 0.4.21 toolbar fix is the constraint here:
+   six <select> menus once collapsed to min-content and stacked into
+   six rows, eating a third of the editor's height, so anything added
+   to this row has to earn its width. */
+.author-toolbar-fmt {
+  min-width: 30px;
+  padding: 5px 6px;
+  text-align: center;
+  font-family: var(--author-mono, ui-monospace, "Cascadia Code", Consolas, monospace);
+  line-height: 1.1;
+}
+.author-toolbar-fmt.is-bold   { font-weight: 700; }
+.author-toolbar-fmt.is-italic { font-style: italic; }
+.author-toolbar-fmt.is-strike { text-decoration: line-through; }
+.author-toolbar-fmt.is-code   { font-size: 11px; }
+
+.author-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 6px;
+  background: var(--author-border);
+  flex: 0 0 auto;
+}
