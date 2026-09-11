@@ -24,6 +24,10 @@ interface WelcomePaneProps {
   editorPx: number;
   /** The shell's pane divider, rendered between form and preview. */
   splitter?: React.ReactNode;
+  /** The AI assistant, rendered under the form exactly as it sits under
+   *  the guide textarea. Passed in rather than mounted here so the
+   *  shell keeps ownership of the Chat toggle. */
+  chat?: React.ReactNode;
 }
 
 interface ModuleSummary { title: string; summary: string }
@@ -40,7 +44,7 @@ function toTopics(structure: Structure): TopicNode[] {
   }));
 }
 
-export function WelcomePane({ course, refreshKey, setStatus, editorPx, splitter }: WelcomePaneProps) {
+export function WelcomePane({ course, refreshKey, setStatus, editorPx, splitter, chat }: WelcomePaneProps) {
   const [raw, setRaw] = useState<Record<string, unknown> | null>(null);
   const [structure, setStructure] = useState<Structure>({ topics: [] });
   const [saving, setSaving] = useState(false);
@@ -278,6 +282,7 @@ export function WelcomePane({ course, refreshKey, setStatus, editorPx, splitter 
             </button>
           </fieldset>
         </div>
+        {chat}
       </div>
       {splitter}
       <section className="author-preview">

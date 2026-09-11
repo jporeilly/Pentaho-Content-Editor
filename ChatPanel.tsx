@@ -18,9 +18,14 @@ interface ChatPanelProps {
   onInsert: (text: string) => void;
   /** Whether the active provider is reachable. */
   ready: boolean;
+  /** False where there is no caret to insert at — the Welcome page is
+   *  a form, not a textarea. The button is hidden rather than left to
+   *  do nothing, which is exactly the failure this panel was guilty of
+   *  when the Chat toggle rendered no panel at all on that page. */
+  canInsert?: boolean;
 }
 
-export function ChatPanel({ onClose, context, onInsert, ready }: ChatPanelProps) {
+export function ChatPanel({ onClose, context, onInsert, ready, canInsert = true }: ChatPanelProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -73,7 +78,9 @@ export function ChatPanel({ onClose, context, onInsert, ready }: ChatPanelProps)
             <pre className="author-chat-text">{m.content}</pre>
             {m.role === "assistant" && !m.content.startsWith("⚠") && (
               <div className="author-chat-actions">
-                <button type="button" className="author-mini-btn" onClick={() => onInsert(m.content + "\n\n")} title="Insert into the editor at the caret">Insert</button>
+                {canInsert && (
+                  <button type="button" className="author-mini-btn" onClick={() => onInsert(m.content + "\n\n")} title="Insert into the editor at the caret">Insert</button>
+                )}
                 <button type="button" className="author-mini-btn" onClick={() => navigator.clipboard?.writeText(m.content)} title="Copy">Copy</button>
               </div>
             )}

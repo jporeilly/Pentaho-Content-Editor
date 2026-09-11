@@ -331,6 +331,22 @@ uvicorn app:app --reload --port 8000`}</pre>
               refreshKey={structureKey}
               setStatus={setStatus}
               editorPx={editor.px}
+              // The Chat toggle used to flip to active here and render
+              // nothing, because the panel only existed in the lab
+              // branch. There is no caret on this page, so the panel
+              // comes without its Insert action rather than with one
+              // that does nothing.
+              chat={
+                showChat ? (
+                  <ChatPanel
+                    onClose={() => setShowChat(false)}
+                    context={`Welcome page for the course "${course}".`}
+                    onInsert={() => {}}
+                    canInsert={false}
+                    ready={health?.ok !== false}
+                  />
+                ) : null
+              }
               splitter={
                 <Splitter
                   label="Editor / preview split"
