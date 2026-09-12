@@ -274,7 +274,20 @@ def _parse_structure(course_path: Path) -> list[StructureTopic]:
 def _write_structure(course_path: Path, topics: list[StructureTopic]) -> None:
     """Rewrite SUMMARY.md from the given topic/lab order, and sync each
     lab's manifest `order` (flattened 1-based sequence) and `title`."""
-    lines = ["# Table of contents", ""]
+    # Keep whatever H1 the file already has. This rewrites SUMMARY.md
+    # wholesale on every reorder, rename and delete, and hardcoding the
+    # heading silently replaced author titles like
+    # "# Pentaho Developer - ML Specialty" with "# Table of contents".
+    # The default is only for a course that has no heading yet.
+    summary_path = course_path / "SUMMARY.md"
+    heading = "# Table of contents"
+    if summary_path.exists():
+        for line in summary_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("# "):
+                heading = line.rstrip()
+                break
+
+    lines = [heading, ""]
     seq = 0
     for topic in topics:
         lines.append(f"## {topic.title}")
@@ -289,7 +302,7 @@ def _write_structure(course_path: Path, topics: list[StructureTopic]) -> None:
                 man["title"] = lab.title
                 _write_json(man_path, man)
         lines.append("")
-    (course_path / "SUMMARY.md").write_text(
+    summary_path.write_text(
         "\n".join(lines).rstrip("\n") + "\n", encoding="utf-8"
     )
 

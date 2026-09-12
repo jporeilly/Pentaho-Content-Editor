@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 
 from fastapi import APIRouter, HTTPException
@@ -164,6 +165,47 @@ def create_lab(course: str, req: NewLabRequest) -> Structure:
         raise HTTPException(500, "`node` not found on PATH — needed to scaffold a lab")
     except subprocess.CalledProcessError as e:
         raise HTTPException(500, f"Scaffold failed: {e.stderr or e.stdout}")
+    return Structure(topics=_parse_structure(course_path))
+
+
+@router.delete("/api/courses/{course}/labs/{lab}", response_model=Structure)
+def delete_lab(course: str, lab: str) -> Structure:
+    """Permanently delete a lab or page: its folder AND its SUMMARY.md
+    bullet. Doing only half is the failure mode this exists to prevent —
+    authors previously had to do both by hand.
+
+    Order matters. The learner app lists labs with ``readDir`` over the
+    content root, so a folder left behind after the bullet is removed is
+    still shown to learners: a silent failure. A bullet left behind
+    after the folder is gone is caught by ``verify-course`` and by
+    ``put_structure``'s own existence guard: loud and recoverable. So
+    the folder goes first.
+    """
+    course_path = _course_dir(course)
+    if not _is_lab_dir(course_path, lab):
+        raise HTTPException(404, f"No such lab or page: {lab}")
+
+    lab_path = course_path / lab
+    try:
+        shutil.rmtree(lab_path)
+    except OSError as e:
+        raise HTTPException(500, f"Couldn't delete {lab}: {e}")
+
+    # Drop it from every topic. Rebuilt from SUMMARY.md, so a lab that
+    # was never listed there simply leaves the file untouched.
+    topics = _parse_structure(course_path)
+    pruned = [
+        StructureTopic(title=t.title, labs=[l for l in t.labs if l.slug != lab])
+        for t in topics
+    ]
+    try:
+        _write_structure(course_path, pruned)
+    except OSError as e:
+        raise HTTPException(
+            500,
+            f"Deleted {lab}, but couldn't rewrite SUMMARY.md ({e}). "
+            f"Remove the '{lab}' bullet by hand or verify-course will flag it.",
+        )
     return Structure(topics=_parse_structure(course_path))
 
 
