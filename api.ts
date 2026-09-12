@@ -256,6 +256,13 @@ export const api = {
     return json(await fetch(`${API_BASE}/api/courses/${course}/install`, { method: "POST" }));
   },
 
+  /** Delete a lab or page — its folder AND its SUMMARY.md bullet. */
+  async deleteLab(course: string, lab: string): Promise<Structure> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}/labs/${lab}`, { method: "DELETE" }),
+    );
+  },
+
   async deleteCourse(course: string, confirm: string): Promise<{ ok: boolean; id: string }> {
     return json(
       await fetch(`${API_BASE}/api/courses/${course}`, {

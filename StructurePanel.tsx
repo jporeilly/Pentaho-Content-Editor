@@ -45,6 +45,8 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   // Which lab-creation modal is open ("new" or "ai"), and its inline error.
   const [labModal, setLabModal] = useState<"new" | "page" | "ai" | null>(null);
   const [labModalError, setLabModalError] = useState("");
+  // Slug whose delete button is armed — one at a time.
+  const [deleteArmed, setDeleteArmed] = useState<string | null>(null);
 
   const load = useCallback(() => {
     if (!course) return;
@@ -131,6 +133,23 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   function openLabModal(mode: "new" | "page" | "ai") {
     setLabModalError("");
     setLabModal(mode);
+  }
+
+  async function deleteLab(slug: string) {
+    setDeleteArmed(null);
+    setBusy(true);
+    try {
+      const next = await api.deleteLab(course, slug);
+      setStructure(next);
+      // The deleted lab may be the one open in the editor. Move to the
+      // Welcome page rather than leave the panes showing a lab that no
+      // longer exists on disk.
+      if (slug === activeSlug) onSelectWelcome?.();
+    } catch {
+      load(); // server truth — the delete may have half-applied
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submitNewLab(draft: LabDraft) {
@@ -281,6 +300,31 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
                       <FlaskConical size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
                     )}
                     {lab.title}
+                  </button>
+                )}
+                {/* Click to arm, click again to delete. A folder and a
+                    SUMMARY bullet do not come back, so a single stray
+                    click must not be enough - but typing a phrase per
+                    lab (as the course delete demands) is too heavy for
+                    something this routine. Arming clears on blur. */}
+                {editing !== lab.slug && (
+                  <button
+                    type="button"
+                    className={`author-lab-delete${deleteArmed === lab.slug ? " is-armed" : ""}`}
+                    disabled={busy}
+                    onClick={() => {
+                      if (deleteArmed === lab.slug) void deleteLab(lab.slug);
+                      else setDeleteArmed(lab.slug);
+                    }}
+                    onBlur={() => setDeleteArmed((s) => (s === lab.slug ? null : s))}
+                    title={
+                      deleteArmed === lab.slug
+                        ? `Delete ${lab.slug} and its SUMMARY entry — this cannot be undone`
+                        : `Delete ${lab.kind === "page" ? "page" : "lab"}…`
+                    }
+                    aria-label={deleteArmed === lab.slug ? `Confirm delete ${lab.title}` : `Delete ${lab.title}`}
+                  >
+                    {deleteArmed === lab.slug ? "Delete?" : "🗑"}
                   </button>
                 )}
               </div>

@@ -709,3 +709,30 @@ body {
   background: var(--author-border);
   flex: 0 0 auto;
 }
+
+/* ── Per-row delete (lab / page) ───────────────────────────────
+   Always present rather than hover-revealed: a control you have to
+   discover by hovering reads as missing, which is how the chat's
+   Save button went unnoticed through two reports. Quiet by colour,
+   not by opacity — and it takes two clicks, so being visible costs
+   nothing. */
+.author-lab-delete {
+  margin-left: auto;
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--author-muted);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.author-lab-delete:hover { color: #b91c1c; background: var(--author-bg); }
+.author-lab-delete:disabled { cursor: default; opacity: 0.4; }
+.author-lab-delete.is-armed {
+  background: #b91c1c;
+  color: #fff;
+  font-weight: 600;
+}
