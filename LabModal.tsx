@@ -20,7 +20,8 @@ export interface LabDraft {
 }
 
 interface LabModalProps {
-  mode: "new" | "ai";
+  /** "page" is "new" with the Kind dropdown pre-set — still switchable. */
+  mode: "new" | "page" | "ai";
   /** Existing topic names, for the datalist + a sensible default. */
   topics: string[];
   /** An operation is in flight (creating / drafting). */
@@ -34,7 +35,11 @@ interface LabModalProps {
 export function LabModal({ mode, topics, busy, error, onClose, onSubmit }: LabModalProps) {
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState(topics[topics.length - 1] ?? "Workshops");
-  const [kind, setKind] = useState<"workshop" | "page">("workshop");
+  // Which button was pressed decides the starting kind; the dropdown
+  // below still switches it, so "+ Page" is a shortcut, not a mode.
+  const [kind, setKind] = useState<"workshop" | "page">(
+    mode === "page" ? "page" : "workshop",
+  );
   const [outline, setOutline] = useState("");
 
   const isAi = mode === "ai";
@@ -50,13 +55,17 @@ export function LabModal({ mode, topics, busy, error, onClose, onSubmit }: LabMo
     });
   }
 
+  // The heading and button follow the CURRENT kind, not the button that
+  // opened the modal — switch the dropdown to Page and the dialog stops
+  // calling it a lab.
+  const noun = kind === "page" ? "page" : "lab";
   const primaryLabel = isAi
     ? (busy ? "Drafting…" : "✨ Draft with AI")
-    : (busy ? "Creating…" : "Create lab");
+    : (busy ? "Creating…" : `Create ${noun}`);
 
   return (
     <Modal
-      title={isAi ? "Draft a lab with AI" : "New lab"}
+      title={isAi ? "Draft a lab with AI" : `New ${noun}`}
       onClose={onClose}
       busy={busy}
       footer={

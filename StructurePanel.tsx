@@ -43,7 +43,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   const [dragSlug, setDragSlug] = useState<string | null>(null);
   const [dropSlug, setDropSlug] = useState<string | null>(null);
   // Which lab-creation modal is open ("new" or "ai"), and its inline error.
-  const [labModal, setLabModal] = useState<"new" | "ai" | null>(null);
+  const [labModal, setLabModal] = useState<"new" | "page" | "ai" | null>(null);
   const [labModalError, setLabModalError] = useState("");
 
   const load = useCallback(() => {
@@ -128,7 +128,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
     persist(next);
   }
 
-  function openLabModal(mode: "new" | "ai") {
+  function openLabModal(mode: "new" | "page" | "ai") {
     setLabModalError("");
     setLabModal(mode);
   }
@@ -180,8 +180,16 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
           >
             {generating ? "Drafting…" : "✨ AI Lab"}
           </button>
-          <button type="button" className="author-mini-btn" onClick={() => openLabModal("new")} disabled={busy || generating} title="New blank lab">
+          <button type="button" className="author-mini-btn" onClick={() => openLabModal("new")} disabled={busy || generating} title="New blank workshop — numbered steps the learner ticks off">
             + Lab
+          </button>
+          {/* The Kind dropdown inside the modal could always make a
+              page, but nothing on this bar said so, so authors looked
+              for a button and concluded pages were workshops-only. The
+              dropdown is still there and still switchable — this only
+              changes which way it starts. */}
+          <button type="button" className="author-mini-btn" onClick={() => openLabModal("page")} disabled={busy || generating} title="New blank page — reference content, no tracked steps">
+            + Page
           </button>
           {onCollapse && (
             <button type="button" className="author-mini-btn" onClick={onCollapse} title="Hide the structure sidebar">
