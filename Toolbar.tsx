@@ -6,6 +6,7 @@
 import { CODE_LANGUAGES, codeFence } from "../components/codeLanguages";
 import { Menu } from "./Menu";
 import { toggleWrap } from "./markdownKeys";
+import { placeholderRange } from "./placeholder";
 
 // Inline formatting. These share `toggleWrap` with the keyboard
 // shortcuts rather than re-implementing the wrap, so a button and its
@@ -185,12 +186,17 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
     const sel = value.slice(start, end);
     const { text } = block.build(sel);
     const next = value.slice(0, start) + text + value.slice(end);
-    const caret = start + text.length;
-    onChange(next, caret);
+    // With nothing selected the block carries its sample body; select
+    // that so the author types straight over it. With a selection the
+    // block wrapped real text, so the caret goes after the block.
+    const range = sel ? null : placeholderRange(block.build, text);
+    const selStart = range ? start + range[0] : start + text.length;
+    const selEnd = range ? start + range[1] : selStart;
+    onChange(next);
     requestAnimationFrame(() => {
       if (textarea) {
         textarea.focus();
-        textarea.setSelectionRange(caret, caret);
+        textarea.setSelectionRange(selStart, selEnd);
       }
     });
   }
