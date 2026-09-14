@@ -82,6 +82,7 @@ body {
 .author-brand {
   font-weight: 700;
   letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 .author-select {
   background: var(--author-bg);

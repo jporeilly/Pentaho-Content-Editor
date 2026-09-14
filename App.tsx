@@ -1,4 +1,4 @@
-// Course Editor — MVP vertical slice.
+// Pentaho Content Editor — MVP vertical slice.
 //
 // Pick a course -> pick a lab -> edit its guide.md with the insert-block
 // toolbar -> see a live preview rendered by the app's own MarkdownBody
@@ -173,7 +173,7 @@ export function App() {
   if (apiUp === false) {
     return (
       <div className="author-splash">
-        <h1>Course Editor</h1>
+        <h1>Pentaho Content Editor</h1>
         <p className="author-error">Can’t reach the editor API at {api.base}.</p>
         <p>Start it in a second terminal:</p>
         <pre>{`cd editor/api
@@ -186,7 +186,7 @@ uvicorn app:app --reload --port 8000`}</pre>
   return (
     <div className="author-root">
       <header className="author-header">
-        <span className="author-brand">Course Editor</span>
+        <span className="author-brand">Pentaho Content Editor</span>
         <select
           className="author-select"
           value={course}

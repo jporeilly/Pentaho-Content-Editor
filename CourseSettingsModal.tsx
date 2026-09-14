@@ -328,7 +328,7 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                 <label className="author-field">
                   <span>Commit message (optional)</span>
                   <input
-                    className="author-input" placeholder={`Update ${course} from the course editor`}
+                    className="author-input" placeholder={`Update ${course} from the Content Editor`}
                     value={commitMsg} onChange={(e) => setCommitMsg(e.target.value)}
                   />
                 </label>

@@ -1,4 +1,4 @@
-# Course Editor (`src/author/` + `editor/api/`)
+# Pentaho Content Editor (`src/author/` + `editor/api/`)
 
 The authoring surface for `courses/`. A plain browser app — **not** part
 of the Tauri learner app, never shipped to a VM. The root
