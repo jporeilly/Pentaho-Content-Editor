@@ -195,7 +195,7 @@ def _commit_authoring(course: str, message: str) -> dict[str, Any]:
     if not _git(["status", "--porcelain", "--", spec], root).strip():
         return {"committed": False, "upToDate": True}
     _git([
-        "-c", "user.name=Pentaho Course Editor",
+        "-c", "user.name=Pentaho Content Editor",
         "-c", "user.email=jporeilly@users.noreply.github.com",
         "commit", "-m", message, "--", spec,
     ], root)
@@ -210,7 +210,7 @@ def publish_course(course: str, body: PublishBody | None = None) -> dict[str, An
     With ``commit: true``, first commit + push the authoring repo."""
     local = _course_dir(course)
     message = (body.message.strip() if body and body.message and body.message.strip()
-               else f"Update {course} from the course editor")
+               else f"Update {course} from the Content Editor")
     # Authoring-repo commit first: if the distribution push then fails,
     # the edits are at least safely in history.
     authoring = _commit_authoring(course, message) if body and body.commit else None
@@ -236,7 +236,7 @@ def publish_course(course: str, body: PublishBody | None = None) -> dict[str, An
 
     _git(["add", "-A", "--", course], clone)
     _git([
-        "-c", "user.name=Pentaho Course Editor",
+        "-c", "user.name=Pentaho Content Editor",
         "-c", "user.email=jporeilly@users.noreply.github.com",
         "commit", "-m", message,
     ], clone)
@@ -268,7 +268,7 @@ def publish_tag(body: TagBody) -> dict[str, Any]:
     if existing.strip():
         raise HTTPException(409, f"Tag '{tag}' already exists.")
     message = (body.message or f"Workshop release {tag}").strip()
-    _git(["-c", "user.name=Pentaho Course Editor",
+    _git(["-c", "user.name=Pentaho Content Editor",
           "-c", "user.email=jporeilly@users.noreply.github.com",
           "tag", "-a", tag, "-m", message], clone)
     _git(["push", "--quiet", "origin", tag], clone)

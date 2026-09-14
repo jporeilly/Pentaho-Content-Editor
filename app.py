@@ -1,4 +1,4 @@
-"""Course editor API — FastAPI backend for the visual course editor.
+"""Pentaho Content Editor API — FastAPI backend for the visual editor.
 
 A thin, local read/write service over the repo's ``courses/`` folder so
 the React editor (which reuses the app's own MarkdownBody renderer for a
@@ -30,7 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import core
 from routers import courses, labs, assets, ai, settings, imports, export, publish
 
-app = FastAPI(title="Pentaho Content Manager — Course Editor API")
+app = FastAPI(title="Pentaho Content Editor API")
 
 # The Vite dev server (author frontend) runs on a different port, so
 # allow cross-origin from localhost during development.

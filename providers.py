@@ -1,4 +1,4 @@
-"""LLM provider abstraction for the course editor's authoring assist.
+"""LLM provider abstraction for the Content Editor's authoring assist.
 
 Author-side only (never shipped to learner VMs). Three providers:
 
