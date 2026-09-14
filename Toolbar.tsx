@@ -1,8 +1,9 @@
 // Insert-block toolbar. Blocks are organised into a few grouped dropdown
-// menus (Callout / Heading / List / Media / Block / Pentaho) plus a couple
-// of standalone buttons, so the toolbar stays compact. Each menu inserts
-// the chosen block at the caret.
+// menus (Heading / Callout / List / Text / Media / Code / Block / Pentaho)
+// plus a couple of standalone buttons, so the toolbar stays compact.
+// Each menu inserts the chosen block at the caret.
 
+import { CODE_LANGUAGES, codeFence } from "../components/codeLanguages";
 import { Menu } from "./Menu";
 import { toggleWrap } from "./markdownKeys";
 
@@ -110,9 +111,16 @@ export const BLOCKS: Block[] = [
   { group: "Media", label: "Image — float left", title: "Image on the left with the text wrapping beside it; the next step heading starts below it",
     build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
 
+  // ── Code ──
+  // One entry per language in the shared registry, so the menu can only
+  // ever write a fence the renderer highlights; codeLanguages.test.ts
+  // holds the two together. Selected text becomes the body.
+  ...CODE_LANGUAGES.map((l): Block => ({
+    group: "Code", label: l.label, title: `Fenced ${l.badge} code block with a copy button`,
+    build: (s) => ({ text: codeFence(l, s) }),
+  })),
+
   // ── Block ──
-  { group: "Block", label: "Code", title: "Fenced code block with copy button",
-    build: (s) => ({ text: "```sql\n" + (s || "SELECT 1;") + "\n```\n\n" }) },
   { group: "Block", label: "Tabs", title: "Interactive tab widget",
     build: () => ({ text: "::: tabs\n\n### Windows\n\nWindows steps.\n\n### macOS / Linux\n\nUnix steps.\n\n:::\n\n" }) },
   { group: "Block", label: "Table", title: "Markdown table",
@@ -168,7 +176,7 @@ export const BLOCKS: Block[] = [
     build: (s) => ({ text: `<dfn>${s || "term"}</dfn>` }) },
 ];
 
-const GROUP_ORDER = ["Heading", "Callout", "List", "Text", "Media", "Block", "Pentaho"];
+const GROUP_ORDER = ["Heading", "Callout", "List", "Text", "Media", "Code", "Block", "Pentaho"];
 
 export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   function insert(block: Block) {
