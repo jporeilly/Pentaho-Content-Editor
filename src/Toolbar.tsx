@@ -4,8 +4,10 @@
 // Each menu inserts the chosen block at the caret.
 
 import { CODE_LANGUAGES, codeFence } from "@app/components/codeLanguages";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Menu } from "./Menu";
+import { CommandPalette } from "./CommandPalette";
+import type { Command } from "./commandRanking";
 import { toggleWrap } from "./markdownKeys";
 import { placeholderRange } from "./placeholder";
 import { TableModal } from "./TableModal";
@@ -192,6 +194,7 @@ const GROUP_ORDER = ["Heading", "Callout", "List", "Text", "Media", "Code", "Blo
 
 export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   const [dialog, setDialog] = useState<"table" | "tabs" | "callout" | null>(null);
+  const [palette, setPalette] = useState(false);
   // Recomputed on every keystroke. A guide is a few hundred lines, so
   // one pass over it costs nothing next to React's own render.
   const outline = outlineOf(value);
@@ -290,6 +293,40 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   const byGroup = (g: string) => BLOCKS.filter((b) => b.group === g);
   const standalone = BLOCKS.filter((b) => b.group === "");
 
+  // Every block, as a palette command. Built from the same BLOCKS array
+  // and routed through the same insert(), so the palette can never offer
+  // something the menus do not, or insert it differently — two lists of
+  // the same thing is how the Callout menu ended up missing a kind the
+  // renderer had supported all along.
+  const commands: Command[] = useMemo(
+    () => BLOCKS.map((b) => ({
+      id: `${b.group}:${b.label}`,
+      label: b.label,
+      group: b.group || "Insert",
+      title: b.title,
+      run: () => insert(b),
+    })),
+    // `insert` closes over the live body and caret, so the commands have
+    // to be rebuilt when either moves; otherwise the palette inserts
+    // into a stale copy of the lab.
+    [value, textarea],
+  );
+
+  // Ctrl/Cmd+/ and Ctrl/Cmd+Shift+P, the two bindings people already
+  // have in their fingers from editors that have one of these.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key === "/" || (e.shiftKey && e.key.toLowerCase() === "p")) {
+        e.preventDefault();
+        setPalette(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="author-toolbar">
       <span className="author-toolbar-label">Go to</span>
@@ -343,6 +380,9 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           {b.label}
         </button>
       ))}
+      {palette && (
+        <CommandPalette commands={commands} onClose={() => setPalette(false)} />
+      )}
       {dialog === "table" && (
         <TableModal onInsert={insertText} onClose={() => setDialog(null)} />
       )}

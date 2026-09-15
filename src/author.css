@@ -689,6 +689,110 @@ body {
   white-space: nowrap;
 }
 .author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: var(--author-text-strong); }
+/* ── Command palette ────────────────────────────────────────────────
+   Sits high rather than centred: the list grows downward, and a box
+   pinned to the middle of the window jumps as results come and go. */
+.author-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  z-index: 60;
+}
+.author-palette {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  background: var(--author-panel);
+  border: 1px solid var(--author-border);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px var(--author-shadow);
+  overflow: hidden;
+}
+.author-palette-input {
+  flex: 0 0 auto;
+  height: 44px;
+  background: transparent;
+  color: var(--author-text);
+  border: none;
+  border-bottom: 1px solid var(--author-border);
+  padding: 0 14px;
+  font-size: 15px;
+}
+.author-palette-input:focus { outline: none; }
+.author-palette-input::placeholder { color: var(--author-muted); }
+.author-palette-list {
+  /* Capped so the palette never runs off a short window; the selected
+     row is scrolled into view as you arrow past the fold. */
+  max-height: 46vh;
+  overflow-y: auto;
+  padding: 6px;
+}
+.author-palette-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--author-text);
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.author-palette-row.is-selected {
+  background: color-mix(in srgb, var(--tone, var(--author-accent)) 20%, var(--author-raised-hi));
+}
+/* The family hue again, so a row in the palette reads as the same thing
+   as the menu it also lives in. */
+.author-palette-row::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: var(--tone, transparent);
+}
+.author-palette-group {
+  flex: 0 0 74px;
+  font-size: 11px;
+  color: var(--author-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.author-palette-label { flex: 1 1 auto; min-width: 0; }
+.author-palette-empty {
+  padding: 18px 14px;
+  color: var(--author-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.author-palette-foot {
+  display: flex;
+  gap: 14px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--author-border);
+  background: var(--author-raised);
+  color: var(--author-muted);
+  font-size: 11px;
+}
+
+.author-palette-row[data-tone="heading"] { --tone: var(--tone-heading); }
+.author-palette-row[data-tone="callout"] { --tone: var(--tone-callout); }
+.author-palette-row[data-tone="list"]    { --tone: var(--tone-list); }
+.author-palette-row[data-tone="text"]    { --tone: var(--tone-text); }
+.author-palette-row[data-tone="media"]   { --tone: var(--tone-media); }
+.author-palette-row[data-tone="code"]    { --tone: var(--tone-code); }
+.author-palette-row[data-tone="block"]   { --tone: var(--tone-block); }
+.author-palette-row[data-tone="pentaho"] { --tone: var(--tone-pentaho); }
+
 /* ── Find & replace ─────────────────────────────────────────────────
    Sits between the insert toolbar and the textarea, so it pushes the
    text down rather than covering the line you are looking at - which is
