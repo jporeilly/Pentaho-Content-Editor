@@ -30,10 +30,22 @@
   --author-bad: #fca5a5;
 }
 
-/* Light editor chrome. Only the tokens change - every rule below is
-   written against them, so nothing else needs a light variant. The
-   PREVIEW is themed separately, by the app's own `pcm-dark` class. */
-:root.author-light {
+/* ── Editor palettes ────────────────────────────────────────────────
+   Every rule in this file is written against the --author-* tokens, so
+   a theme is a token block and nothing else. :root above is Midnight,
+   the original dark chrome and still the default; each palette below
+   re-points the same names.
+
+   The PREVIEW is themed separately and stays two-valued, by the app's
+   own `pcm-dark` class — it simulates what a learner can actually have,
+   and the app ships exactly light and dark. See theme.ts.
+
+   Contrast was checked for body text on its own ground in each; the
+   muted tone is the one that goes first, so it is never below ~4.5:1.
+   ------------------------------------------------------------------ */
+
+/* Daylight - the original light chrome. */
+:root.author-theme-daylight {
   --author-bg: #f4f6f8;
   --author-panel: #ffffff;
   --author-border: #d9dee6;
@@ -49,6 +61,122 @@
   --author-ok: #15803d;
   --author-warn: #a16207;
   --author-bad: #b91c1c;
+}
+
+/* Ocean - deep blue, cyan accent. */
+:root.author-theme-ocean {
+  --author-bg: #0a1622;
+  --author-panel: #102132;
+  --author-border: #1e3B55;
+  --author-text: #dcebf7;
+  --author-muted: #93b0c9;
+  --author-accent: #22b8cf;
+  --author-raised: #16293d;
+  --author-raised-hi: #213b55;
+  --author-sunken: #1b3148;
+  --author-hover: rgba(120, 190, 255, 0.08);
+  --author-shadow: rgba(0, 10, 20, 0.6);
+  --author-text-strong: #ffffff;
+  --author-ok: #7ee0c0;
+  --author-warn: #f6c177;
+  --author-bad: #f2879b;
+}
+
+/* Ember - warm dark on the Pentaho amber. */
+:root.author-theme-ember {
+  --author-bg: #16110d;
+  --author-panel: #211a13;
+  --author-border: #3b2d20;
+  --author-text: #f2e8dd;
+  --author-muted: #c0a891;
+  --author-accent: #d97706;
+  --author-raised: #2a2018;
+  --author-raised-hi: #3b2d21;
+  --author-sunken: #33271d;
+  --author-hover: rgba(255, 200, 120, 0.08);
+  --author-shadow: rgba(20, 10, 0, 0.6);
+  --author-text-strong: #ffffff;
+  --author-ok: #b2d977;
+  --author-warn: #f0b429;
+  --author-bad: #f08a7a;
+}
+
+/* Forest - muted green, low saturation for long sessions. */
+:root.author-theme-forest {
+  --author-bg: #0d1512;
+  --author-panel: #14201b;
+  --author-border: #24382e;
+  --author-text: #e2ece6;
+  --author-muted: #9ab5a7;
+  --author-accent: #2fa96b;
+  --author-raised: #1a2822;
+  --author-raised-hi: #25392f;
+  --author-sunken: #20312a;
+  --author-hover: rgba(140, 230, 180, 0.07);
+  --author-shadow: rgba(0, 15, 8, 0.6);
+  --author-text-strong: #ffffff;
+  --author-ok: #86efac;
+  --author-warn: #e3c766;
+  --author-bad: #ef9a9a;
+}
+
+/* Plum - dark violet, magenta accent. */
+:root.author-theme-plum {
+  --author-bg: #140f1c;
+  --author-panel: #1e1729;
+  --author-border: #362a49;
+  --author-text: #ece5f6;
+  --author-muted: #b0a2c6;
+  --author-accent: #c05fd8;
+  --author-raised: #251d33;
+  --author-raised-hi: #342847;
+  --author-sunken: #2c2240;
+  --author-hover: rgba(210, 160, 255, 0.08);
+  --author-shadow: rgba(10, 0, 20, 0.6);
+  --author-text-strong: #ffffff;
+  --author-ok: #9ae6b4;
+  --author-warn: #f0c674;
+  --author-bad: #f6879b;
+}
+
+/* Parchment - warm paper, for glare. */
+:root.author-theme-parchment {
+  --author-bg: #f5efe3;
+  --author-panel: #fffdf7;
+  --author-border: #ded2bd;
+  --author-text: #2e2618;
+  --author-muted: #6a5c45;
+  --author-accent: #8a5a12;
+  --author-raised: #efe7d7;
+  --author-raised-hi: #e4d9c4;
+  --author-sunken: #e8ded0;
+  --author-hover: rgba(90, 70, 30, 0.07);
+  --author-shadow: rgba(80, 60, 20, 0.18);
+  --author-text-strong: #171208;
+  --author-ok: #3f6d21;
+  --author-warn: #8a5a12;
+  --author-bad: #a32b1c;
+}
+
+/* Contrast - for small or dim VM screens. Pure black ground, white
+   text, and severities at full strength rather than the pastels the
+   other dark palettes use. */
+:root.author-theme-contrast {
+  --author-bg: #000000;
+  --author-panel: #0b0b0d;
+  --author-border: #5a5f6b;
+  --author-text: #ffffff;
+  --author-muted: #c8cdd6;
+  --author-accent: #00e676;
+  --author-raised: #16171b;
+  --author-raised-hi: #26282e;
+  --author-sunken: #1d1f24;
+  --author-hover: rgba(255, 255, 255, 0.14);
+  --author-shadow: rgba(0, 0, 0, 0.85);
+  --author-text-strong: #ffffff;
+  --author-ok: #69f0ae;
+  --author-warn: #ffd54f;
+  --author-bad: #ff8a80;
 }
 
 
@@ -561,6 +689,83 @@ body {
   white-space: nowrap;
 }
 .author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: var(--author-text-strong); }
+/* ── Insert-family hues ─────────────────────────────────────────────
+   The insert row carries ten menus whose labels are the same size,
+   weight and colour, so finding "Media" means reading all ten. A hue
+   per family makes the row scannable by shape rather than by reading.
+
+   Decoration only: the label still says which is which, so nobody who
+   cannot separate these hues loses information. That is also why the
+   tint is a marker and a hover wash rather than the text colour -
+   colouring 12.5px labels directly would cost contrast in every theme
+   to buy nothing.
+
+   One set, defined once. These are mid-tones chosen to sit on both a
+   near-black and a near-white ground, so the palettes do not each need
+   their own copy; a theme that needs to diverge can re-point them in
+   its own block. */
+:root {
+  --tone-heading: #60a5fa;
+  --tone-callout: #f59e0b;
+  --tone-list: #a78bfa;
+  --tone-text: #f472b6;
+  --tone-media: #22d3ee;
+  --tone-code: #4ade80;
+  --tone-block: #fb923c;
+  --tone-pentaho: #e879f9;
+}
+/* The light palettes take a deeper cut of each hue: the mid-tones above
+   sit at roughly 2:1 on white, which reads as a smudge rather than a
+   marker. */
+:root.author-light {
+  --tone-heading: #1d4ed8;
+  --tone-callout: #b45309;
+  --tone-list: #6d28d9;
+  --tone-text: #be185d;
+  --tone-media: #0e7490;
+  --tone-code: #15803d;
+  --tone-block: #c2410c;
+  --tone-pentaho: #a21caf;
+}
+
+.author-menu-btn[data-tone] { position: relative; }
+/* A 2px rule under the label, in the family's hue. Sits in the button's
+   own padding so it costs no layout and cannot reflow the row. */
+.author-menu-btn[data-tone]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--tone, transparent);
+  opacity: 0.85;
+}
+.author-menu-btn[data-tone]:hover,
+.author-menu-btn[data-tone].is-open {
+  /* colour-mix keeps the wash in the family's hue while staying anchored
+     to the theme's own raised surface, so it works on paper and on pure
+     black without a per-theme override. */
+  background: color-mix(in srgb, var(--tone) 18%, var(--author-raised-hi));
+}
+.author-menu-btn[data-tone].is-open { box-shadow: inset 0 -2px 0 var(--tone); }
+/* The open popover carries the same hue on its top edge, so it reads as
+   belonging to the button it came from. */
+.author-menu-pop[data-tone] { border-top: 2px solid var(--tone); }
+.author-menu-pop[data-tone] .author-menu-item:hover {
+  background: color-mix(in srgb, var(--tone) 20%, transparent);
+}
+
+.author-menu-btn[data-tone="heading"], .author-menu-pop[data-tone="heading"] { --tone: var(--tone-heading); }
+.author-menu-btn[data-tone="callout"], .author-menu-pop[data-tone="callout"] { --tone: var(--tone-callout); }
+.author-menu-btn[data-tone="list"],    .author-menu-pop[data-tone="list"]    { --tone: var(--tone-list); }
+.author-menu-btn[data-tone="text"],    .author-menu-pop[data-tone="text"]    { --tone: var(--tone-text); }
+.author-menu-btn[data-tone="media"],   .author-menu-pop[data-tone="media"]   { --tone: var(--tone-media); }
+.author-menu-btn[data-tone="code"],    .author-menu-pop[data-tone="code"]    { --tone: var(--tone-code); }
+.author-menu-btn[data-tone="block"],   .author-menu-pop[data-tone="block"]   { --tone: var(--tone-block); }
+.author-menu-btn[data-tone="pentaho"], .author-menu-pop[data-tone="pentaho"] { --tone: var(--tone-pentaho); }
+
 /* Menu entries read as a list, not as a row of controls.
    `text-align: left` above cannot achieve this on its own: the one
    control scale further down catches `.author-toolbar button`, and a

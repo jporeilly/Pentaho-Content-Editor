@@ -19,9 +19,18 @@ interface MenuProps {
   title?: string;
   items: MenuItem[];
   disabled?: boolean;
+  /**
+   * Which insert family this menu belongs to ("heading", "callout",
+   * "media"…). Surfaces as `data-tone` so author.css can give each one
+   * its own hue. The insert row carries ten menus whose labels are all
+   * the same size, weight and colour; a hue per family is what lets you
+   * find "Media" without reading all ten. Purely decorative - the label
+   * still says which is which, so colour is never the only signal.
+   */
+  tone?: string;
 }
 
-export function Menu({ label, title, items, disabled }: MenuProps) {
+export function Menu({ label, title, items, disabled, tone }: MenuProps) {
   const [open, setOpen] = useState(false);
   // Where to paint the popover, in viewport coordinates.
   //
@@ -71,6 +80,7 @@ export function Menu({ label, title, items, disabled }: MenuProps) {
         ref={btnRef}
         type="button"
         className={`author-menu-btn${open ? " is-open" : ""}`}
+        data-tone={tone}
         title={title}
         disabled={disabled}
         aria-haspopup="menu"
@@ -84,7 +94,7 @@ export function Menu({ label, title, items, disabled }: MenuProps) {
         <span className="author-menu-caret" aria-hidden>▾</span>
       </button>
       {open && at && (
-        <div className="author-menu-pop" role="menu" style={{ top: at.top, left: at.left }}>
+        <div className="author-menu-pop" role="menu" data-tone={tone} style={{ top: at.top, left: at.left }}>
           {items.map((it) => (
             <button
               key={it.label}

@@ -21,7 +21,7 @@ import { CourseSettingsModal } from "./CourseSettingsModal";
 import { ChatPanel } from "./ChatPanel";
 import { Splitter, useSplit } from "./Splitter";
 import { Menu } from "./Menu";
-import { useEditorTheme } from "./theme";
+import { useEditorTheme, EDITOR_THEMES } from "./theme";
 import { handleMarkdownKey } from "./markdownKeys";
 import { WelcomePane } from "./WelcomePane";
 import { useProviderHealth, useCourses, useLab, useAi } from "./hooks";
@@ -229,12 +229,14 @@ export function App() {
           label="Theme"
           title="Editor appearance, and which theme the preview renders in"
           items={[
-            { label: `${theme.editor === "dark" ? "* " : "\u00a0\u00a0"}Editor - Dark`,
-              title: "Dark chrome around your work",
-              onSelect: () => theme.setEditor("dark") },
-            { label: `${theme.editor === "light" ? "* " : "\u00a0\u00a0"}Editor - Light`,
-              title: "Light chrome around your work",
-              onSelect: () => theme.setEditor("light") },
+            // Editor palettes first, then the preview pair. The preview
+            // stays two-valued on purpose: it simulates what a learner
+            // can actually have, and the app ships light and dark only.
+            ...EDITOR_THEMES.map((t) => ({
+              label: `${theme.editor === t.id ? "* " : "\u00a0\u00a0"}Editor - ${t.label}`,
+              title: t.hint,
+              onSelect: () => theme.setEditor(t.id),
+            })),
             { label: `${theme.preview === "light" ? "* " : "\u00a0\u00a0"}Preview - Light`,
               title: "Render the preview the way a learner on the light theme sees it",
               onSelect: () => theme.setPreview("light") },

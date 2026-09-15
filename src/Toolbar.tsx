@@ -323,6 +323,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
         <Menu
           key={group}
           label={group}
+          tone={group.toLowerCase()}
           title={`Insert a ${group.toLowerCase()} block`}
           items={byGroup(group).map((b) => ({
             label: b.label,
