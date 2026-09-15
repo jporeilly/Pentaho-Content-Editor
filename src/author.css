@@ -1,0 +1,891 @@
+/* Editor chrome. Layered on top of the app's app.css so the preview
+   pane inherits the exact learner-facing styling. Dark theme to match
+   the app. */
+
+:root {
+  --author-bg: #0f1115;
+  --author-panel: #171a21;
+  --author-border: #262b36;
+  --author-text: #e6e8ec;
+  --author-muted: #9aa3b2;
+  --author-accent: #16a34a;
+  /* Surfaces that sit above the panel (menu buttons, popovers) and
+     below it (disabled controls). Tokens so the light theme can flip
+     them; hard-coded hexes here used to survive the theme switch. */
+  --author-raised: #1d212a;
+  --author-raised-hi: #2a3040;
+  --author-sunken: #2a2f3a;
+  --author-hover: rgba(255, 255, 255, 0.05);
+  --author-shadow: rgba(0, 0, 0, 0.5);
+  /* Emphasised text over the page ground - hover, the active row.
+     Must flip with the theme: a literal #fff here is invisible on
+     light chrome. NOT for text on a filled accent button, which stays
+     white in both themes because the fill stays green. */
+  --author-text-strong: #ffffff;
+  /* Status severities. The dark values are pale so they read on the
+     dark bar; on a white bar those same pastels drop to ~1.7:1, so
+     the light theme takes the saturated end of each hue. */
+  --author-ok: #86efac;
+  --author-warn: #fcd34d;
+  --author-bad: #fca5a5;
+}
+
+/* Light editor chrome. Only the tokens change - every rule below is
+   written against them, so nothing else needs a light variant. The
+   PREVIEW is themed separately, by the app's own `pcm-dark` class. */
+:root.author-light {
+  --author-bg: #f4f6f8;
+  --author-panel: #ffffff;
+  --author-border: #d9dee6;
+  --author-text: #1c2230;
+  --author-muted: #5d6675;
+  --author-accent: #15803d;
+  --author-raised: #eef1f5;
+  --author-raised-hi: #e2e7ef;
+  --author-sunken: #e6e9ee;
+  --author-hover: rgba(0, 0, 0, 0.05);
+  --author-shadow: rgba(15, 23, 42, 0.18);
+  --author-text-strong: #0b1220;
+  --author-ok: #15803d;
+  --author-warn: #a16207;
+  --author-bad: #b91c1c;
+}
+
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--author-bg);
+  color: var(--author-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.author-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.author-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
+}
+.author-brand {
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.author-select {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  max-width: 320px;
+}
+.author-tool {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.author-tool:hover:not(:disabled) { border-color: var(--author-accent); color: var(--author-text-strong); }
+.author-tool:disabled { opacity: 0.4; cursor: default; }
+.author-header-spacer { flex: 1 1 auto; }
+
+/* ── Connection indicator ───────────────────────────────────────── */
+.author-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.author-conn:hover { border-color: var(--author-accent); }
+.author-conn-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #f59e0b;
+}
+.author-conn.is-ok .author-conn-dot { background: #16a34a; }
+.author-conn.is-bad .author-conn-dot { background: #ef4444; }
+.author-conn-gear { opacity: 0.7; }
+
+/* ── Modal ──────────────────────────────────────────────────────── */
+.author-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.author-modal {
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: var(--author-panel);
+  border: 1px solid var(--author-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.author-modal-head, .author-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--author-border);
+  font-weight: 700;
+}
+.author-modal-foot { border-bottom: none; border-top: 1px solid var(--author-border); gap: 8px; justify-content: flex-end; }
+.author-modal-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 14px; }
+.author-fieldset {
+  border: 1px solid var(--author-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.author-fieldset legend { padding: 0 6px; font-size: 12px; color: var(--author-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.author-radio { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; cursor: pointer; }
+.author-radio-label { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+.author-radio-note { grid-column: 2; font-size: 12px; color: var(--author-muted); }
+.author-key { font-size: 11px; padding: 1px 7px; border-radius: 999px; }
+.author-key.is-ok { background: rgba(22,163,74,0.2); color: #4ade80; }
+.author-key.is-bad { background: rgba(239,68,68,0.15); color: #f87171; }
+.author-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.author-input {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.author-hint { font-size: 12px; color: var(--author-muted); margin: 0; }
+.author-hint code, .author-field code { background: var(--author-bg); padding: 1px 5px; border-radius: 4px; }
+
+/* ── Import outline editor ──────────────────────────────────────── */
+.author-outline-topic { display: flex; flex-direction: column; gap: 5px; padding: 8px 0; border-top: 1px solid var(--author-border); }
+.author-outline-topic-title { font-weight: 700; }
+.author-outline-lab { display: flex; gap: 6px; padding-left: 16px; }
+.author-outline-lab .author-input { flex: 1 1 auto; }
+
+/* ── Docs sources bar ───────────────────────────────────────────── */
+.author-sources {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 7px 14px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+  border-left: 3px solid var(--author-accent);
+  font-size: 12px;
+}
+.author-sources-label { color: var(--author-muted); font-weight: 600; }
+.author-source-link {
+  color: #6ea8fe;
+  text-decoration: none;
+  border: 1px solid var(--author-border);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.author-source-link:hover { border-color: var(--author-accent); text-decoration: underline; }
+
+/* ── Verify results panel ───────────────────────────────────────── */
+.author-verify {
+  flex: 0 0 auto;
+  max-height: 30vh;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--author-border);
+  background: var(--author-panel);
+}
+.author-verify.is-ok { border-left: 3px solid var(--author-accent); }
+.author-verify.is-bad { border-left: 3px solid #f59e0b; }
+.author-verify.is-review { border-left: 3px solid #6ea8fe; }
+.author-verify-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.author-verify-body {
+  margin: 0;
+  padding: 0 14px 12px;
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--author-muted);
+  white-space: pre-wrap;
+}
+/* ── Status bar ─────────────────────────────────────────────────── */
+.author-statusbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 14px;
+  background: var(--author-panel);
+  border-top: 1px solid var(--author-border);
+  border-left: 3px solid transparent;
+  color: var(--author-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 20vh;
+  overflow-y: auto;
+}
+.author-statusbar-text { flex: 1 1 auto; white-space: pre-wrap; }
+.author-statusbar-clear { flex: 0 0 auto; }
+.author-version {
+  flex: 0 0 auto;
+  color: var(--author-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+.author-statusbar.is-ok { border-left-color: var(--author-accent); color: var(--author-ok); }
+.author-statusbar.is-warn { border-left-color: #f59e0b; color: var(--author-warn); }
+.author-statusbar.is-bad { border-left-color: #ef4444; color: var(--author-bad); }
+.author-save {
+  background: var(--author-accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.author-save:disabled {
+  background: var(--author-sunken);
+  color: var(--author-muted);
+  cursor: default;
+}
+
+/* ── Body: structure sidebar + panes (+ optional chat) ──────────── */
+.author-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+.author-structure-wrap {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.author-structure-wrap .author-structure { flex: 1 1 auto; }
+
+/* ── Pane dividers ──────────────────────────────────────────────── */
+.author-splitter {
+  flex: 0 0 6px;
+  cursor: col-resize;
+  background: var(--author-border);
+  transition: background 120ms ease;
+}
+.author-splitter:hover,
+.author-splitter:focus-visible,
+.author-splitter.is-dragging { background: var(--author-accent); outline: none; }
+
+/* Collapsed-sidebar rail — the way back. */
+.author-rail {
+  flex: 0 0 18px;
+  background: var(--author-panel);
+  border: none;
+  border-right: 1px solid var(--author-border);
+  color: var(--author-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+}
+.author-rail:hover { color: var(--author-text-strong); background: var(--author-raised); }
+.author-tool.is-active { border-color: var(--author-accent); color: var(--author-text-strong); }
+
+/* ── Structure drag-and-drop ────────────────────────────────────── */
+.author-lab-grip {
+  cursor: grab;
+  color: var(--author-muted);
+  font-size: 11px;
+  user-select: none;
+  padding: 0 2px;
+}
+.author-lab-row.is-dragging { opacity: 0.4; }
+.author-lab-row.is-drop { box-shadow: inset 0 2px 0 var(--author-accent); }
+
+/* ── Chat panel (docked under the markdown editor) ──────────────── */
+.author-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 42%;
+  min-height: 180px;
+  background: var(--author-panel);
+  border-top: 1px solid var(--author-border);
+  overflow: hidden;
+}
+.author-chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--author-border);
+}
+.author-chat-list { flex: 1 1 auto; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.author-chat-msg { border-radius: 8px; padding: 8px 10px; max-width: 100%; }
+.author-chat-msg.is-user { background: rgba(22, 163, 74, 0.14); align-self: flex-end; }
+.author-chat-msg.is-assistant { background: var(--author-bg); border: 1px solid var(--author-border); align-self: flex-start; }
+.author-chat-text { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 13px; line-height: 1.5; }
+.author-chat-actions { display: flex; gap: 6px; margin-top: 6px; }
+.author-chat-sources { padding: 6px 10px; border-top: 1px solid var(--author-border); font-size: 11px; color: var(--author-muted); display: flex; flex-wrap: wrap; gap: 8px; }
+.author-chat-sources a { color: #6ea8fe; text-decoration: none; }
+.author-chat-input { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--author-border); }
+.author-chat-input textarea {
+  flex: 1 1 auto;
+  resize: none;
+  height: 46px;
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+/* ── Structure sidebar ──────────────────────────────────────────── */
+.author-structure {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--author-panel);
+  border-right: 1px solid var(--author-border);
+  overflow: hidden;
+}
+.author-structure-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--author-muted);
+  border-bottom: 1px solid var(--author-border);
+}
+.author-structure-actions { display: flex; gap: 6px; }
+.author-structure-body { overflow-y: auto; padding: 6px 0; }
+.author-structure-empty { padding: 16px; color: var(--author-muted); font-size: 13px; }
+.author-topic-title {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--author-muted);
+}
+.author-lab-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 12px;
+}
+.author-lab-row.is-active { background: rgba(22, 163, 74, 0.15); }
+.author-lab-label {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--author-text);
+  font-size: 13px;
+  padding: 5px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.author-lab-row.is-active .author-lab-label { color: var(--author-text-strong); font-weight: 600; }
+/* The icon stays quieter than the title until the row is active. */
+.author-lab-icon { flex: 0 0 auto; opacity: 0.65; }
+.author-lab-row.is-active .author-lab-icon { opacity: 1; color: var(--author-accent); }
+.author-lab-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.author-lab-label:hover { background: var(--author-hover); }
+.author-lab-rename {
+  flex: 1 1 auto;
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-accent);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+}
+.author-lab-actions { display: flex; gap: 2px; opacity: 0.6; }
+.author-lab-row:hover .author-lab-actions { opacity: 1; }
+.author-mini-btn {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.author-mini-btn:hover:not(:disabled) { border-color: var(--author-accent); color: var(--author-text-strong); }
+.author-mini-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Panes ──────────────────────────────────────────────────────── */
+.author-panes {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.author-preview { flex: 1 1 0; min-width: 0; }
+.author-editor,
+.author-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Left pane: the markdown editor with the chat docked beneath it. */
+.author-editor-col {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;   /* flex-basis is set inline from the splitter */
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.author-editor-col .author-editor { flex: 1 1 auto; }
+
+/* ── Toolbar ────────────────────────────────────────────────────── */
+.author-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
+  /* One row. It scrolls rather than wrapping: six wrapped rows of
+     controls used to eat 249px above the textarea. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.author-toolbar-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--author-muted);
+  margin-right: 2px;
+  flex: 0 0 auto;
+}
+
+/* ── Insert menus (button + popover, not <select>) ──────────────── */
+.author-menu { position: relative; flex: 0 0 auto; }
+.author-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--author-raised);
+  color: var(--author-text);
+  border: none;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.author-menu-btn:hover, .author-menu-btn.is-open { background: var(--author-raised-hi); color: var(--author-text-strong); }
+.author-menu-btn.is-open { box-shadow: inset 0 -2px 0 var(--author-accent); }
+.author-menu-caret { opacity: 0.6; font-size: 10px; }
+.author-menu-pop {
+  /* Fixed, not absolute: the toolbar is an overflow scroller and would
+     clip an absolutely-positioned child. Coordinates come from the
+     button's rect in Menu.tsx. */
+  position: fixed;
+  z-index: 40;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--author-raised);
+  border: 1px solid var(--author-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px var(--author-shadow);
+}
+.author-menu-item {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--author-text);
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: var(--author-text-strong); }
+.author-toolbar-btn, .author-toolbar-select {
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.author-toolbar-select { padding-right: 4px; }
+.author-toolbar-timing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--author-text);
+}
+.author-toolbar-timing input { width: 64px; }
+.author-toolbar-btn:hover, .author-toolbar-select:hover {
+  border-color: var(--author-accent);
+  color: var(--author-text-strong);
+}
+
+/* Lab actions — this lab's own controls, kept apart from the insert
+   menus so neither row can squeeze the other off the pane. */
+.author-editor-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--author-panel);
+  border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
+}
+.author-rewrite {
+  flex: 0 0 auto;
+  background: rgba(22, 163, 74, 0.15);
+  border-color: var(--author-accent);
+  white-space: nowrap;
+}
+.author-rewrite:disabled { opacity: 0.4; cursor: default; }
+.author-rewrite.is-undo {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: #f59e0b;
+}
+
+/* ── Editor textarea ────────────────────────────────────────────── */
+.author-textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 14px 16px;
+  background: var(--author-bg);
+  color: var(--author-text);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+/* ── Preview pane ───────────────────────────────────────────────── */
+.author-preview {
+  overflow-y: auto;
+  /* Follows --pcm-*, i.e. the app's own theme tokens, so the Theme
+     menu's Preview choice shows the real learner surface. */
+  background: var(--pcm-bg, #fff);
+  /* Take the APP's text colour, not the editor chrome's. Without this
+     the dark --author-text is inherited from <body> and any element
+     app.css doesn't colour explicitly (a mid-body <h1>, say) renders
+     near-white on the white preview surface. */
+  color: var(--pcm-fg, #0f172a);
+}
+.author-preview-guide {
+  padding: 20px 26px;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* ── Splash / error ─────────────────────────────────────────────── */
+.author-splash {
+  padding: 40px;
+  max-width: 640px;
+}
+.author-splash pre {
+  background: var(--author-panel);
+  border: 1px solid var(--author-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+.author-error { color: #f87171; font-weight: 600; }
+
+/* ── Welcome-page editor ────────────────────────────────────────── */
+.author-welcome-row { border-bottom: 1px solid var(--author-border); margin-bottom: 4px; }
+.author-welcome-note { font-size: 11px; color: var(--author-muted); }
+.author-welcome-note code { background: var(--author-bg); padding: 1px 5px; border-radius: 4px; }
+.author-form {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.author-textarea-sm {
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+.author-summary-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  padding: 8px 0;
+  border-top: 1px solid var(--author-border);
+}
+.author-summary-row .author-input:first-child { grid-column: 1; }
+.author-summary-row .author-textarea-sm { grid-column: 1; }
+.author-summary-row .author-mini-btn { grid-column: 2; grid-row: 1; align-self: start; }
+
+/* ── Format buttons (bold / italic / code / strike) ────────────
+   Narrow and fixed-width so four of them cost about as much row as
+   one Insert menu. The 0.4.21 toolbar fix is the constraint here:
+   six <select> menus once collapsed to min-content and stacked into
+   six rows, eating a third of the editor's height, so anything added
+   to this row has to earn its width. */
+.author-toolbar-fmt {
+  min-width: 30px;
+  padding: 5px 6px;
+  text-align: center;
+  font-family: var(--author-mono, ui-monospace, "Cascadia Code", Consolas, monospace);
+  line-height: 1.1;
+}
+.author-toolbar-fmt.is-bold   { font-weight: 700; }
+.author-toolbar-fmt.is-italic { font-style: italic; }
+.author-toolbar-fmt.is-strike { text-decoration: line-through; }
+.author-toolbar-fmt.is-code   { font-size: 11px; }
+
+.author-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 6px;
+  background: var(--author-border);
+  flex: 0 0 auto;
+}
+
+/* ── Per-row delete (lab / page) ───────────────────────────────
+   Always present rather than hover-revealed: a control you have to
+   discover by hovering reads as missing, which is how the chat's
+   Save button went unnoticed through two reports. Quiet by colour,
+   not by opacity — and it takes two clicks, so being visible costs
+   nothing. */
+.author-lab-delete {
+  margin-left: auto;
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--author-muted);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.author-lab-delete:hover { color: #b91c1c; background: var(--author-bg); }
+.author-lab-delete:disabled { cursor: default; opacity: 0.4; }
+.author-lab-delete.is-armed {
+  background: #b91c1c;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── Insert dialogs: table + tabs ───────────────────────────── */
+/* Both show the markdown they will write. Tables are the construct
+   authors get wrong most often, so seeing the delimiter row before it
+   lands beats fixing it afterwards. */
+.author-table-shape {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.author-table-aligns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.author-table-align {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+  flex: 1 1 110px;
+}
+.author-table-align span {
+  font-size: 11px;
+  opacity: 0.75;
+}
+.author-table-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+.author-tabs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.author-tabs-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.author-tabs-row .author-input { flex: 1 1 auto; }
+.author-tabs-add { align-self: flex-start; margin-top: 8px; }
+
+/* Callout dialog: the body is prose, so give it room to breathe. */
+.author-callout-body {
+  resize: vertical;
+  min-height: 96px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* ── One control scale ──────────────────────────────────────── */
+/* Measured before writing this: the chrome had EIGHT distinct button
+   heights (24, 25, 26, 28, 29, 30, 31, 42) across the header, the lab
+   actions and the insert row, three corner radii and a mix of 12 and
+   13px text. Nothing was wrong individually; together they read as
+   unfinished, because the eye reads a row of controls as one object
+   and every mismatch shows. One height, one radius, one size.
+
+   Appended on purpose: these are deliberate overrides of the rules
+   above, and keeping them in one block makes the scale legible and
+   easy to retune. */
+.author-root {
+  --author-ctl-h: 28px;
+  --author-ctl-radius: 6px;
+  --author-ctl-font: 12.5px;
+}
+
+.author-header .author-tool,
+.author-header .author-save,
+.author-menu-btn,
+.author-select,
+.author-editor-bar button,
+.author-toolbar-btn,
+.author-toolbar button {
+  height: var(--author-ctl-h);
+  min-height: var(--author-ctl-h);
+  border-radius: var(--author-ctl-radius);
+  font-size: var(--author-ctl-font);
+  padding-top: 0;
+  padding-bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Inputs sit one step taller than buttons: a text field the same
+   height as a button looks cramped once there is text in it. */
+.author-input {
+  min-height: 30px;
+  border-radius: var(--author-ctl-radius);
+}
+textarea.author-input { min-height: 0; }
+
+/* The group labels (GO TO / FORMAT / INSERT) are signposts, not
+   controls - keep them quiet so the buttons carry the row. */
+.author-toolbar-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
+}
+
+/* The insert row still scrolls on a 1600px window, so the separators
+   have to do the grouping that width cannot. */
+.author-toolbar-sep {
+  width: 1px;
+  align-self: center;
+  height: 16px;
+  background: currentColor;
+  opacity: 0.16;
+  margin: 0 4px;
+  flex: 0 0 auto;
+}
+
+/* Keyboard users could not see where they were: the browser default
+   outline was being suppressed by the button reset above. */
+.author-root :is(button, select, input, textarea, [role=menuitem]):focus-visible {
+  outline: 2px solid var(--pcm-accent, #2563eb);
+  outline-offset: 2px;
+}
+
+/* ── The insert row wraps instead of hiding itself ──────────── */
+/* Measured: 1054px of controls in a 620px editor column, so a THIRD of
+   the row sat off-screen behind a horizontal scroller with no visual
+   hint it was there - the Pentaho menu was simply invisible.
+
+   Wrapping shows everything and collapses back to one row when the
+   author widens the column. The height is capped at two rows so this
+   cannot repeat the old failure, when the toolbar shared a flex row
+   with the lab actions, collapsed to its min-content width and stacked
+   into SIX rows - 249px of chrome above the textarea. Past the cap it
+   scrolls vertically, where the scrollbar is at least visible. */
+.author-toolbar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  overflow-x: visible;
+  max-height: calc(var(--author-ctl-h) * 2 + 24px);
+  overflow-y: auto;
+}
+
+/* A wrapped row needs its groups to read as groups, so the separator
+   becomes a full-height rule rather than a floating tick. */
+.author-toolbar-sep { height: var(--author-ctl-h); }
