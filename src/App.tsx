@@ -8,9 +8,11 @@
 // manifest metadata forms, and new-course / new-lab UI (wrapping the
 // same logic as the CLI scaffolder).
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
+import { linkScrollers } from "./scrollSync";
 import { Toolbar } from "./Toolbar";
+import { FindBar } from "./FindBar";
 import { Preview } from "./Preview";
 import { StructurePanel } from "./StructurePanel";
 import { SettingsModal } from "./SettingsModal";
@@ -169,6 +171,44 @@ export function App() {
   const [showCourseSettings, setShowCourseSettings] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const previewRef = useRef<HTMLElement | null>(null);
+  const [showFind, setShowFind] = useState(false);
+
+  // Ctrl/Cmd+F opens find & replace. Captured on the window rather than
+  // the textarea so it works wherever the focus happens to be, and
+  // preventDefault stops the browser's own find bar, which searches the
+  // RENDERED page - so it would hit the preview and the sidebar, never
+  // the markdown source the author is actually editing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setShowFind(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Keep the two panes looking at the same part of the lab.
+  //
+  // Re-linked when the open lab changes or the Welcome pane swaps in,
+  // because those unmount the preview section and the ref goes stale.
+  //
+  // `detail` is in the deps and has to be: a lab is selected BEFORE its
+  // body arrives, so on the `lab` change alone this effect ran against a
+  // textarea that had not mounted yet, found a null ref, and never re-ran
+  // — the panes simply never linked. `detail` landing is what puts both
+  // elements on the page.
+  //
+  // NOT on `body`: that changes on every keystroke, and tearing the
+  // listeners down and back up mid-gesture loses the scroll in progress.
+  useEffect(() => {
+    const ta = textareaRef.current;
+    const pv = previewRef.current;
+    if (!ta || !pv) return;
+    return linkScrollers(ta, pv);
+  }, [lab, welcomeMode, detail, textareaRef]);
 
   if (apiUp === false) {
     return (
@@ -440,6 +480,15 @@ export function App() {
                 />
               </div>
               <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
+              {showFind && (
+                <FindBar
+                  body={body}
+                  onChange={onBodyChange}
+                  textarea={textareaRef.current}
+                  onClose={() => setShowFind(false)}
+                  onStatus={setStatus}
+                />
+              )}
               <textarea
                 ref={textareaRef}
                 className="author-textarea"
@@ -480,7 +529,7 @@ export function App() {
               onDrag={editor.set}
               onReset={editor.reset}
             />
-            <section className="author-preview">
+            <section className="author-preview" ref={previewRef}>
               <Preview
                 body={body}
                 baseUrl={baseUrl}

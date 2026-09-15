@@ -34,6 +34,9 @@ interface StructurePanelProps {
 
 export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources, onCollapse, welcomeActive, onSelectWelcome }: StructurePanelProps) {
   const [structure, setStructure] = useState<Structure>({ topics: [] });
+  // Free-text filter over the tree. Courses run to eighteen entries and
+  // the only way to reach one was to read the list.
+  const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
@@ -181,6 +184,27 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
     }
   }
 
+  // Filtering HIDES rows, it never rebuilds the list. Reordering and
+  // inline rename address a lab by its [topicIndex, labIndex] position
+  // in `structure`, so a filtered array would renumber every lab after
+  // the first hidden one and move the wrong file. The maps below still
+  // run over everything; only the rendered output is dropped.
+  const needle = filter.trim().toLowerCase();
+  const filtering = needle.length > 0;
+  const labHit = (lab: StructureLab) =>
+    lab.title.toLowerCase().includes(needle) || lab.slug.toLowerCase().includes(needle);
+  // A topic that matches by name shows all of its labs - you searched
+  // for the topic, so you want what is in it.
+  const topicHit = (title: string) => title.toLowerCase().includes(needle);
+  const topicVisible = (title: string, labs: StructureLab[]) =>
+    !filtering || topicHit(title) || labs.some(labHit);
+  const labVisible = (topicTitle: string, lab: StructureLab) =>
+    !filtering || topicHit(topicTitle) || labHit(lab);
+
+  const hitCount = filtering
+    ? structure.topics.reduce((n, t) => n + t.labs.filter((l) => labVisible(t.title, l)).length, 0)
+    : 0;
+
   return (
     <aside className="author-structure">
       <div className="author-structure-head">
@@ -217,8 +241,24 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
           )}
         </span>
       </div>
+      <div className="author-structure-filter">
+        <input
+          type="search"
+          className="author-filter-input"
+          placeholder="Filter labs…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setFilter(""); } }}
+          aria-label="Filter the course structure"
+        />
+        {filtering && (
+          <span className="author-filter-count">
+            {hitCount === 0 ? "no matches" : `${hitCount} lab${hitCount === 1 ? "" : "s"}`}
+          </span>
+        )}
+      </div>
       <div className="author-structure-body">
-        {onSelectWelcome && (
+        {onSelectWelcome && !filtering && (
           <div className={`author-lab-row author-welcome-row${welcomeActive ? " is-active" : ""}`}>
             <button
               type="button"
@@ -231,7 +271,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
             </button>
           </div>
         )}
-        {structure.topics.map((topic, ti) => (
+        {structure.topics.map((topic, ti) => !topicVisible(topic.title, topic.labs) ? null : (
           <div
             key={topic.title + ti}
             className="author-topic"
@@ -259,10 +299,13 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
                 {topic.title}
               </div>
             )}
-            {topic.labs.map((lab, li) => (
+            {topic.labs.map((lab, li) => !labVisible(topic.title, lab) ? null : (
               <div
                 key={lab.slug}
-                draggable={editing !== lab.slug && !busy}
+                /* Dragging is off while filtering: a drop lands relative
+                   to the labs you can SEE, and with rows hidden that is
+                   not where the author thinks it is. */
+                draggable={editing !== lab.slug && !busy && !filtering}
                 onDragStart={(e) => { setDragSlug(lab.slug); e.dataTransfer.effectAllowed = "move"; }}
                 onDragEnd={() => { setDragSlug(null); setDropSlug(null); }}
                 onDragOver={(e) => { if (dragSlug && dragSlug !== lab.slug) { e.preventDefault(); e.stopPropagation(); setDropSlug(lab.slug); } }}

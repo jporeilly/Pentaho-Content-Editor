@@ -689,6 +689,94 @@ body {
   white-space: nowrap;
 }
 .author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: var(--author-text-strong); }
+/* ── Find & replace ─────────────────────────────────────────────────
+   Sits between the insert toolbar and the textarea, so it pushes the
+   text down rather than covering the line you are looking at - which is
+   what a floating find box always manages to do. */
+.author-findbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--author-raised);
+  border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.author-find-input {
+  flex: 1 1 140px;
+  min-width: 90px;
+  height: var(--author-ctl-h);
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: var(--author-ctl-radius);
+  padding: 0 8px;
+  font-size: var(--author-ctl-font);
+}
+.author-find-input::placeholder { color: var(--author-muted); }
+.author-find-input:focus {
+  outline: none;
+  border-color: var(--author-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--author-accent) 30%, transparent);
+}
+.author-find-count {
+  flex: 0 0 auto;
+  min-width: 62px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--author-muted);
+  white-space: nowrap;
+}
+/* A search with no hits is worth saying out loud, not just leaving the
+   count blank - blank reads as "still typing". */
+.author-find-count.is-empty { color: var(--author-bad); }
+.author-find-case {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--author-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* ── Structure filter ───────────────────────────────────────────────
+   A filter box over the tree. Sits between the head and the body so it
+   stays put while the tree scrolls under it. */
+.author-structure-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--author-border);
+  flex: 0 0 auto;
+}
+.author-filter-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  background: var(--author-bg);
+  color: var(--author-text);
+  border: 1px solid var(--author-border);
+  border-radius: 5px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.author-filter-input::placeholder { color: var(--author-muted); }
+.author-filter-input:focus {
+  outline: none;
+  border-color: var(--author-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--author-accent) 30%, transparent);
+}
+.author-filter-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--author-muted);
+  white-space: nowrap;
+}
+
 /* ── Insert-family hues ─────────────────────────────────────────────
    The insert row carries ten menus whose labels are the same size,
    weight and colour, so finding "Media" means reading all ten. A hue
