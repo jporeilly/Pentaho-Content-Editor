@@ -346,7 +346,11 @@ export function useAi(args: UseAiArgs) {
     for (const it of Array.from(e.clipboardData?.items ?? [])) {
       if (it.type.startsWith("image/")) {
         const f = it.getAsFile();
-        if (f) { e.preventDefault(); uploadAndInsertImage(f, `pasted-${Date.now()}.png`); return; }
+        // Named by timestamp alone. The old "pasted-" prefix said how
+        // the image arrived, which is no business of the filename and
+        // read badly in the alt text the insert writes; every other
+        // image in the courses is a bare number.
+        if (f) { e.preventDefault(); uploadAndInsertImage(f, `${Date.now()}.png`); return; }
       }
     }
   }, [uploadAndInsertImage]);
