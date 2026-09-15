@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { linkScrollers } from "./scrollSync";
 import { highlightLines, linesToHtml, fenceRangeAt } from "./markdownTokens";
+import { parseVerifyOutput, problemsForGuide, byLine, worst, tooltip, unplaced } from "./verifyProblems";
 import { Toolbar } from "./Toolbar";
 import { FindBar } from "./FindBar";
 import { Preview } from "./Preview";
@@ -232,6 +233,33 @@ export function App() {
       kids[fence.end]?.classList.add("is-fence");
     }
   }, [caretLine, highlighted, lines]);
+
+  // Verify's findings, on the lines they belong to.
+  //
+  // Verify used to print into a panel and leave you to find the line it
+  // was talking about. The verifier now reports "path:line: message", so
+  // the problems can be marked where they are.
+  const problems = useMemo(
+    // verifyOut is the API's {ok, output} envelope, or "" before a run.
+    () => problemsForGuide(parseVerifyOutput(typeof verifyOut === "string" ? "" : verifyOut?.output ?? ""), course, lab),
+    [verifyOut, course, lab],
+  );
+  useEffect(() => {
+    const root = highlightRef.current;
+    if (!root) return;
+    const kids = root.children;
+    for (const el of Array.from(kids)) {
+      el.classList.remove("has-error", "has-warn");
+      el.removeAttribute("title");
+    }
+    for (const [line, group] of byLine(problems)) {
+      // The verifier counts from 1; the layer's blocks from 0.
+      const el = kids[line - 1];
+      if (!el) continue;
+      el.classList.add(worst(group) === "error" ? "has-error" : "has-warn");
+      el.setAttribute("title", tooltip(group));
+    }
+  }, [problems, highlighted]);
 
   // Ctrl/Cmd+F opens find & replace. Captured on the window rather than
   // the textarea so it works wherever the focus happens to be, and
@@ -542,6 +570,34 @@ export function App() {
                 />
               </div>
               <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
+              {problems.length > 0 && (
+                <div className="author-problems">
+                  <span className="author-problems-count">
+                    {byLine(problems).size > 0
+                      ? `${byLine(problems).size} line${byLine(problems).size === 1 ? "" : "s"} flagged by Verify`
+                      : "Verify flagged this lab"}
+                  </span>
+                  {/* Without this, a guide whose problems all lack a line
+                      looks clean in the gutter while Verify reports
+                      failures, and you would reasonably conclude the
+                      marking was broken. */}
+                  {unplaced(problems).length > 0 && (
+                    <span className="author-problems-rest">
+                      · {unplaced(problems).length} not tied to a line (see the Verify panel)
+                    </span>
+                  )}
+                  {/* Verify reads DISK; this pane shows the buffer. With
+                      unsaved edits the two disagree about what is on
+                      which line, and a marker can sit a few lines off.
+                      Saying so beats quietly pointing at the wrong line. */}
+                  {dirty && (
+                    <span className="author-problems-stale">
+                      · unsaved edits — lines may have moved since Verify ran
+                    </span>
+                  )}
+                  <span className="author-problems-hint">hover a flagged line number for the message</span>
+                </div>
+              )}
               {showFind && (
                 <FindBar
                   body={body}

@@ -1115,6 +1115,51 @@ body {
   box-shadow: inset 2px 0 0 var(--tone-code);
 }
 
+/* ── Verify's findings, on the lines they belong to ──────────────────
+   A squiggle under the text, plus the gutter number recoloured so a
+   problem is findable while scrolling past at speed. The underline is a
+   repeating gradient rather than `text-decoration: wavy`, which sits on
+   the text's own baseline and disappears under a line the caret is on. */
+.hl-line.has-warn,
+.hl-line.has-error {
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 6px 2px;
+}
+.hl-line.has-warn {
+  background-image: linear-gradient(to right, var(--author-warn) 0 3px, transparent 3px 6px);
+}
+.hl-line.has-error {
+  background-image: linear-gradient(to right, var(--author-bad) 0 3px, transparent 3px 6px);
+}
+.hl-line.has-warn::before { color: var(--author-warn); opacity: 1; font-weight: 600; }
+.hl-line.has-error::before { color: var(--author-bad); opacity: 1; font-weight: 600; }
+/* The layer ignores the pointer so every click reaches the textarea, but
+   a flagged NUMBER takes it back — that is what makes the title show, and
+   it is the one part of the layer worth hovering. The tooltip itself
+   lives on the line, which the number is inside. */
+.hl-line.has-warn::before,
+.hl-line.has-error::before { pointer-events: auto; cursor: help; }
+
+/* The count above the editor. Without it a guide whose problems all lack
+   a line looks clean in the gutter while Verify reports failures. */
+.author-problems {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  background: color-mix(in srgb, var(--author-warn) 12%, var(--author-panel));
+  border-bottom: 1px solid var(--author-border);
+  color: var(--author-text);
+  flex: 0 0 auto;
+}
+.author-problems-count { font-weight: 600; }
+.author-problems-rest { color: var(--author-muted); }
+.author-problems-stale { color: var(--author-warn); }
+.author-problems-hint { margin-left: auto; color: var(--author-muted); }
+
 /* Hand the text over to the layer beneath, keeping the caret. */
 .author-editor-stack:has(.author-highlight) .author-textarea {
   color: transparent;
