@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.1.0] - 2026-09-15
+
 ### Changed
 
 - **Vite declared as `^8.3.0`, matching the Content Manager.** Both
@@ -52,6 +56,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   `npm run author`. The README also listed drag-and-drop reordering,
   course/lab metadata forms, in-editor new course, image upload and a
   files manager as "not yet" - all four had shipped.
+
 
 ## [1.0.0] - 2026-09-15
 
