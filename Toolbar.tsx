@@ -11,6 +11,9 @@ import { placeholderRange } from "./placeholder";
 import { TableModal } from "./TableModal";
 import { TabsModal } from "./TabsModal";
 import { tidyTableAt } from "./tableBuilder";
+import { CALLOUT_KINDS, buildCallout } from "./callouts";
+import { CalloutModal } from "./CalloutModal";
+import { outlineOf, scrollTopForLine } from "./outline";
 
 // Inline formatting. These share `toggleWrap` with the keyboard
 // shortcuts rather than re-implementing the wrap, so a button and its
@@ -49,7 +52,7 @@ interface Block {
   /** Open a dialog instead of inserting build()'s text straight away.
    *  build() stays the fallback, and is what the placeholder probe
    *  and the block tests exercise. */
-  dialog?: "table" | "tabs" | "tidy";
+  dialog?: "table" | "tabs" | "tidy" | "callout";
 }
 
 // A selection is used as image alt text only when it looks like one: a
@@ -66,23 +69,19 @@ export const BLOCKS: Block[] = [
   { group: "Heading", label: "Sub-step (H3)", title: "Sub-heading (also a tracked step)",
     build: (s) => ({ text: `### ${s || "Sub-step"}\n\n` }) },
 
-  // ── Callouts (note / tip / warning / critical / objectives / under the hood) ──
-  { group: "Callout", label: "Note", title: "Informational note",
-    build: (s) => ({ text: `> **Note:**\n>\n> ${s || "Something worth highlighting."}\n\n` }) },
-  { group: "Callout", label: "Under the hood", title: "Explain what the engine just did — put it AFTER the action",
-    build: (s) => ({ text: `> **Under the hood:**\n>\n> ${s || "What just happened, and why the tool could do it that way."}\n\n` }) },
-  { group: "Callout", label: "Tip", title: "Helpful tip",
-    build: (s) => ({ text: `> **Tip:**\n>\n> ${s || "A handy shortcut or idiom."}\n\n` }) },
-  { group: "Callout", label: "Warning", title: "Warning callout",
-    build: (s) => ({ text: `> **Warning:**\n>\n> ${s || "Something to watch out for."}\n\n` }) },
-  { group: "Callout", label: "Critical", title: "Critical / danger callout",
-    build: (s) => ({ text: `> **Critical:**\n>\n> ${s || "This can cause data loss or a broken environment."}\n\n` }) },
-  { group: "Callout", label: "Success", title: "Confirm the learner got the right result",
-    build: (s) => ({ text: `> **Success:**\n>\n> ${s || "What you should be looking at now."}\n\n` }) },
-  { group: "Callout", label: "Objectives", title: "Lab objectives callout",
-    build: (s) => ({ text: `> **Objectives:**\n>\n> ${s || "By the end of this lab you will…"}\n\n` }) },
+  // ── Callouts ──
+  // Generated from the shared registry so the menu, the dialog and the
+  // renderer cannot drift. buildCallout quotes EVERY line of the
+  // selection - the old concatenation prefixed only the first, so a
+  // selected paragraph fell out of the blockquote after line one.
+  ...CALLOUT_KINDS.map((k): Block => ({
+    group: "Callout", label: k.label, title: k.title,
+    build: (s) => ({ text: buildCallout({ tag: k.tag, body: s || k.sample }) }),
+  })),
+  { group: "Callout", label: "Callout — with title", title: "Pick the kind and give the panel a title strip", dialog: "callout",
+    build: (s) => ({ text: buildCallout({ tag: "Note", title: "Title", body: s || "Body." }) }) },
   { group: "Callout", label: "Quote", title: "Plain quote — an untagged blockquote, rendered as a casual italic quote",
-    build: (s) => ({ text: `> ${s || "Quoted text."}\n\n` }) },
+    build: (s) => ({ text: buildCallout({ tag: "", body: s || "Quoted text." }) }) },
 
   // ── Lists ──
   { group: "List", label: "Bullets", title: "Bulleted list",
@@ -192,7 +191,31 @@ export const BLOCKS: Block[] = [
 const GROUP_ORDER = ["Heading", "Callout", "List", "Text", "Media", "Code", "Block", "Pentaho"];
 
 export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
-  const [dialog, setDialog] = useState<"table" | "tabs" | null>(null);
+  const [dialog, setDialog] = useState<"table" | "tabs" | "callout" | null>(null);
+  // Recomputed on every keystroke. A guide is a few hundred lines, so
+  // one pass over it costs nothing next to React's own render.
+  const outline = outlineOf(value);
+
+  // Jump to a heading. A textarea has no per-line geometry, so the
+  // scroll position is computed from the line number and the computed
+  // line-height; selecting the heading line is what actually anchors
+  // the caret, the scroll just puts it in view.
+  function jumpTo(offset: number, line: number, length: number) {
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(offset, offset + length);
+    const lh = parseFloat(window.getComputedStyle(textarea).lineHeight);
+    if (Number.isFinite(lh) && lh > 0) {
+      textarea.scrollTop = scrollTopForLine(line, lh);
+    }
+  }
+
+  /** Whatever is selected right now, for a dialog to start from. */
+  function selectionText(): string {
+    const start = textarea?.selectionStart ?? 0;
+    const end = textarea?.selectionEnd ?? 0;
+    return value.slice(start, end);
+  }
 
   /** Drop markdown in at the caret, replacing any selection. */
   function insertText(text: string) {
@@ -269,6 +292,18 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
 
   return (
     <div className="author-toolbar">
+      <span className="author-toolbar-label">Go to</span>
+      <Menu
+        label="Outline"
+        title="Jump to a heading in this lab"
+        disabled={outline.length === 0}
+        items={outline.map((h) => ({
+          label: `${"  ".repeat(Math.max(0, h.level - 1))}${h.text}`,
+          title: `Line ${h.line + 1}`,
+          onSelect: () => jumpTo(h.offset, h.line, h.text.length + h.level + 1),
+        }))}
+      />
+      <span className="author-toolbar-sep" aria-hidden />
       <span className="author-toolbar-label">Format</span>
       {FORMATS.map((f) => (
         <button
@@ -312,6 +347,13 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
       )}
       {dialog === "tabs" && (
         <TabsModal onInsert={insertText} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "callout" && (
+        <CalloutModal
+          initialBody={selectionText()}
+          onInsert={insertText}
+          onClose={() => setDialog(null)}
+        />
       )}
     </div>
   );
