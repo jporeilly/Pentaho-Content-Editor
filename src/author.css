@@ -1033,7 +1033,13 @@ body {
 .author-highlight {
   /* must match */
   box-sizing: border-box;
-  padding: 14px 16px;
+  /* The gutter is padding, not a column: a separate element beside the
+     text would need its own copy of the wrapping to stay aligned, and
+     any disagreement puts the numbers against the wrong lines. Here the
+     numbers hang in the padding of the very blocks they label, so they
+     cannot drift. The textarea reserves the same room so its text starts
+     in the same place. */
+  padding: 14px 16px 14px calc(16px + var(--gutter, 0px));
   font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
   font-size: 13px;
   line-height: 1.6;
@@ -1073,6 +1079,40 @@ body {
   flex: 1 1 auto;
   display: flex;
   min-height: 0;
+  --gutter: 46px;
+}
+/* No colour layer means no line numbers, so the text reclaims the room. */
+.author-editor-stack:not(:has(.author-highlight)) { --gutter: 0px; }
+
+/* One block per source line: what the gutter numbers, what the current
+   line band covers, and what a fence pair lights up. min-height keeps a
+   BLANK line the height of a full one — an empty div collapses to
+   nothing, and every colour below it would slide up. */
+.hl-line {
+  position: relative;
+  min-height: 1.6em;
+}
+.hl-line::before {
+  content: attr(data-n);
+  position: absolute;
+  left: calc(-1 * var(--gutter));
+  width: calc(var(--gutter) - 12px);
+  text-align: right;
+  color: var(--author-muted);
+  opacity: 0.45;
+  /* The number must not be selectable or copyable — it is not part of
+     the guide, and it sits in a layer the pointer never reaches anyway. */
+  user-select: none;
+}
+/* Where the caret is. The band spans the whole line, so it reads even on
+   a line that is empty. */
+.hl-line.is-current { background: var(--author-hover); }
+.hl-line.is-current::before { opacity: 1; color: var(--author-text); }
+/* The two markers of the fenced block the caret is inside. An unclosed
+   fence lights only its opener, which is the tell. */
+.hl-line.is-fence {
+  background: color-mix(in srgb, var(--tone-code) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--tone-code);
 }
 
 /* Hand the text over to the layer beneath, keeping the caret. */

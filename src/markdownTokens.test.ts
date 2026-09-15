@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
 
-import { highlightMarkdown } from "./markdownTokens";
+import { highlightMarkdown, highlightLines, fenceRangeAt } from "./markdownTokens";
 
-/** Undo the highlighter: strip spans, unescape entities. */
+/** Undo the highlighter: one block per source line, spans stripped. */
 function plain(html: string): string {
   return html
+    .split(/<div class="hl-line" data-n="\d+">/)
+    .slice(1)                       // drop the empty piece before the first block
+    .map((chunk) => chunk.replace(/<\/div>$/, ""))
+    .join("\n")
     .replace(/<span class="tok-[a-z]+">/g, "")
     .replace(/<\/span>/g, "")
     .replace(/&lt;/g, "<")
@@ -14,8 +18,8 @@ function plain(html: string): string {
 
 /** Which tone a line was given, or "" for untoned body text. */
 function toneOf(body: string, lineIndex = 0): string {
-  const line = highlightMarkdown(body).split("\n")[lineIndex];
-  return /^<span class="tok-([a-z]+)">/.exec(line)?.[1] ?? "";
+  const html = highlightLines(body)[lineIndex]?.html ?? "";
+  return /^<span class="tok-([a-z]+)">/.exec(html)?.[1] ?? "";
 }
 
 describe("highlightMarkdown — text fidelity", () => {
@@ -35,30 +39,38 @@ describe("highlightMarkdown — text fidelity", () => {
     ["no trailing newline", "just one line"],
     ["empty", ""],
     ["only newlines", "\n\n\n"],
-    ["windows-ish text", "line one\nline two\n"],
     ["unicode", "café — naïve 日本語 🎉\n"],
   ];
 
   for (const [name, body] of bodies) {
     it(`round-trips ${name} unchanged`, () => {
-      const round = plain(highlightMarkdown(body));
-      // The trailing space is deliberate padding for a <pre> that ends
-      // in a newline; it is the one permitted difference.
-      expect(round === body || round === body + " ").toBe(true);
+      expect(plain(highlightMarkdown(body))).toBe(body);
     });
   }
+
+  it("emits exactly one block per source line", () => {
+    // This is what makes the heights agree. A single <pre> ending in a
+    // newline renders one line short, and every colour below the fold
+    // slid up by one; a block per line counts the way a textarea does.
+    const count = (s: string) => (highlightMarkdown(s).match(/class="hl-line"/g) ?? []).length;
+    expect(count("a")).toBe(1);
+    expect(count("a\n")).toBe(2);
+    expect(count("a\n\n")).toBe(3);
+    expect(count("")).toBe(1);
+    expect(count("\n\n\n")).toBe(4);
+  });
+
+  it("numbers the blocks from 1, as the verifier reports them", () => {
+    const html = highlightMarkdown("one\ntwo\nthree");
+    expect(html).toContain('data-n="1"');
+    expect(html).toContain('data-n="3"');
+    expect(html).not.toContain('data-n="0"');
+  });
 
   it("never lets a stray < open a tag in the layer", () => {
     const html = highlightMarkdown("if a <b> then\n");
     expect(html).toContain("&lt;b&gt;");
     expect(html).not.toMatch(/<b>/);
-  });
-
-  it("pads a body ending in a newline so the last line keeps its height", () => {
-    // Without this a <pre> renders one line shorter than the textarea
-    // and every colour below the fold slides up by a line.
-    expect(highlightMarkdown("x\n").endsWith(" ")).toBe(true);
-    expect(highlightMarkdown("x").endsWith(" ")).toBe(false);
   });
 });
 
@@ -88,21 +100,18 @@ describe("highlightMarkdown — tones match the insert families", () => {
   });
 
   it("treats a whole fenced block as code, markers included", () => {
-    const html = highlightMarkdown("```bash\n# not a heading\necho hi\n```\n");
-    const lines = html.split("\n");
-    for (let i = 0; i < 4; i++) {
-      expect(lines[i], `line ${i}`).toContain('class="tok-code"');
-    }
+    const lines = highlightLines("```bash\n# not a heading\necho hi\n```\nafter");
+    for (let i = 0; i < 4; i++) expect(lines[i].html, `line ${i}`).toContain('class="tok-code"');
     // The # inside the fence is a shell comment, NOT a heading.
-    expect(lines[1]).not.toContain("tok-heading");
+    expect(lines[1].html).not.toContain("tok-heading");
+    expect(lines[4].html).not.toContain("tok-code");
   });
 
   it("closes a fence only on a matching marker", () => {
     // A ~~~ inside a ``` block does not end it.
-    const html = highlightMarkdown("```\n~~~\nstill code\n```\nafter\n");
-    const lines = html.split("\n");
-    expect(lines[2]).toContain("tok-code");
-    expect(lines[4]).not.toContain("tok-code");
+    const lines = highlightLines("```\n~~~\nstill code\n```\nafter");
+    expect(lines[2].inFence).toBe(true);
+    expect(lines[4].inFence).toBe(false);
   });
 
   it("colours the list marker but leaves the text its own inline tones", () => {
@@ -118,8 +127,6 @@ describe("highlightMarkdown — tones match the insert families", () => {
   });
 
   it("does not nest a span inside another span's markup", () => {
-    // A chain of replaces would re-scan already-emitted markup and put
-    // a span inside a class attribute.
     const html = highlightMarkdown("**bold** and `code` and *it*");
     expect(html).not.toMatch(/class="tok-[a-z]*<span/);
     expect(plain(html)).toBe("**bold** and `code` and *it*");
@@ -127,5 +134,35 @@ describe("highlightMarkdown — tones match the insert families", () => {
 
   it("leaves plain prose untoned", () => {
     expect(toneOf("Just an ordinary sentence.")).toBe("");
+  });
+});
+
+describe("fenceRangeAt", () => {
+  const body = "intro\n```sql\nSELECT 1;\nSELECT 2;\n```\nafter\n";
+  const lines = highlightLines(body);
+
+  it("finds the pair from anywhere inside the block", () => {
+    for (const caret of [1, 2, 3, 4]) {
+      expect(fenceRangeAt(lines, caret), `from line ${caret}`).toEqual({ start: 1, end: 4 });
+    }
+  });
+
+  it("returns null outside any fence", () => {
+    expect(fenceRangeAt(lines, 0)).toBeNull();
+    expect(fenceRangeAt(lines, 5)).toBeNull();
+  });
+
+  it("is null-safe at the edges", () => {
+    expect(fenceRangeAt(lines, -1)).toBeNull();
+    expect(fenceRangeAt(lines, 999)).toBeNull();
+    expect(fenceRangeAt([], 0)).toBeNull();
+  });
+
+  it("still ranges an UNCLOSED fence, to the end", () => {
+    // An unclosed fence is one of the two errors the verifier treats as
+    // fatal. Showing the opener you never closed is more use than
+    // matching nothing at all.
+    const open = highlightLines("intro\n```sql\nSELECT 1;\n");
+    expect(fenceRangeAt(open, 2)).toEqual({ start: 1, end: 3 });
   });
 });

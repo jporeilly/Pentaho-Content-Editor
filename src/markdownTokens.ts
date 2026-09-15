@@ -14,9 +14,10 @@
 //     tag in the highlight layer and swallow the rest of the line;
 //   • whitespace is never collapsed, trimmed or normalised — what goes
 //     in comes out, byte for byte, with only spans added;
-//   • a trailing newline gets a trailing space, because a <pre> ending
-//     in \n renders one line shorter than the textarea does and every
-//     colour below the fold slides up by a line.
+//   • each source line becomes its own block, so "a\n" is two lines here
+//     exactly as the textarea counts it. A single <pre> could not do
+//     that — one ending in \n renders a line short, and every colour
+//     below the fold slid up by one.
 //
 // Line-based, with one piece of state (are we inside a fence?). A guide
 // is a few hundred lines and this runs per keystroke, so it stays a
@@ -74,15 +75,55 @@ function inline(text: string): string {
 /** Markup carrying a Pentaho behaviour — the inserts whose spelling decides what happens. */
 const PENTAHO = /data-(launch|graph|env-check|path)=/;
 
+/** One source line, coloured, plus what the gutter and the caret need. */
+export interface HighlightedLine {
+  /** 1-based, as the verifier and AI review report them. */
+  n: number;
+  html: string;
+  /** Inside a fenced block, the marker lines included. */
+  inFence: boolean;
+  /** This line IS a ``` marker — the pair a caret inside can light up. */
+  isFenceMarker: boolean;
+}
+
 /**
- * Highlight a markdown body. Returns HTML for the layer behind the
- * textarea; the caller must render it with the textarea's exact font,
- * size, line-height, padding and wrapping.
+ * The fenced block containing 0-based `line`, as the 0-based indices of
+ * its opening and closing markers, or null.
+ *
+ * An UNCLOSED fence still returns a range, ending at the last line: a
+ * missing close is one of the two errors the course verifier treats as
+ * fatal, so the editor should show you the opener you never closed
+ * rather than quietly matching nothing.
  */
-export function highlightMarkdown(body: string): string {
+export function fenceRangeAt(lines: HighlightedLine[], line: number): { start: number; end: number } | null {
+  if (line < 0 || line >= lines.length || !lines[line].inFence) return null;
+  let start = line;
+  while (start > 0 && lines[start - 1].inFence && !lines[start].isFenceMarker) start--;
+  // Walk back over the opener itself if the caret sat on the closer.
+  while (start > 0 && lines[start - 1].inFence && !(lines[start].isFenceMarker && start !== line)) start--;
+  let end = line;
+  while (end < lines.length - 1 && lines[end + 1].inFence) end++;
+  while (start > 0 && !lines[start].isFenceMarker) start--;
+  return { start, end };
+}
+
+/**
+ * Highlight a markdown body, line by line.
+ *
+ * Per line, not one blob, because three features hang off knowing where
+ * a line starts: the gutter's number, the current-line band, and the
+ * fence pair. It also removes the trailing-newline hack the single-blob
+ * version needed — "a\n" is two lines here, exactly as the textarea
+ * counts it, with no padding character invented to make the heights
+ * agree.
+ */
+export function highlightLines(body: string): HighlightedLine[] {
   const lines = body.split("\n");
-  const out: string[] = [];
+  const out: HighlightedLine[] = [];
   let fence: string | null = null;
+
+  const push = (html: string, inFence: boolean, isFenceMarker: boolean) =>
+    out.push({ n: out.length + 1, html, inFence, isFenceMarker });
 
   for (const line of lines) {
     // ── Fenced code. The fence marker itself is part of the block, and
@@ -90,52 +131,67 @@ export function highlightMarkdown(body: string): string {
     // comment, not a heading.
     const fenceHit = /^\s*(`{3,}|~{3,})/.exec(line);
     if (fence) {
-      out.push(span("code", line));
-      if (fenceHit && fenceHit[1][0] === fence[0] && fenceHit[1].length >= fence.length) fence = null;
+      const closes = !!fenceHit && fenceHit[1][0] === fence[0] && fenceHit[1].length >= fence.length;
+      push(span("code", line), true, closes);
+      if (closes) fence = null;
       continue;
     }
     if (fenceHit) {
       fence = fenceHit[1];
-      out.push(span("code", line));
+      push(span("code", line), true, true);
       continue;
     }
 
     // ── Pentaho buttons, before the generic HTML rule: these are the
     // inserts whose exact spelling decides behaviour, so they are worth
     // spotting at a glance.
-    if (PENTAHO.test(line)) { out.push(span("pentaho", line)); continue; }
+    if (PENTAHO.test(line)) { push(span("pentaho", line), false, false); continue; }
 
     // ── Headings.
-    if (/^\s{0,3}#{1,6}\s/.test(line)) { out.push(span("heading", line)); continue; }
+    if (/^\s{0,3}#{1,6}\s/.test(line)) { push(span("heading", line), false, false); continue; }
 
     // ── Callouts and quotes.
-    if (/^\s*>/.test(line)) { out.push(span("callout", line)); continue; }
+    if (/^\s*>/.test(line)) { push(span("callout", line), false, false); continue; }
 
     // ── Block-level structure: rules, tables, directives, HTML blocks.
-    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { out.push(span("block", line)); continue; }
-    if (/^\s*:::/.test(line)) { out.push(span("block", line)); continue; }
-    if (/^\s*\|/.test(line)) { out.push(span("block", line)); continue; }
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { push(span("block", line), false, false); continue; }
+    if (/^\s*:::/.test(line)) { push(span("block", line), false, false); continue; }
+    if (/^\s*\|/.test(line)) { push(span("block", line), false, false); continue; }
     if (/^\s*<\/?(figure|figcaption|details|summary|div|button|img|video|br|hr)\b/i.test(line)) {
-      out.push(span("block", line));
+      push(span("block", line), false, false);
       continue;
     }
     // An HTML comment line, which is how author notes are written.
-    if (/^\s*(<!--|-->)/.test(line)) { out.push(span("block", line)); continue; }
+    if (/^\s*(<!--|-->)/.test(line)) { push(span("block", line), false, false); continue; }
 
     // ── Lists. The MARKER is toned; the text after it keeps its inline
     // colours, so a bold word inside a bullet still reads as emphasis.
     const list = /^(\s*)([-*+]\s\[[ xX]\]\s|[-*+]\s|\d+[.)]\s)/.exec(line);
     if (list) {
-      out.push(escape(list[1]) + span("list", list[2]) + inline(line.slice(list[0].length)));
+      push(escape(list[1]) + span("list", list[2]) + inline(line.slice(list[0].length)), false, false);
       continue;
     }
 
-    out.push(inline(line));
+    push(inline(line), false, false);
   }
 
-  const html = out.join("\n");
-  // A <pre> whose content ends in a newline renders one line shorter
-  // than the textarea does, so everything below the fold drifts up by a
-  // line. The trailing space gives that last line something to occupy.
-  return html.endsWith("\n") ? html + " " : html;
+  return out;
+}
+
+/**
+ * The layer's markup: one block per source line, carrying its number for
+ * the gutter.
+ *
+ * Built as one HTML string rather than as React children because the
+ * caret moves far more often than the text changes: the current-line and
+ * fence-pair classes are toggled straight on these nodes, so moving the
+ * caret costs two className writes instead of re-rendering a hundred
+ * elements.
+ */
+export function linesToHtml(lines: HighlightedLine[]): string {
+  return lines.map((l) => `<div class="hl-line" data-n="${l.n}">${l.html}</div>`).join("");
+}
+
+export function highlightMarkdown(body: string): string {
+  return linesToHtml(highlightLines(body));
 }

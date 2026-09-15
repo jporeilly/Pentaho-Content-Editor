@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { linkScrollers } from "./scrollSync";
-import { highlightMarkdown } from "./markdownTokens";
+import { highlightLines, linesToHtml, fenceRangeAt } from "./markdownTokens";
 import { Toolbar } from "./Toolbar";
 import { FindBar } from "./FindBar";
 import { Preview } from "./Preview";
@@ -193,11 +193,45 @@ export function App() {
   }
   // Re-tokenised per keystroke. A guide is a few hundred lines and this
   // is one pass with no backtracking, so it costs less than the render
-  // it feeds.
-  const highlighted = useMemo(
-    () => (syntaxColour ? highlightMarkdown(body) : ""),
+  // it feeds. Tokenised once and reused: the markup needs the lines, and
+  // so does the fence pair under the caret.
+  const lines = useMemo(
+    () => (syntaxColour ? highlightLines(body) : []),
     [body, syntaxColour],
   );
+  const highlighted = useMemo(() => linesToHtml(lines), [lines]);
+
+  // Which source line the caret is on, 0-based.
+  const [caretLine, setCaretLine] = useState(0);
+  function syncCaretLine() {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    // Counting newlines is exact where measuring geometry is not: a
+    // wrapped line is several visual rows but one source line, and the
+    // gutter numbers source lines.
+    setCaretLine(ta.value.slice(0, ta.selectionStart).split("\n").length - 1);
+  }
+
+  // The current-line band and the fence pair are written straight onto
+  // the layer's nodes rather than re-rendered. The caret moves far more
+  // often than the text changes, and re-rendering a hundred elements to
+  // move one highlight is the difference between typing that feels
+  // instant and typing that does not.
+  useEffect(() => {
+    const root = highlightRef.current;
+    if (!root) return;
+    const kids = root.children;
+    for (const el of Array.from(kids)) el.classList.remove("is-current", "is-fence");
+    kids[caretLine]?.classList.add("is-current");
+    // Inside a fenced block, light both markers — an unclosed fence is
+    // one of the two errors the verifier treats as fatal, and this shows
+    // you the opener with nothing to match it.
+    const fence = fenceRangeAt(lines, caretLine);
+    if (fence) {
+      kids[fence.start]?.classList.add("is-fence");
+      kids[fence.end]?.classList.add("is-fence");
+    }
+  }, [caretLine, highlighted, lines]);
 
   // Ctrl/Cmd+F opens find & replace. Captured on the window rather than
   // the textarea so it works wherever the focus happens to be, and
@@ -545,6 +579,9 @@ export function App() {
                 }}
                 onPaste={onEditorPaste}
                 onDrop={onEditorDrop}
+                onSelect={syncCaretLine}
+                onClick={syncCaretLine}
+                onKeyUp={syncCaretLine}
                 onScroll={(e) => {
                   // Keep the colour layer under the text it belongs to.
                   const h = highlightRef.current;
