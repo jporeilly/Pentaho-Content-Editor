@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.3.0] - 2026-09-15
+
 ### Added
 
 - **Verify marks the line.** It used to print into a panel and leave you
@@ -20,10 +24,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   coloured gutter number, with the message on hover. Problems that belong
   to no line — a manifest metric, a SUMMARY link — are counted separately
   above the editor, so a guide never looks clean in the gutter while
-  Verify is still reporting failures. Requires the Content Manager's
-  verifier to report `path:line: message`, which it does from 27aa0a2
-  (unreleased at the time of writing); against an older one every
-  problem simply lands in the not-tied-to-a-line count.
+  Verify is still reporting failures. Needs Pentaho Content Manager
+  0.4.48 or later, whose verifier reports `path:line: message`; against
+  an older one nothing breaks — every problem simply lands in the
+  not-tied-to-a-line count.
 - **The markdown source is colour-coded** with the same hues as the
   insert menus - a heading is blue in the toolbar and blue in the source,
   Media cyan in both, code green in both. Switchable from the Theme menu.
@@ -37,6 +41,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   its last entry out of sight behind a scroller nobody finds. Commands
   come from the same registry and run through the same insert path as
   the menus, so the two cannot drift.
+
 
 ## [1.2.0] - 2026-09-15
 
