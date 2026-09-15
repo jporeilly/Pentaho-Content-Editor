@@ -92,7 +92,9 @@ the owner if something foreign holds the port.
 
 **Course and lab management**
 
-- Course picker and a **structure tree** of topics and labs.
+- Course picker and a **structure tree** of topics and labs, with a
+  **filter box** over it. Dragging is disabled while a filter is active,
+  because a drop lands relative to the labs you can see.
 - **Drag to reorder** labs, across topic boundaries — persists to
   `SUMMARY.md` and re-sequences every lab's manifest `order`.
 - **Rename** a lab inline (double-click) — updates the manifest title and
@@ -138,6 +140,13 @@ the owner if something foreign holds the port.
   dividers, `<details>` collapsibles, and task lists.
 - **Go to → Outline** jumps to any heading, and is fence-aware so a `#`
   inside a code block is never mistaken for one.
+- **Find & replace** on `Ctrl/Cmd+F` - plain substring, not regex, since
+  guides are full of `**`, `[`, `(`, `$` and `|`. Enter and Shift+Enter
+  walk the matches, Escape closes. The browser's own find is suppressed
+  deliberately: it searches the rendered page, not your markdown.
+- Each insert family carries its own **hue** - a marker under the label
+  and the same colour on its open popover - so the row is scannable
+  without reading all ten labels.
 
 **Preview and save**
 
@@ -145,7 +154,11 @@ the owner if something foreign holds the port.
   tabs, code-copy, videos and glossary terms render exactly as the
   packaged app shows them. The Tauri-only bits are shimmed (`src/shims/`,
   aliased in `vite.config.ts`).
-- **Two themes, two questions.** The *editor* theme is comfort; the
+- **Scroll sync.** The preview follows the editor and the editor follows
+  the preview, proportionally, so the two panes always show the same part
+  of the lab.
+- **Eight editor palettes**: Midnight, Daylight, Ocean, Ember, Forest,
+  Plum, Parchment and Contrast. The *editor* theme is comfort; the
   *preview* theme is correctness — learners run the app in either, and a
   guide that reads fine on white can be unreadable on the dark surface.
   Flipping the preview catches that while authoring.

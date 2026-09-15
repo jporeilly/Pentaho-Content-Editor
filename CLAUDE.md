@@ -187,8 +187,34 @@ preview surface), omitted the whole learner header, and numbered steps on
 `WelcomePane.tsx` follows the same rule — it previews with the app's real
 `WelcomeScreen`, fed from live `course.json` + the structure tree.
 
-**Two themes, two questions** (`theme.ts`). The *editor* theme is
-comfort; the *preview* theme is correctness — learners run the app in
+**Scroll sync** (`scrollSync.ts`) links the two panes. Proportional,
+not line-for-line: a line-accurate map needs every source line's rendered
+height measured on each keystroke, and markdown blocks are uneven enough
+(a fence is tall in both, a table is short in source and tall rendered)
+that it buys little. The care is in the feedback loop - syncing A onto B
+makes B fire its own scroll event straight back - so one pane holds a
+lock while it drives and releases a beat later, because a wheel gesture
+arrives as a burst and an eager release lets the far pane take over
+mid-gesture.
+
+**Find & replace** (`findReplace.ts`, `FindBar.tsx`) on Ctrl/Cmd+F. The
+browser's own binding is suppressed deliberately: it searches the
+RENDERED page, so it hits the preview and the sidebar and never the
+markdown source. Plain substring, never regex - guides are full of `**`,
+`[`, `(`, `$` and `|`, and an author typing `**Note:**` into a regex box
+gets an error or silence. `replaceAll` splices from a fixed match list
+right to left: rescanning would never terminate when the replacement
+contains the needle (`lab` to `lab guide`), and a left-to-right splice
+shifts every later offset into the middle of a word.
+
+**The structure filter hides rows, it never rebuilds the list.** Reorder
+and inline rename address a lab by its `[topicIndex, labIndex]` position,
+so a filtered array renumbers every lab after the first hidden one and
+moves the wrong file. Dragging is off while filtering for the same
+reason. Both maps still run over everything; only the output is dropped.
+
+**Eight editor palettes, two preview themes** (`theme.ts`). The *editor*
+theme is comfort; the *preview* theme is correctness — learners run the app in
 either, and a guide that reads fine on white can be unreadable on the
 dark surface (a hard-coded colour in inline HTML, a screenshot with a
 white background, a callout with no dark variant). Both are classes on
@@ -261,7 +287,7 @@ hotmail address.
 
 | Suite | Command | Size |
 | --- | --- | --- |
-| Frontend | `npm test` (vitest) | 76 tests, 8 files |
+| Frontend | `npm test` (vitest) | 100 tests, 10 files |
 | Backend | `cd api && .venv\Scripts\python -m pytest -q` | 39 tests |
 
 The backend venv is normally created from `requirements.txt` alone, which

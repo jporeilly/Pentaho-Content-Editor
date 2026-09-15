@@ -13,7 +13,34 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Scroll sync between the editor and the preview.** Guides run to
+  thousands of words; you scrolled one pane and then hunted for your
+  place in the other. Proportional, both ways.
+- **Find & replace, on Ctrl/Cmd+F.** There was none, so every text sweep
+  meant opening the lab in a second editor - which is precisely how an
+  afternoon's work went over the side on 2026-09-03. Plain substring
+  rather than regex, because guides are full of `**`, `[`, `(`, `$` and
+  `|`. The browser's own Ctrl+F is suppressed on purpose: it searches the
+  rendered page, so it finds the preview and the sidebar and never the
+  markdown you are editing.
+- **A filter over the structure tree.** Courses run to eighteen entries
+  and the only way to reach one was to read the list. Dragging is off
+  while a filter is active: a drop lands relative to the labs you can
+  see, and with rows hidden that is not where you think it is.
+- **Six more editor palettes** beside the original two - Ocean, Ember on
+  the Pentaho amber, Forest, Plum, Parchment for glare, and Contrast for
+  small or dim VM screens. Old settings migrate rather than reset.
+  Measured, not eyeballed: body text runs 13:1 to 21:1 in all eight and
+  the muted tone never drops below 5.3:1. The PREVIEW stays light and
+  dark only - it simulates what a learner can actually have, and that is
+  its whole job.
+- **A hue per insert family.** The insert row carries ten menus whose
+  labels are the same size, weight and colour, so finding "Media" meant
+  reading all ten. Each family now has a marker under its label, the same
+  hue on its hover and on the top edge of its open popover. Decoration
+  only - the label still says which is which.
 
 ## [1.1.0] - 2026-09-15
 
