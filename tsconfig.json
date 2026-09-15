@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "paths": {
+      "@app/*": ["../Pentaho-Content-Manager/src/*"],
+      "@tauri-apps/plugin-opener": ["./src/shims/tauri-opener.ts"],
+      "@tauri-apps/api/core": ["./src/shims/tauri-core.ts"],
+      "@tauri-apps/api/window": ["./src/shims/tauri-window.ts"]
+    }
+  },
+  "include": ["src", "vite.config.ts", "vitest.config.ts"]
+}

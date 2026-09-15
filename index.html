@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230c0c0e'/%3E%3Ctext x='15' y='23' font-family='Segoe UI,Arial,sans-serif' font-size='19' font-weight='700' fill='white' text-anchor='middle'%3EP%3C/text%3E%3Ccircle cx='23.52' cy='23.52' r='7.36' fill='white'/%3E%3Ccircle cx='23.52' cy='23.52' r='6.56' fill='%230d9488'/%3E%3Cg transform='rotate%28-45 23.52 23.52%29'%3E%3Cpolygon points='23.52,18.80 22.14,21.25 24.90,21.25' fill='white'/%3E%3Crect x='22.14' y='21.25' width='2.76' height='6.99' fill='white'/%3E%3Crect x='22.14' y='25.79' width='2.76' height='0.66' fill='%230d9488'/%3E%3C/g%3E%3C/svg%3E" />
+    <title>Pentaho Content Editor</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Dev-only boot watchdog — same rationale as index.html: reload
+         once the vite dep optimizer has settled if the module graph
+         hung on first load. -->
+    <script>
+      (function () {
+        if (!/^localhost:5(173|273)$/.test(location.host)) return;
+        var tries = Number(sessionStorage.getItem("pcm-boot-retry") || "0");
+        setTimeout(function () {
+          var root = document.getElementById("root");
+          if (root && root.childElementCount > 0) {
+            sessionStorage.removeItem("pcm-boot-retry");
+          } else if (tries < 3) {
+            sessionStorage.setItem("pcm-boot-retry", String(tries + 1));
+            location.reload();
+          }
+        }, 6000);
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

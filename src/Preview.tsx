@@ -17,16 +17,16 @@
 //     renderer's hooks require.
 
 import { useMemo } from "react";
-import { MarkdownBody } from "../components/MarkdownBody";
-import { GuideHeader } from "../components/GuideHeader";
-import { countSteps, stripLeadingH1, tracksProgress } from "../components/guideBody";
+import { MarkdownBody } from "@app/components/MarkdownBody";
+import { GuideHeader } from "@app/components/GuideHeader";
+import { countSteps, stripLeadingH1, tracksProgress } from "@app/components/guideBody";
 
 // Inert progress plumbing for the preview — stable identities so
 // MarkdownBody doesn't re-render on every keystroke because of them.
 const EMPTY_PROGRESS = new Set<string>();
 const noopToggle = () => {};
-import { ToolPanelProvider } from "../components/ToolPanelContext";
-import { GlossaryProvider, normaliseGlossary } from "../components/GlossaryContext";
+import { ToolPanelProvider } from "@app/components/ToolPanelContext";
+import { GlossaryProvider, normaliseGlossary } from "@app/components/GlossaryContext";
 
 interface PreviewProps {
   body: string;

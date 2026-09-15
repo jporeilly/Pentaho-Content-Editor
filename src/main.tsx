@@ -8,8 +8,8 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 
 // The app's own stylesheet — the preview relies on its `pcm-` classes.
-import "../styles/fonts.css";
-import "../styles/app.css";
+import "@app/styles/fonts.css";
+import "@app/styles/app.css";
 // Editor chrome on top.
 import "./author.css";
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -26,10 +27,26 @@ from pydantic import BaseModel
 import providers
 import mcp
 
-# ── Repo layout ─────────────────────────────────────────────────────
-# core.py lives at <repo>/editor/api/core.py → repo root is three up.
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# ── Where the courses live ──────────────────────────────────────────
+# The editor is its own project now, but the courses it edits belong to
+# the Pentaho Content Manager: that is the app that ships them to a VM,
+# and the install order is Content Manager first, editor second. So the
+# editor hooks into the app's repository rather than owning a copy.
+#
+# Default: the sibling directory. Override with PCM_REPO when the app is
+# installed somewhere else — which it will be, once the editor installs
+# to C:\ rather than running from a checkout.
+EDITOR_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(os.environ.get("PCM_REPO") or (EDITOR_ROOT.parent / "Pentaho-Content-Manager")).resolve()
 COURSES_DIR = REPO_ROOT / "courses"
+
+if not COURSES_DIR.is_dir():
+    raise RuntimeError(
+        f"No courses directory at {COURSES_DIR}.\n"
+        "The Pentaho Content Editor edits the Content Manager's courses, so the "
+        "Content Manager must be installed first. Set PCM_REPO to its root and "
+        "start the editor again."
+    )
 
 
 # ── Metric helpers (mirror stamp-manifests.mjs) ─────────────────────

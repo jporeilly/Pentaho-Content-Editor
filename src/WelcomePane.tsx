@@ -11,8 +11,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type Structure } from "./api";
-import { WelcomeScreen } from "../components/WelcomeScreen";
-import type { CourseManifest, TopicNode } from "../content/types";
+import { WelcomeScreen } from "@app/components/WelcomeScreen";
+import type { CourseManifest, TopicNode } from "@app/content/types";
 
 interface WelcomePaneProps {
   course: string;

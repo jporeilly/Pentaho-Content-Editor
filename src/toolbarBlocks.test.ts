@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import { BLOCKS } from "./Toolbar";
-import { parseCalloutTag } from "../components/Callout";
-import type { CalloutKind } from "../components/Callout";
+import { parseCalloutTag } from "@app/components/Callout";
+import type { CalloutKind } from "@app/components/Callout";
 
 // Every callout kind the renderer understands should be reachable from
 // the toolbar. It wasn't: parseCalloutTag mapped seven kinds while the

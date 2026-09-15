@@ -3,7 +3,7 @@
 // plus a couple of standalone buttons, so the toolbar stays compact.
 // Each menu inserts the chosen block at the caret.
 
-import { CODE_LANGUAGES, codeFence } from "../components/codeLanguages";
+import { CODE_LANGUAGES, codeFence } from "@app/components/codeLanguages";
 import { useState } from "react";
 import { Menu } from "./Menu";
 import { toggleWrap } from "./markdownKeys";

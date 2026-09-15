@@ -1,0 +1,36 @@
+{
+  "name": "pentaho-content-editor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Authoring surface for Pentaho workshop courses. Runs from source on an author's machine; never shipped to a VM.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "version:check": "node scripts/bump-version.mjs --check",
+    "bump": "node scripts/bump-version.mjs"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "lowlight": "^3.3.0",
+    "lucide-react": "^1.11.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "highlight.js": "^11.10.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "vitest": "^4.1.11"
+  }
+}
