@@ -4,9 +4,13 @@
 // Each menu inserts the chosen block at the caret.
 
 import { CODE_LANGUAGES, codeFence } from "../components/codeLanguages";
+import { useState } from "react";
 import { Menu } from "./Menu";
 import { toggleWrap } from "./markdownKeys";
 import { placeholderRange } from "./placeholder";
+import { TableModal } from "./TableModal";
+import { TabsModal } from "./TabsModal";
+import { tidyTableAt } from "./tableBuilder";
 
 // Inline formatting. These share `toggleWrap` with the keyboard
 // shortcuts rather than re-implementing the wrap, so a button and its
@@ -42,6 +46,10 @@ interface Block {
   label: string;
   title: string;
   build: (sel: string) => { text: string };
+  /** Open a dialog instead of inserting build()'s text straight away.
+   *  build() stays the fallback, and is what the placeholder probe
+   *  and the block tests exercise. */
+  dialog?: "table" | "tabs" | "tidy";
 }
 
 // A selection is used as image alt text only when it looks like one: a
@@ -122,10 +130,14 @@ export const BLOCKS: Block[] = [
   })),
 
   // ── Block ──
-  { group: "Block", label: "Tabs", title: "Interactive tab widget",
+  { group: "Block", label: "Tabs", title: "Interactive tab widget - name the tabs", dialog: "tabs",
     build: () => ({ text: "::: tabs\n\n### Windows\n\nWindows steps.\n\n### macOS / Linux\n\nUnix steps.\n\n:::\n\n" }) },
-  { group: "Block", label: "Table", title: "Markdown table",
+  { group: "Block", label: "Table", title: "Markdown table - choose its shape", dialog: "table",
     build: () => ({ text: `| Column | Column |\n| ------ | ------ |\n| Value  | Value  |\n\n` }) },
+  // Re-pads the table the caret is in. Authors maintain tables by hand
+  // once they exist, and a widened cell knocks every row out of line.
+  { group: "Block", label: "Tidy table", title: "Re-align the table the cursor is in", dialog: "tidy",
+    build: () => ({ text: "" }) },
   { group: "Block", label: "Link", title: "Hyperlink",
     build: (s) => ({ text: `[${s || "link text"}](https://docs.pentaho.com)` }) },
   { group: "Block", label: "Divider", title: "Horizontal rule / section break",
@@ -180,7 +192,43 @@ export const BLOCKS: Block[] = [
 const GROUP_ORDER = ["Heading", "Callout", "List", "Text", "Media", "Code", "Block", "Pentaho"];
 
 export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
+  const [dialog, setDialog] = useState<"table" | "tabs" | null>(null);
+
+  /** Drop markdown in at the caret, replacing any selection. */
+  function insertText(text: string) {
+    const start = textarea?.selectionStart ?? value.length;
+    const end = textarea?.selectionEnd ?? value.length;
+    const next = value.slice(0, start) + text + value.slice(end);
+    const caret = start + text.length;
+    onChange(next);
+    requestAnimationFrame(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(caret, caret);
+      }
+    });
+  }
+
+  /** Re-pad the table the caret sits in. Does nothing, loudly enough to
+   *  notice, when the caret is not in one. */
+  function tidyTable() {
+    const caret = textarea?.selectionStart ?? 0;
+    const out = tidyTableAt(value, caret);
+    if (!out) {
+      window.alert("Put the cursor inside a table first.");
+      return;
+    }
+    onChange(out.text);
+    requestAnimationFrame(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(out.start, out.end);
+      }
+    });
+  }
   function insert(block: Block) {
+    if (block.dialog === "tidy") { tidyTable(); return; }
+    if (block.dialog) { setDialog(block.dialog); return; }
     const start = textarea?.selectionStart ?? value.length;
     const end = textarea?.selectionEnd ?? value.length;
     const sel = value.slice(start, end);
@@ -259,6 +307,12 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           {b.label}
         </button>
       ))}
+      {dialog === "table" && (
+        <TableModal onInsert={insertText} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "tabs" && (
+        <TabsModal onInsert={insertText} onClose={() => setDialog(null)} />
+      )}
     </div>
   );
 }

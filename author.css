@@ -737,3 +737,53 @@ body {
   color: #fff;
   font-weight: 600;
 }
+
+/* ── Insert dialogs: table + tabs ───────────────────────────── */
+/* Both show the markdown they will write. Tables are the construct
+   authors get wrong most often, so seeing the delimiter row before it
+   lands beats fixing it afterwards. */
+.author-table-shape {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.author-table-aligns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.author-table-align {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+  flex: 1 1 110px;
+}
+.author-table-align span {
+  font-size: 11px;
+  opacity: 0.75;
+}
+.author-table-preview {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+.author-tabs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.author-tabs-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.author-tabs-row .author-input { flex: 1 1 auto; }
+.author-tabs-add { align-self: flex-start; margin-top: 8px; }
