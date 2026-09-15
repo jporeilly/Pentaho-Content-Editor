@@ -1,6 +1,6 @@
 """Smoke tests for the course-editor backend.
 
-Run from editor/api/:  python -m pytest -q
+Run from api/:  python -m pytest -q
 
 Isolation: fixtures monkeypatch COURSES_DIR to a temp dir and
 SETTINGS_PATH to a temp file, so tests never touch real courses or the

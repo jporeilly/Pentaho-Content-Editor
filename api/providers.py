@@ -7,7 +7,7 @@ Author-side only (never shipped to learner VMs). Three providers:
   • openai    — GPT via the official `openai` SDK; key from env
 
 Non-secret preferences (active provider, per-provider model, Ollama URL)
-persist to editor/api/settings.json (gitignored). **API keys are never
+persist to api/settings.json (gitignored). **API keys are never
 stored** — they're read from ANTHROPIC_API_KEY / OPENAI_API_KEY at call
 time, so this app never persists a credential.
 """

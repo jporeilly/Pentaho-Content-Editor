@@ -20,6 +20,15 @@ by default, overridden by the **`PCM_REPO`** environment variable:
 | --- | --- | --- |
 | The renderer | `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | `@app` → `<PCM>/src` |
 | The courses | `api/core.py` | `COURSES_DIR` → `<PCM>/courses` |
+| The scaffolder + verifier | `api/core.py`, `routers/{labs,courses,imports}.py` | `node <script>` run with `cwd=REPO_ROOT` |
+
+The third one is easy to miss: the editor does not reimplement course
+scaffolding, it **shells out to the app's scripts** — `new-course.mjs`,
+`new-lab.mjs`, `stamp-manifests.mjs` and `verify-course.mjs`, all run
+with `cwd=REPO_ROOT`. So the editor also needs **Node on PATH** and the
+app's `scripts/` present, not merely its `src/` and `courses/`. One
+source of truth for `SUMMARY.md` wiring and manifest metrics is the whole
+point; don't grow a second copy here.
 
 Both fail loudly rather than mysteriously: the Vite config throws naming
 `PCM_REPO` if the app's `src/` is absent, and `api/core.py` raises an

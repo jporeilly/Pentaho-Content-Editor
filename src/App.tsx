@@ -175,10 +175,16 @@ export function App() {
       <div className="author-splash">
         <h1>Pentaho Content Editor</h1>
         <p className="author-error">Can’t reach the editor API at {api.base}.</p>
-        <p>Start it in a second terminal:</p>
-        <pre>{`cd editor/api
-pip install -r requirements.txt
-uvicorn app:app --reload --port 8000`}</pre>
+        <p>Start both halves from the repository root:</p>
+        <pre>{`.\\start-editor.ps1`}</pre>
+        <p>Or just the API, in a second terminal:</p>
+        <pre>{`cd api
+.venv\\Scripts\\python -m uvicorn app:app --port 8000`}</pre>
+        <p className="author-hint">
+          No <code>.venv</code> yet? Create it once:{" "}
+          <code>py -3 -m venv api\.venv</code> then{" "}
+          <code>api\.venv\Scripts\python -m pip install -r api\requirements.txt</code>
+        </p>
       </div>
     );
   }

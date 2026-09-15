@@ -1,4 +1,4 @@
-// Editor entrypoint — a standalone Vite app (npm run author) separate
+// Editor entrypoint — a standalone Vite app (npm run dev) separate
 // from the learner-facing Tauri app. It reuses the app's renderer
 // components and stylesheet so the preview matches production.
 import "highlight.js/styles/github.css";

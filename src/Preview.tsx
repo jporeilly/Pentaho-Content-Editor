@@ -11,7 +11,7 @@
 // editor lies to the author.
 //
 // The Tauri-only bits MarkdownBody depends on are satisfied by:
-//   • Vite aliases (vite.author.config.ts) that shim the @tauri-apps
+//   • Vite aliases (vite.config.ts) that shim the @tauri-apps
 //     imports to inert browser versions, and
 //   • the ToolPanelProvider + GlossaryProvider wrappers below, which the
 //     renderer's hooks require.

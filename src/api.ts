@@ -1,4 +1,4 @@
-// Thin client for the course-editor FastAPI backend (editor/api/app.py).
+// Thin client for the course-editor FastAPI backend (api/app.py).
 // The base URL is configurable via VITE_EDITOR_API but defaults to the
 // local uvicorn dev port.
 

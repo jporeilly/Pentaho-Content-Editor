@@ -17,11 +17,26 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 - **Vite declared as `^8.3.0`, matching the Content Manager.** Both
   repos asked for `^8.0.10` and resolved on their own, which had put the
-  editor on 8.3.0 and the app on 8.1.5. The preview imports 27 modules
+  editor on 8.3.0 and the app on 8.1.5. The preview imports 11 modules
   from the app through the `@app` alias, so the same source was being
   bundled by two different Vite versions - a weak footing for a preview
   whose whole job is to match what the learner sees. The resolved
   version here does not move; the declaration catches up to it.
+
+### Fixed
+
+- **The "can't reach the API" splash printed commands that no longer
+  work.** It still said `cd editor/api` and a bare `uvicorn`, paths from
+  before the editor became its own repo - so the one screen whose entire
+  job is telling you how to recover sent you to a directory that does not
+  exist. It now offers `start-editor.ps1` first, then the by-hand form,
+  and how to create the venv if there isn't one.
+- **Stale pre-split paths swept out of the docs and comments.** README,
+  CLAUDE.md, four API docstrings and five frontend comments still
+  described `src/author/`, `editor/api/`, `vite.author.config.ts` and
+  `npm run author`. The README also listed drag-and-drop reordering,
+  course/lab metadata forms, in-editor new course, image upload and a
+  files manager as "not yet" - all four had shipped.
 
 ## [1.0.0] - 2026-09-15
 

@@ -8,7 +8,7 @@ the loop from the editor UI:
   • POST /api/courses/{course}/publish       — copy the course in, commit, push
   • POST /api/publish/tag                    — tag the repo (pin workshop images)
 
-A persistent shallow clone is kept in ``editor/api/.publish-cache/`` and
+A persistent shallow clone is kept in ``api/.publish-cache/`` and
 freshened (fetch + hard reset) before every operation, so diffs are
 always against the repo's current HEAD and pushes are fast-forward.
 Auth is whatever git already has on the author's machine (credential

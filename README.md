@@ -1,150 +1,217 @@
-# Pentaho Content Editor (visual authoring app)
+# Pentaho Content Editor
 
-A local, browser-based **visual editor** for the courses in this repo. It
-removes the "you must know markdown and hand-edit JSON" barrier: pick a
-course and lab, edit the guide with an insert-block toolbar, watch a
-**live preview rendered by the app's own renderer**, and save — the lab's
-`manifest.json` metrics are recomputed for you on save.
+A local, browser-based **visual editor** for Pentaho Content Manager
+courses. It removes the "you must know markdown and hand-edit JSON"
+barrier: pick a course and lab, edit the guide with an insert-block
+toolbar, watch a **live preview rendered by the learner app's own
+renderer**, and save — the lab's `manifest.json` metrics are recomputed
+for you.
 
 This is an **authoring tool that runs on your machine only.** It is *not*
-shipped to the learner VMs — those run the Tauri renderer. The editor and
-the learner app deliberately stay separate (see the "React + FastAPI vs
-Tauri" decision in [`../CLAUDE.md`](../CLAUDE.md)).
+shipped to the learner VMs — those run the Tauri app. The two stay
+deliberately separate, and since 2026-09-15 they are separate
+repositories with separate version numbers.
+
+## It needs the Content Manager first
+
+The editor has no courses of its own and no renderer of its own. Install
+[Pentaho Content Manager](https://github.com/jporeilly/Pentaho-Content-Manager)
+**first**, then this. It reaches into that repository three ways:
+
+| What | Where it looks |
+| --- | --- |
+| The renderer (preview fidelity) | `<PCM>/src`, via the `@app` alias |
+| The courses it edits | `<PCM>/courses` |
+| The scaffolder + verifier it shells out to | `<PCM>/scripts/*.mjs`, run with Node |
+
+By default that is the **sibling directory** `../Pentaho-Content-Manager`.
+If it lives elsewhere, set **`PCM_REPO`** to its root — both the frontend
+and the backend honour it, and both fail with a clear message rather than
+a stack trace if the target is missing.
+
+```
+C:\Projects\
+  Pentaho-Content-Manager\      <- install this first
+  Pentaho-Content-Editor\       <- this repo
+```
+
+## Layout
 
 ```text
-editor/
-  api/            FastAPI backend — read/write over ../courses/
-    app.py
-    requirements.txt
-  README.md       (this file)
-
-src/author/       React frontend (reuses the app's MarkdownBody renderer)
-vite.author.config.ts
-index.author.html
+src/            React frontend (imports the app's renderer through @app)
+  shims/        inert browser stand-ins for the @tauri-apps modules
+api/            FastAPI backend — reads and writes <PCM>/courses/
+  routers/      courses, labs, assets, imports, ai, export, publish, settings
+  .venv/        backend virtual environment (gitignored)
+icons/          editor.ico
+index.html   vite.config.ts   vitest.config.ts   tsconfig.json
+start-editor.ps1
 ```
 
 ## Running it
 
-Two processes: the FastAPI backend and the Vite frontend.
+**The easy way** — `start-editor.ps1` in the repo root starts both halves,
+waits for them, and opens the browser:
 
-**1. Backend** (once: create a venv and install):
-
-```bash
-cd editor/api
-python -m venv .venv
-.venv/Scripts/activate          # Windows;  source .venv/bin/activate on Unix
-pip install -r requirements.txt
-uvicorn app:app --reload --port 8000
+```powershell
+.\start-editor.ps1              # -Stop to shut both down, -NoBrowser for scripts
 ```
 
-**2. Frontend** (from the repo root, in a second terminal):
+**By hand**, two processes. First-time backend setup:
 
-```bash
-npm run author                  # Vite dev server on http://localhost:5273
+```powershell
+py -3 -m venv api\.venv
+api\.venv\Scripts\python -m pip install -r api\requirements.txt
 ```
 
-Open http://localhost:5273/index.author.html. If the frontend can't reach
-the API it shows the exact commands above.
+Then, in two terminals:
+
+```powershell
+cd api; .venv\Scripts\python -m uvicorn app:app --port 8000
+```
+
+```powershell
+npm install; npm run dev        # Vite dev server on http://localhost:5273
+```
+
+Open <http://localhost:5273/>. If the frontend can't reach the API it
+shows these commands on the splash screen.
 
 > Point the frontend at a non-default API with `VITE_EDITOR_API`, e.g.
-> `VITE_EDITOR_API=http://localhost:9000 npm run author`.
+> `VITE_EDITOR_API=http://localhost:9000 npm run dev`.
 
-## What works today
+**A note on ports.** uvicorn binds IPv4 only and Vite binds IPv6 only on
+Windows, while `localhost` resolves to `::1` first — so a naive "is it
+up?" probe against `127.0.0.1` reports the running UI as down. Check with
+`Get-NetTCPConnection -State Listen -LocalPort 5273`, which is
+address-family agnostic. `start-editor.ps1` already does this, and names
+the owner if something foreign holds the port.
 
-- Course picker + a **structure tree** of topics and labs.
-- **Reorder** labs (up/down, across topic boundaries) — persists to
+## What it does
+
+**Course and lab management**
+
+- Course picker and a **structure tree** of topics and labs.
+- **Drag to reorder** labs, across topic boundaries — persists to
   `SUMMARY.md` and re-sequences every lab's manifest `order`.
 - **Rename** a lab inline (double-click) — updates the manifest title and
   the `SUMMARY.md` link text.
-- **New lab** — delegates to `scripts/new-lab.mjs` (one source of truth
-  for lab creation + SUMMARY wiring).
-- **Pentaho docs grounding (GitBook MCP)** — Settings can point the AI at
-  the Pentaho docs' GitBook MCP endpoint (`https://docs.pentaho.com/~gitbook/mcp`).
-  When enabled, lab generation, import, and rewrite first search the docs
-  and use the results as grounding context, so drafts track the real
-  product. A **Test** button confirms the endpoint is reachable.
-- **✨ AI Lab** — draft a whole lab from a title + optional outline using
-  the configured **LLM provider**. The draft follows the block conventions
-  (H1, callouts, `## ` steps, `::: tabs`), is saved as a new lab, and opens
-  for review. The button disables + explains itself when the provider
-  isn't ready. Author-side only.
-- **AI providers + Settings (⚙ in the header)** — choose **Ollama**
-  (local, free, no key), **Anthropic** (Claude, via the official SDK), or
-  **OpenAI** (GPT), and pick the model per provider. A **connection
-  indicator** in the header shows the active provider, model, and status
-  (green = connected). Provider prefs persist to a gitignored
-  `editor/api/settings.json`; **API keys are never stored** — they're read
-  from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in the environment, and the
-  Settings panel only shows whether each is detected. `pip install -r
-  requirements.txt` pulls the `anthropic` + `openai` SDKs (Ollama needs
-  neither).
-- **New Course** / **Verify** in the top toolbar (scaffold a course from
-  the blank template; run the guideline checker in-app).
-- **⬆ Import — create a course from a document** — upload a **PDF, DOCX,
-  PPTX, Markdown, or text** file; the LLM proposes a course outline
-  (title + topics + labs) you review and edit, then it generates each lab
-  grounded in the source and scaffolds the whole course. Text extraction
-  uses `pypdf` / `python-docx` / `python-pptx` (author-side only). Uses the
-  configured provider, so an LLM must be set up in Settings.
+- **New course** and **new lab** in-editor; both delegate to the Content
+  Manager's `scripts/new-course.mjs` / `new-lab.mjs`, so there is one
+  source of truth for scaffolding and `SUMMARY.md` wiring.
+- **Course settings (⚙)** — a form over `course.json`, including the
+  Welcome page's fields, with unknown keys preserved on save.
+- **Lab files** — manage the `files/` and `_assets/` a lab ships.
+- **Verify** — runs the Content Manager's guideline checker in-app.
+- **Delete a course (⚙ → Danger zone)** — permanently removes
+  `courses/<slug>/` from disk. The button stays disabled until you type
+  **delete**, and the backend independently refuses without it (HTTP
+  428). Installed copies and anything already published are untouched.
+
+**Writing**
+
 - Markdown editor with a **Format row** (bold, italic, inline code,
   strikethrough — the same `toggleWrap` the Ctrl-keys call, so a button
   and its shortcut cannot disagree) and an **insert-block toolbar**
   grouped into Heading / Callout / List / Text / Media / Block / Pentaho
-  menus, so authors never memorise syntax:
-  - **Media** — image (flush-left with a centred caption), centred and
-    float-left/right image variants, **Video** (a Vimeo link, keeping the
-    Unlisted `id/hash` shape), **Video — with caption** (the house form
-    for a lab clip: a figure whose `pcm-video-caption` figcaption gets
-    the same ▶ icon the Welcome page's tour row uses), and PDF embeds.
-  - **Callout** — all seven kinds the renderer parses, including
-    *Success* and *Under the hood*, plus a plain untagged quote.
-  - **Text** — Highlight / Muted / Attention and centre/right alignment.
-    Semantic, mapped to theme tokens: no raw colour (it would fail one
-    theme) and no font size (a fake heading drops that step out of
-    progress tracking, since step ids come from real `h2`/`h3` text).
-  - **Pentaho** — launcher and graph buttons, and all five
-    `data-env-check` profiles by name (`""`, `tryit`, `server`, `ai`,
-    `streaming`), the insert whose *spelling* decides behaviour.
-  - **Block / List** — code, `::: tabs`, tables, links, dividers,
-    `<details>` collapsibles, and task lists.
-- **Live preview** using the real `src/components/MarkdownBody` — callouts,
-  tabs, code-copy, videos, and glossary terms render exactly as the
-  packaged app shows them. (The Tauri-only bits are shimmed — see
-  `src/author/shims/` and the aliases in `vite.author.config.ts`.)
-- **Save** writes `guide.md` and re-stamps `manifest.json`
-  (`stepCount` / `estimatedMinutes` / `hasVideo`), mirroring
-  `scripts/stamp-manifests.mjs`. `Ctrl/Cmd+S` also saves.
+  menus, so authors never memorise syntax.
+- Four blocks open a **dialog with a live preview** rather than pasting a
+  stub: **Table** (shape + per-column alignment), **Tidy table** (re-pad
+  the table at the cursor), **Tabs** (name your own tabs), and
+  **Callout — with title**.
+- **Callout** — all seven kinds the renderer parses: Note, Tip, Warning,
+  Critical, Success, Objectives, and **Under the hood**, the teaching
+  panel that goes *after* an action to explain what the engine did.
+- **Media** — image (flush-left with a centred caption), centred and
+  float-left/right variants, **Video** (a Vimeo link, keeping the
+  Unlisted `id/hash` shape), **Video — with caption** (the house form for
+  a lab clip), and PDF embeds. Paste or drop an image straight in.
+- **Text** — Highlight / Muted / Attention and centre/right alignment.
+  Semantic, mapped to theme tokens: no raw colour (it would fail one
+  theme) and no font size (a fake heading drops that step out of progress
+  tracking, since step ids come from real `h2`/`h3` text).
+- **Pentaho** — launcher and graph buttons, and all five `data-env-check`
+  profiles by name (`""`, `tryit`, `server`, `ai`, `streaming`), the
+  insert whose *spelling* decides behaviour.
+- **Block / List** — code (with the language picker), `::: tabs`, links,
+  dividers, `<details>` collapsibles, and task lists.
+- **Go to → Outline** jumps to any heading, and is fence-aware so a `#`
+  inside a code block is never mistaken for one.
+
+**Preview and save**
+
+- **Live preview** using the learner app's real `MarkdownBody` — callouts,
+  tabs, code-copy, videos and glossary terms render exactly as the
+  packaged app shows them. The Tauri-only bits are shimmed (`src/shims/`,
+  aliased in `vite.config.ts`).
+- **Two themes, two questions.** The *editor* theme is comfort; the
+  *preview* theme is correctness — learners run the app in either, and a
+  guide that reads fine on white can be unreadable on the dark surface.
+  Flipping the preview catches that while authoring.
+- **Save** writes `guide.md` and re-stamps `manifest.json` (`stepCount` /
+  `estimatedMinutes` / `hasVideo`), mirroring the app's
+  `scripts/stamp-manifests.mjs`. `Ctrl/Cmd+S` also saves. A save is
+  refused (409) if the file changed on disk since you loaded it.
+
+**AI assistance**
+
+- **AI providers + Settings (⚙ in the header)** — choose **Ollama**
+  (local, free, no key), **Anthropic** (Claude) or **OpenAI**, and pick
+  the model per provider. A connection indicator shows the active
+  provider, model and status. Preferences persist to a gitignored
+  `api/settings.json`; **API keys are never stored** — they are read from
+  `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in the environment and Settings
+  only reports whether each is detected.
+- **✨ AI Lab** — draft a whole lab from a title and optional outline. The
+  draft follows the block conventions, is saved as a new lab and opens
+  for review. The button disables and explains itself when no provider is
+  ready.
+- **⬆ Import — create a course from a document** — upload a **PDF, DOCX,
+  PPTX, Markdown or text** file; the LLM proposes an outline you review
+  and edit, then generates each lab grounded in the source and scaffolds
+  the course. Extraction uses `pypdf` / `python-docx` / `python-pptx`.
+- **Pentaho docs grounding (GitBook MCP)** — point the AI at the Pentaho
+  docs' MCP endpoint (`https://docs.pentaho.com/~gitbook/mcp`) and lab
+  generation, import and rewrite search the docs first, so drafts track
+  the real product. A **Test** button confirms it is reachable.
+
+**Publishing**
+
 - **Publish to VMs (⚙ Course → Publish to VMs)** — pushes the course to
   the central [Pentaho-Courses](https://github.com/jporeilly/Pentaho-Courses)
   distribution repo that provisioned VMs sync from on every app launch.
-  **Check changes** shows an added/changed/removed file summary against
-  the repo's HEAD (line-ending-insensitive, like git); **Publish**
-  commits and pushes with an optional message; **Tag** cuts a release
-  tag (`v2026.07`) so workshop images pinned with
-  `set-git-source -Ref <tag>` stay frozen. Uses the git credentials
-  already on the author's machine; a persistent clone lives in the
-  gitignored `editor/api/.publish-cache/`. Backend:
-  `editor/api/routers/publish.py`.
-- **Delete a course (⚙ Course → Danger zone)** — permanently removes
-  `courses/<slug>/` from disk. The button stays disabled until you type
-  the confirmation phrase **delete**, and the backend independently
-  refuses the request without it (HTTP 428). Installed copies in the
-  app and anything already published to Pentaho-Courses are untouched.
+  **Check changes** shows an added/changed/removed summary against the
+  repo's HEAD (line-ending-insensitive, like git); **Publish** commits and
+  pushes with an optional message; **Tag** cuts a release tag (`v2026.07`)
+  so workshop images pinned with `set-git-source -Ref <tag>` stay frozen.
+  Uses the git credentials already on your machine; a persistent clone
+  lives in the gitignored `api/.publish-cache/`.
 
-## Not yet (next phases)
+## Development
 
-- Native drag-and-drop reordering (today it's up/down buttons).
-- Forms for `course.json` and lab metadata (description/kind), and
-  in-editor **new course**.
-- Image upload into `_assets/` and a `files/` manager.
+```powershell
+npm test                        # frontend, vitest
+npm run build                   # tsc + Vite production build
+cd api; .venv\Scripts\python -m pytest -q      # backend
+```
+
+The backend venv is normally built from `requirements.txt`, which does
+**not** include pytest. Add the dev deps once:
+
+```powershell
+api\.venv\Scripts\python -m pip install -r api\requirements-dev.txt
+```
+
+`npm run build` bundles the learner app's renderer through `@app`, so it
+is also the check that the cross-repo wiring still holds.
+
+**Known gap:** `npm run version:check` and `npm run bump` call
+`scripts/bump-version.mjs`, which stayed in the Content Manager during
+the split and is not in this repo — both fail with `MODULE_NOT_FOUND`.
+
+See [`CLAUDE.md`](CLAUDE.md) for the architecture, the layout rules, and
+the traps worth knowing before changing anything.
+
+## Not yet
+
 - Exam authoring stays in the Question Bank app.
-
-## How the preview reuse works
-
-The frontend imports the app's `MarkdownBody` directly. That component
-pulls in a few `@tauri-apps/*` modules (external-link open, launcher
-`invoke`, window). `vite.author.config.ts` aliases those three imports to
-inert browser shims in `src/author/shims/`, and `Preview.tsx` wraps the
-renderer in the `ToolPanelProvider` + `GlossaryProvider` its hooks need.
-Asset URLs resolve through the backend's `/tree/` endpoint, so
-`../_assets/images/x.png` and `files/y.png` load just like in production.

@@ -8,7 +8,7 @@ the author touching JSON or the folder layout by hand.
 Runs on the author's machine only — it is NOT shipped to the learner VMs
 (those run the Tauri renderer). Start it with::
 
-    cd editor/api
+    cd api
     pip install -r requirements.txt
     uvicorn app:app --reload --port 8000
 
