@@ -8,9 +8,10 @@
 // manifest metadata forms, and new-course / new-lab UI (wrapping the
 // same logic as the CLI scaffolder).
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { linkScrollers } from "./scrollSync";
+import { highlightMarkdown } from "./markdownTokens";
 import { Toolbar } from "./Toolbar";
 import { FindBar } from "./FindBar";
 import { Preview } from "./Preview";
@@ -172,7 +173,31 @@ export function App() {
   const [showChat, setShowChat] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const previewRef = useRef<HTMLElement | null>(null);
+  const highlightRef = useRef<HTMLPreElement | null>(null);
   const [showFind, setShowFind] = useState(false);
+
+  // Colour the markdown source with the same hues the insert menus use:
+  // a heading is blue in both, Media is cyan in both. Remembered per
+  // browser, and switchable from the Theme menu — the layer has to line
+  // up with the textarea character for character, and if a font ever
+  // makes it drift, turning it off must not mean editing CSS.
+  const [syntaxColour, setSyntaxColour] = useState<boolean>(() => {
+    try { return localStorage.getItem("pcm-author-syntax") !== "off"; } catch { return true; }
+  });
+  function toggleSyntaxColour() {
+    setSyntaxColour((on) => {
+      const next = !on;
+      try { localStorage.setItem("pcm-author-syntax", next ? "on" : "off"); } catch { /* best effort */ }
+      return next;
+    });
+  }
+  // Re-tokenised per keystroke. A guide is a few hundred lines and this
+  // is one pass with no backtracking, so it costs less than the render
+  // it feeds.
+  const highlighted = useMemo(
+    () => (syntaxColour ? highlightMarkdown(body) : ""),
+    [body, syntaxColour],
+  );
 
   // Ctrl/Cmd+F opens find & replace. Captured on the window rather than
   // the textarea so it works wherever the focus happens to be, and
@@ -277,6 +302,9 @@ export function App() {
               title: t.hint,
               onSelect: () => theme.setEditor(t.id),
             })),
+            { label: `${syntaxColour ? "* " : "\u00a0\u00a0"}Colour the markdown`,
+              title: "Tint the source with the same hues the insert menus use - headings blue, media cyan, code green",
+              onSelect: toggleSyntaxColour },
             { label: `${theme.preview === "light" ? "* " : "\u00a0\u00a0"}Preview - Light`,
               title: "Render the preview the way a learner on the light theme sees it",
               onSelect: () => theme.setPreview("light") },
@@ -489,6 +517,11 @@ export function App() {
                   onStatus={setStatus}
                 />
               )}
+              {/* The textarea and its colour layer share this box so the
+                  layer can sit exactly over the text and nothing else —
+                  positioned on the section instead, `inset: 0` would put
+                  it over the toolbar too. */}
+              <div className="author-editor-stack">
               <textarea
                 ref={textareaRef}
                 className="author-textarea"
@@ -512,7 +545,29 @@ export function App() {
                 }}
                 onPaste={onEditorPaste}
                 onDrop={onEditorDrop}
+                onScroll={(e) => {
+                  // Keep the colour layer under the text it belongs to.
+                  const h = highlightRef.current;
+                  if (!h) return;
+                  h.scrollTop = e.currentTarget.scrollTop;
+                  h.scrollLeft = e.currentTarget.scrollLeft;
+                }}
               />
+              {syntaxColour && (
+                /* The colour layer, BEHIND a textarea whose own text is
+                   transparent. A textarea cannot colour its contents, so
+                   this is the only way short of replacing it outright.
+                   aria-hidden: it is a duplicate of text the textarea
+                   already exposes, and a screen reader should not meet
+                   the guide twice. */
+                <pre
+                  ref={highlightRef}
+                  className="author-highlight"
+                  aria-hidden
+                  dangerouslySetInnerHTML={{ __html: highlighted }}
+                />
+              )}
+              </div>
             </section>
             {showChat && (
               <ChatPanel

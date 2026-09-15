@@ -1018,21 +1018,100 @@ body {
 }
 
 /* ── Editor textarea ────────────────────────────────────────────── */
-.author-textarea {
-  flex: 1 1 auto;
-  width: 100%;
+/* ── The markdown source, and the colour layer behind it ────────────
+   A <textarea> cannot colour its own contents, so the source is painted
+   twice: a <pre> underneath carrying the colours, and the textarea on
+   top with TRANSPARENT text and a visible caret.
+
+   Everything marked "must match" below really must. The two layers have
+   to agree on the position of every character; one different pixel of
+   padding, one different line-height, and the colours slide out from
+   under the text — worst at the bottom of a long guide, where it looks
+   like the highlighter is simply wrong rather than misaligned. Change
+   one of these and change the other in the same edit. */
+.author-textarea,
+.author-highlight {
+  /* must match */
   box-sizing: border-box;
-  resize: none;
-  border: none;
-  outline: none;
   padding: 14px 16px;
-  background: var(--author-bg);
-  color: var(--author-text);
   font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
   font-size: 13px;
   line-height: 1.6;
   tab-size: 2;
+  letter-spacing: normal;
+  /* The textarea's own wrapping, restated so the <pre> breaks in the
+     same places. A <pre> defaults to `pre` and would not wrap at all. */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  border: none;
+  /* must match — and this one is not obvious. A textarea long enough to
+     scroll grows a vertical scrollbar, which narrows the width its text
+     wraps at; the layer, not scrolling, stayed wider and wrapped two
+     lines fewer over a 107-line guide, so the colours drifted upward the
+     further down you looked. Both reserve the gutter ALWAYS, so the wrap
+     width is the same whether or not there is anything to scroll. */
+  overflow-y: scroll;
+  overflow-x: hidden;
 }
+
+.author-textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  resize: none;
+  outline: none;
+  background: transparent;
+  color: var(--author-text);
+  /* Above the colour layer, so the caret and selection are real. */
+  position: relative;
+  z-index: 1;
+}
+/* The box the two layers share, so the layer covers the text and
+   nothing else. */
+.author-editor-stack {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+/* Hand the text over to the layer beneath, keeping the caret. */
+.author-editor-stack:has(.author-highlight) .author-textarea {
+  color: transparent;
+  caret-color: var(--author-text);
+}
+/* A solid selection would hide the coloured text underneath, since the
+   textarea sits on top. Semi-transparent lets it read through. */
+.author-textarea::selection { background: color-mix(in srgb, var(--author-accent) 45%, transparent); }
+
+.author-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  pointer-events: none;      /* every click belongs to the textarea */
+  background: var(--author-bg);
+  color: var(--author-text);
+  z-index: 0;
+}
+/* The layer reserves a scrollbar gutter to match the textarea's wrap
+   width, but must not PAINT one — two scrollbars, one dead, in the same
+   corner. Transparent rather than zero-width: a zero-width scrollbar
+   gives the gutter back and the wrap widths diverge again. */
+.author-highlight::-webkit-scrollbar { background: transparent; }
+.author-highlight::-webkit-scrollbar-thumb { background: transparent; }
+.author-highlight::-webkit-scrollbar-corner { background: transparent; }
+
+/* The insert-family hues again, now on the source itself: a heading is
+   blue in the toolbar and blue in the markdown. Body text keeps the
+   ordinary colour — colouring everything would mean colouring nothing. */
+.tok-heading { color: var(--tone-heading); font-weight: 600; }
+.tok-callout { color: var(--tone-callout); }
+.tok-list    { color: var(--tone-list); }
+.tok-text    { color: var(--tone-text); }
+.tok-media   { color: var(--tone-media); }
+.tok-code    { color: var(--tone-code); }
+.tok-block   { color: var(--tone-block); }
+.tok-pentaho { color: var(--tone-pentaho); }
 
 /* ── Preview pane ───────────────────────────────────────────────── */
 .author-preview {
