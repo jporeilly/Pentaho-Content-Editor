@@ -23,6 +23,7 @@ The editor has no courses of its own and no renderer of its own. Install
 | The renderer (preview fidelity) | `<PCM>/src`, via the `@app` alias |
 | The courses it edits | `<PCM>/courses` |
 | The scaffolder + verifier it shells out to | `<PCM>/scripts/*.mjs`, run with Node |
+| The version-bump machinery | `<PCM>/scripts/lib/version-carriers.mjs` |
 
 By default that is the **sibling directory** `../Pentaho-Content-Manager`.
 If it lives elsewhere, set **`PCM_REPO`** to its root — both the frontend

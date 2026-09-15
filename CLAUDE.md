@@ -21,6 +21,7 @@ by default, overridden by the **`PCM_REPO`** environment variable:
 | The renderer | `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | `@app` → `<PCM>/src` |
 | The courses | `api/core.py` | `COURSES_DIR` → `<PCM>/courses` |
 | The scaffolder + verifier | `api/core.py`, `routers/{labs,courses,imports}.py` | `node <script>` run with `cwd=REPO_ROOT` |
+| The release machinery | `scripts/bump-version.mjs` | `<PCM>/scripts/lib/version-carriers.mjs` |
 
 The third one is easy to miss: the editor does not reimplement course
 scaffolding, it **shells out to the app's scripts** — `new-course.mjs`,
@@ -280,7 +281,10 @@ cross-repo wiring still holds.
 
 `scripts/bump-version.mjs` moves the version everywhere it is written
 down, and `--check` asserts the carriers agree (wired as
-`npm run bump` / `npm run version:check`):
+`npm run bump` / `npm run version:check`). The **mechanics are shared**
+with the app's bump script and live in
+`<PCM>/scripts/lib/version-carriers.mjs`; what stays here is only the
+carrier list, because that is the part that genuinely differs:
 
 | Carrier | Key |
 | --- | --- |
@@ -310,10 +314,21 @@ lockfile fell behind fixes the lockfile and leaves the notes alone.
 performs a **real bump**. The form that works is
 `npm run bump -- 1.1.0 --dry-run`, or call the script directly.
 
-**Line endings are load-bearing.** This machine has `core.autocrlf true`
-and the repo has no `.gitattributes`, so every checked-out file is CRLF
-while npm writes the lockfile LF. The script reads LF-normalised and
-writes back in the file's own style. Skipping that is not cosmetic: the
-lockfile guard compares against an LF round-trip, so on a fresh Windows
-checkout it could never pass, and the changelog edit would splice LF
-lines into a CRLF file.
+**Line endings are load-bearing.** `core.autocrlf` is true here with no
+`.gitattributes`, so every checked-out file is CRLF while npm writes the
+lockfile LF. The shared module reads LF-normalised and writes back in the
+file's own style. Skipping that is not cosmetic: the lockfile guard
+compares against an LF round-trip, so on a fresh Windows checkout it
+could never pass, and the changelog edit would splice LF lines into a
+CRLF file.
+
+Because the machinery is over there, **a bump needs the Content Manager
+present** - the one operation here that otherwise touches only this
+repo's own files. It fails with a plain "install the Content Manager
+first" rather than a stack trace. The alternative was a second copy of
+the same sixty lines, which is what this replaced — and those two copies
+diverged immediately: this one was written with the lockfile carrier and
+three fixes the app's had never had, and keeping them level meant porting
+each one across by hand. The mechanics are pinned by
+`<PCM>/scripts/lib/version-carriers.test.ts` (18 tests), so a change over
+there that would break a bump here fails a test rather than a release.

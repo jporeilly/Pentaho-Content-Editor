@@ -25,6 +25,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- **The bump script's machinery now comes from the Content Manager.**
+  `<PCM>/scripts/lib/version-carriers.mjs` holds the line-ending-safe
+  I/O, the lockfile guard, the changelog promotion, the report and the
+  CLI shell; what stays here is the carrier list, which is the part that
+  genuinely differs. It replaces a second copy of the same sixty lines
+  that had already diverged from the app's. A bump therefore needs the
+  Content Manager present - the one operation here that otherwise touches
+  only this repo - and says so plainly if it is missing.
 - **`npm run version:check` and `npm run bump` work again.** Both called
   `scripts/bump-version.mjs`, which stayed behind in the Content Manager
   during the split, so each failed with `MODULE_NOT_FOUND` - the editor
