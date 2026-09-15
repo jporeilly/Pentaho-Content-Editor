@@ -12,3 +12,12 @@ dist/
 .DS_Store
 Thumbs.db
 *.local
+
+# Machine-specific LLM provider settings - may name private models or
+# endpoints. Keys live in environment variables, not here.
+api/settings.json
+
+# Persistent clone of the Pentaho-Courses distribution repo, used by
+# the Publish feature.
+api/.publish-cache/
+api/.pytest_cache/
