@@ -795,3 +795,97 @@ body {
   font-family: inherit;
   line-height: 1.5;
 }
+
+/* ── One control scale ──────────────────────────────────────── */
+/* Measured before writing this: the chrome had EIGHT distinct button
+   heights (24, 25, 26, 28, 29, 30, 31, 42) across the header, the lab
+   actions and the insert row, three corner radii and a mix of 12 and
+   13px text. Nothing was wrong individually; together they read as
+   unfinished, because the eye reads a row of controls as one object
+   and every mismatch shows. One height, one radius, one size.
+
+   Appended on purpose: these are deliberate overrides of the rules
+   above, and keeping them in one block makes the scale legible and
+   easy to retune. */
+.author-root {
+  --author-ctl-h: 28px;
+  --author-ctl-radius: 6px;
+  --author-ctl-font: 12.5px;
+}
+
+.author-header .author-tool,
+.author-header .author-save,
+.author-menu-btn,
+.author-select,
+.author-editor-bar button,
+.author-toolbar-btn,
+.author-toolbar button {
+  height: var(--author-ctl-h);
+  min-height: var(--author-ctl-h);
+  border-radius: var(--author-ctl-radius);
+  font-size: var(--author-ctl-font);
+  padding-top: 0;
+  padding-bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Inputs sit one step taller than buttons: a text field the same
+   height as a button looks cramped once there is text in it. */
+.author-input {
+  min-height: 30px;
+  border-radius: var(--author-ctl-radius);
+}
+textarea.author-input { min-height: 0; }
+
+/* The group labels (GO TO / FORMAT / INSERT) are signposts, not
+   controls - keep them quiet so the buttons carry the row. */
+.author-toolbar-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
+}
+
+/* The insert row still scrolls on a 1600px window, so the separators
+   have to do the grouping that width cannot. */
+.author-toolbar-sep {
+  width: 1px;
+  align-self: center;
+  height: 16px;
+  background: currentColor;
+  opacity: 0.16;
+  margin: 0 4px;
+  flex: 0 0 auto;
+}
+
+/* Keyboard users could not see where they were: the browser default
+   outline was being suppressed by the button reset above. */
+.author-root :is(button, select, input, textarea, [role=menuitem]):focus-visible {
+  outline: 2px solid var(--pcm-accent, #2563eb);
+  outline-offset: 2px;
+}
+
+/* ── The insert row wraps instead of hiding itself ──────────── */
+/* Measured: 1054px of controls in a 620px editor column, so a THIRD of
+   the row sat off-screen behind a horizontal scroller with no visual
+   hint it was there - the Pentaho menu was simply invisible.
+
+   Wrapping shows everything and collapses back to one row when the
+   author widens the column. The height is capped at two rows so this
+   cannot repeat the old failure, when the toolbar shared a flex row
+   with the lab actions, collapsed to its min-content width and stacked
+   into SIX rows - 249px of chrome above the textarea. Past the cap it
+   scrolls vertically, where the scrollbar is at least visible. */
+.author-toolbar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  overflow-x: visible;
+  max-height: calc(var(--author-ctl-h) * 2 + 24px);
+  overflow-y: auto;
+}
+
+/* A wrapped row needs its groups to read as groups, so the separator
+   becomes a full-height rule rather than a floating tick. */
+.author-toolbar-sep { height: var(--author-ctl-h); }
