@@ -15,6 +15,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **The markdown source is colour-coded** with the same hues as the
+  insert menus - a heading is blue in the toolbar and blue in the source,
+  Media cyan in both, code green in both. Switchable from the Theme menu.
+- **Line numbers, a current-line band, and fence matching.** The verifier
+  and the AI review report problems by line, and there was no way to find
+  line 74. Inside a fenced block both markers light up; an unclosed fence
+  lights only its opener, which is the tell.
 - **A command palette over every insert block**, on `Ctrl/Cmd+/` or
   `Ctrl/Cmd+Shift+P`. Type, arrow, Enter. The insert row is ten menus
   over thirty-six blocks, and below about 1100px it wrapped and pushed

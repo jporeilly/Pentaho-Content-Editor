@@ -197,6 +197,35 @@ lock while it drives and releases a beat later, because a wheel gesture
 arrives as a burst and an eager release lets the far pane take over
 mid-gesture.
 
+**The markdown source is painted twice** (`markdownTokens.ts`): a layer
+of coloured blocks, and the textarea on top with transparent text and a
+visible caret. A textarea cannot colour its own contents, so this is the
+only route short of replacing it. That makes exactness the whole game -
+the two must agree on every character's position, or the colours slide
+out from under the text, worst at the foot of a long guide where it
+reads as the highlighter simply being wrong.
+
+Three things bite, and only the first is obvious:
+
+* The tokeniser never changes the text. It escapes, wraps in spans, and
+  adds nothing. Thirteen round-trip tests assert that stripping the
+  markup returns the input byte for byte.
+* **A scrolling textarea grows a scrollbar, which narrows the width its
+  text wraps at.** The layer, not scrolling, stayed 15px wider and
+  wrapped two lines fewer over a 107-line guide — with boxes, fonts and
+  padding all matching perfectly. Both reserve the gutter ALWAYS; the
+  layer's scrollbar is painted transparent rather than given zero width,
+  because zero width hands the gutter back and reopens the gap.
+* One block per source line, not one `<pre>`. A `<pre>` ending in `\n`
+  renders a line short, and blank lines collapse — hence the `min-height`
+  on `.hl-line`. Blocks count exactly as a textarea does.
+
+The gutter is **padding, not a column**: each number hangs in the padding
+of the block it labels, so it cannot drift from its line the way a
+separate column with its own wrapping would. The current-line band and
+fence-pair classes are written straight onto those nodes rather than
+re-rendered — the caret moves far more often than the text changes.
+
 **The command palette** (`commandRanking.ts`, `CommandPalette.tsx`) on
 Ctrl/Cmd+/ or Ctrl/Cmd+Shift+P. Commands are generated from `BLOCKS` and
 call the same `insert()` the menus do — never a second list, which is how
@@ -302,7 +331,7 @@ hotmail address.
 
 | Suite | Command | Size |
 | --- | --- | --- |
-| Frontend | `npm test` (vitest) | 116 tests, 11 files |
+| Frontend | `npm test` (vitest) | 144 tests, 12 files |
 | Backend | `cd api && .venv\Scripts\python -m pytest -q` | 39 tests |
 
 The backend venv is normally created from `requirements.txt` alone, which

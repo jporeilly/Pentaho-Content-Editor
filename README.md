@@ -140,6 +140,12 @@ the owner if something foreign holds the port.
   dividers, `<details>` collapsibles, and task lists.
 - **Go to → Outline** jumps to any heading, and is fence-aware so a `#`
   inside a code block is never mistaken for one.
+- **The markdown source is colour-coded** with the same hues as the
+  insert menus: a heading is blue in the toolbar and blue in the source,
+  Media cyan in both, code green in both. Line numbers in the gutter, a
+  band on the current line, and both markers of a fenced block lit when
+  the caret is inside it - an unclosed fence lights only its opener.
+  Turn the colouring off from the Theme menu if you would rather not.
 - **A command palette** on `Ctrl/Cmd+/` (or `Ctrl/Cmd+Shift+P`) reaches
   every insert block by name - type, arrow, Enter. It is built from the
   same registry as the menus and inserts through the same path, so the
