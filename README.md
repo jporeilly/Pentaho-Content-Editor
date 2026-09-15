@@ -140,6 +140,10 @@ the owner if something foreign holds the port.
   dividers, `<details>` collapsibles, and task lists.
 - **Go to → Outline** jumps to any heading, and is fence-aware so a `#`
   inside a code block is never mistaken for one.
+- **A command palette** on `Ctrl/Cmd+/` (or `Ctrl/Cmd+Shift+P`) reaches
+  every insert block by name - type, arrow, Enter. It is built from the
+  same registry as the menus and inserts through the same path, so the
+  two can never offer different things.
 - **Find & replace** on `Ctrl/Cmd+F` - plain substring, not regex, since
   guides are full of `**`, `[`, `(`, `$` and `|`. Enter and Shift+Enter
   walk the matches, Escape closes. The browser's own find is suppressed

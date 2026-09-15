@@ -197,6 +197,21 @@ lock while it drives and releases a beat later, because a wheel gesture
 arrives as a burst and an eager release lets the far pane take over
 mid-gesture.
 
+**The command palette** (`commandRanking.ts`, `CommandPalette.tsx`) on
+Ctrl/Cmd+/ or Ctrl/Cmd+Shift+P. Commands are generated from `BLOCKS` and
+call the same `insert()` the menus do — never a second list, which is how
+the Callout menu once ended up missing a kind the renderer supported.
+Ranking is deliberately explicable (exact, prefix, contains, group,
+title, then subsequence) with ties holding registry order, so the list
+does not reshuffle as you type.
+
+**Its logic file is `commandRanking.ts`, not `commandPalette.ts`,** and
+that is not a style choice: PascalCase component beside camelCase module
+is this repo's convention everywhere else, but `CommandPalette.tsx` and
+`commandPalette.ts` are THE SAME FILE on Windows. tsc rejects it
+(TS1149), and once renamed, Vite keeps serving the old module id from its
+graph — a case-only rename needs the dev server restarted, not refreshed.
+
 **Find & replace** (`findReplace.ts`, `FindBar.tsx`) on Ctrl/Cmd+F. The
 browser's own binding is suppressed deliberately: it searches the
 RENDERED page, so it hits the preview and the sidebar and never the
@@ -287,7 +302,7 @@ hotmail address.
 
 | Suite | Command | Size |
 | --- | --- | --- |
-| Frontend | `npm test` (vitest) | 100 tests, 10 files |
+| Frontend | `npm test` (vitest) | 116 tests, 11 files |
 | Backend | `cd api && .venv\Scripts\python -m pytest -q` | 39 tests |
 
 The backend venv is normally created from `requirements.txt` alone, which

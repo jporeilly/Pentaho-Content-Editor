@@ -13,7 +13,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **A command palette over every insert block**, on `Ctrl/Cmd+/` or
+  `Ctrl/Cmd+Shift+P`. Type, arrow, Enter. The insert row is ten menus
+  over thirty-six blocks, and below about 1100px it wrapped and pushed
+  its last entry out of sight behind a scroller nobody finds. Commands
+  come from the same registry and run through the same insert path as
+  the menus, so the two cannot drift.
 
 ## [1.2.0] - 2026-09-15
 
