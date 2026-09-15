@@ -15,6 +15,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.4.0] - 2026-09-15
+
+### Added
+
+- **Verify underlines the exact text, not the whole line.** The squiggle
+  now goes under the fence *tag* rather than the fence line, and under
+  one `<dfn>…</dfn>` of several rather than the line carrying them all —
+  a line with two unknown terms gets two underlines. Line granularity
+  was the ceiling of what the verifier reported, not a choice; needs
+  Pentaho Content Manager 0.4.49 or later, and against an older one it
+  falls back to marking the line.
+
+
 ## [1.3.0] - 2026-09-15
 
 ### Added
