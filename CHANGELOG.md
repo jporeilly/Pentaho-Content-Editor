@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.2.0] - 2026-09-15
+
 ### Added
 
 - **Scroll sync between the editor and the preview.** Guides run to
@@ -21,7 +25,20 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - **Find & replace, on Ctrl/Cmd+F.** There was none, so every text sweep
   meant opening the lab in a second editor - which is precisely how an
   afternoon's work went over the side on 2026-09-03. Plain substring
-  rather than regex, because guides are full of `**`, `[`, `(`, `$` and
+  rather than regex, because guides are full of `**`, `[`, `(`, `# Changelog — Pentaho Content Editor
+
+The authoring surface for `courses/`. Versioned separately from the
+Pentaho Content Manager learner app, which it is not shipped with: the
+editor runs from source on an author's machine and never reaches a VM.
+
+Entries before 1.0.0 live in the learner app's
+[CHANGELOG](../CHANGELOG.md), where the editor had no version of its own
+and rode along with the app's. That is the thing 1.0.0 fixes.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+ and
   `|`. The browser's own Ctrl+F is suppressed on purpose: it searches the
   rendered page, so it finds the preview and the sidebar and never the
   markdown you are editing.
@@ -41,6 +58,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   reading all ten. Each family now has a marker under its label, the same
   hue on its hover and on the top edge of its open popover. Decoration
   only - the label still says which is which.
+
 
 ## [1.1.0] - 2026-09-15
 
