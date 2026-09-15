@@ -561,6 +561,18 @@ body {
   white-space: nowrap;
 }
 .author-menu-item:hover { background: rgba(22, 163, 74, 0.18); color: var(--author-text-strong); }
+/* Menu entries read as a list, not as a row of controls.
+   `text-align: left` above cannot achieve this on its own: the one
+   control scale further down catches `.author-toolbar button`, and a
+   popover is a DOM descendant of the toolbar even though it renders
+   `position: fixed` elsewhere on screen. So every entry inherited
+   `justify-content: center` and started at a different x - "Step (H2)"
+   48px in, "Sub-step (H3)" 36px in - which read as ragged rather than
+   as a column.
+   Only the alignment is overridden, deliberately. That same rule is
+   what gives these entries their height and padding; excluding them
+   from it collapses them to a 13px line. */
+.author-menu-pop .author-menu-item { justify-content: flex-start; }
 .author-toolbar-btn, .author-toolbar-select {
   background: var(--author-bg);
   color: var(--author-text);
