@@ -276,13 +276,44 @@ api\.venv\Scripts\python -m pip install -r api\requirements-dev.txt
 the app's renderer through `@app` — so it is the check that the
 cross-repo wiring still holds.
 
-## Known gaps
+## Versioning
 
-- **`npm run version:check` and `npm run bump` are broken.** Both call
-  `scripts/bump-version.mjs`, which stayed behind in the Content Manager
-  during the split; here it fails with `MODULE_NOT_FOUND`. Either port
-  the script or drop the two entries from `package.json`.
-- **`README.md` still describes the pre-split layout** (`editor/`,
-  `src/author/`, `vite.author.config.ts`, `index.author.html`, and a
-  `../CLAUDE.md` link that now points outside the repo). Accurate about
-  behaviour, wrong about every path.
+`scripts/bump-version.mjs` moves the version everywhere it is written
+down, and `--check` asserts the carriers agree (wired as
+`npm run bump` / `npm run version:check`):
+
+| Carrier | Key |
+| --- | --- |
+| `package.json` | `version` |
+| `package-lock.json` | `version` (top level) |
+| `package-lock.json` | `packages[""].version` |
+| `CHANGELOG.md` | the newest `## [x.y.z]` heading |
+
+**The lockfile is a carrier, and the app's script does not treat it as
+one.** That is not a stylistic difference: the Content Manager's lock sat
+at 0.4.41 while the project shipped 0.4.46, and nothing noticed, because
+`version:check` over there looks at four files and none of them is the
+lockfile. npm rewrites both keys on install, so they drift every time a
+version moves without one. If the app's script is ever revisited, this is
+the gap to close.
+
+A bump **refuses when `[Unreleased]` is empty**, so a release cannot be
+cut with no notes, and refuses to touch `package-lock.json` unless it is
+still the 2-space JSON npm writes — reformatting 3,800 lines to change
+two would bury the real edit. Bumping to a version the changelog already
+lists **skips the changelog** rather than adding a second heading for it,
+which is what a drift-repair bump needs: `bump 1.0.0` when only the
+lockfile fell behind fixes the lockfile and leaves the notes alone.
+
+**Always pass `--` through npm.** `npm run bump 1.1.0 --dry-run` claims
+`--dry-run` for npm itself and never forwards it, so the "dry run"
+performs a **real bump**. The form that works is
+`npm run bump -- 1.1.0 --dry-run`, or call the script directly.
+
+**Line endings are load-bearing.** This machine has `core.autocrlf true`
+and the repo has no `.gitattributes`, so every checked-out file is CRLF
+while npm writes the lockfile LF. The script reads LF-normalised and
+writes back in the file's own style. Skipping that is not cosmetic: the
+lockfile guard compares against an LF round-trip, so on a fresh Windows
+checkout it could never pass, and the changelog edit would splice LF
+lines into a CRLF file.

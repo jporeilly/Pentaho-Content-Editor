@@ -25,6 +25,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- **`npm run version:check` and `npm run bump` work again.** Both called
+  `scripts/bump-version.mjs`, which stayed behind in the Content Manager
+  during the split, so each failed with `MODULE_NOT_FOUND` - the editor
+  had a version and a changelog and no working way to move either. The
+  script is ported, and it also checks `package-lock.json`, which the
+  app's version does not: the app's lock read 0.4.41 while the project
+  shipped 0.4.46 and nothing noticed, because nothing was looking.
 - **The "can't reach the API" splash printed commands that no longer
   work.** It still said `cd editor/api` and a bare `uvicorn`, paths from
   before the editor became its own repo - so the one screen whose entire

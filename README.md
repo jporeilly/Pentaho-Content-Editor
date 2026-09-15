@@ -205,9 +205,23 @@ api\.venv\Scripts\python -m pip install -r api\requirements-dev.txt
 `npm run build` bundles the learner app's renderer through `@app`, so it
 is also the check that the cross-repo wiring still holds.
 
-**Known gap:** `npm run version:check` and `npm run bump` call
-`scripts/bump-version.mjs`, which stayed in the Content Manager during
-the split and is not in this repo — both fail with `MODULE_NOT_FOUND`.
+### Versioning
+
+```powershell
+npm run version:check                 # assert every carrier agrees
+npm run bump -- 1.1.0                 # move them all, and date the changelog
+npm run bump -- 1.1.0 --dry-run       # show what would change, write nothing
+```
+
+Note the `--`. Without it npm claims `--dry-run` for itself and never
+passes it on, so `npm run bump 1.1.0 --dry-run` performs a **real** bump.
+Run the script directly (`node scripts/bump-version.mjs 1.1.0 --dry-run`)
+if you would rather not think about it.
+
+The version lives in `package.json`, both version keys in
+`package-lock.json`, and the newest `## [x.y.z]` heading in
+`CHANGELOG.md`. A bump promotes `[Unreleased]` to a dated heading and
+opens a fresh one, and refuses if there are no release notes to promote.
 
 See [`CLAUDE.md`](CLAUDE.md) for the architecture, the layout rules, and
 the traps worth knowing before changing anything.
