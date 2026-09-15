@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { highlightMarkdown, highlightLines, fenceRangeAt } from "./markdownTokens";
+import { highlightMarkdown, highlightLines, fenceRangeAt, markSpan, linesToHtml } from "./markdownTokens";
 
 /** Undo the highlighter: one block per source line, spans stripped. */
 function plain(html: string): string {
@@ -164,5 +164,106 @@ describe("fenceRangeAt", () => {
     // matching nothing at all.
     const open = highlightLines("intro\n```sql\nSELECT 1;\n");
     expect(fenceRangeAt(open, 2)).toEqual({ start: 1, end: 3 });
+  });
+});
+
+/** Strip every tag, leaving the plain source text. */
+function textOf(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+describe("markSpan", () => {
+  it("wraps exactly the requested columns", () => {
+    const out = markSpan("abcdef", 3, 5, "m");
+    expect(out).toBe('ab<span class="m">cd</span>ef');
+  });
+
+  it("uses 1-based columns with an exclusive end, as the verifier reports", () => {
+    // A three-character tag at column 4 is reported 4-7.
+    expect(textOf(markSpan("```wat", 4, 7, "m"))).toBe("```wat");
+    expect(markSpan("```wat", 4, 7, "m")).toContain('<span class="m">wat</span>');
+  });
+
+  it("never changes the text, only the tags around it", () => {
+    const html = highlightLines("- a **bold** word")[0].html;
+    for (const [s, e] of [[1, 3], [3, 9], [1, 18], [5, 6]]) {
+      expect(textOf(markSpan(html, s, e, "m")), `${s}-${e}`).toBe(textOf(html));
+    }
+  });
+
+  it("splits across existing colour spans without interleaving tags", () => {
+    // A single wrapper opening before a colour span and closing after it
+    // would produce <a><b></a></b>, which browsers silently repair into
+    // something else. Per-piece wrapping stays valid.
+    const html = highlightLines("- a **bold** word")[0].html;
+    const out = markSpan(html, 1, 18, "m");
+    expect(textOf(out)).toBe("- a **bold** word");
+    // Every tag closes in the order it opened.
+    const stack: string[] = [];
+    for (const tag of out.match(/<\/?span[^>]*>/g) ?? []) {
+      if (tag.startsWith("</")) expect(stack.pop()).toBeDefined();
+      else stack.push(tag);
+    }
+    expect(stack).toHaveLength(0);
+  });
+
+  it("counts an entity as one character, not as its spelling", () => {
+    // `&lt;` is one `<` in the source the verifier measured. Counting
+    // four would shift every column after the first angle bracket.
+    const html = highlightLines("a <b> c")[0].html;
+    expect(html).toContain("&lt;");
+    // Columns 3-6 are "<b>" plus the space after it in the SOURCE.
+    const out = markSpan(html, 3, 6, "m");
+    expect(textOf(out)).toBe("a <b> c");
+    expect(textOf(out.slice(out.indexOf('<span class="m">')))).toMatch(/^<b>/);
+  });
+
+  it("is a no-op for a degenerate or out-of-range span", () => {
+    const html = "abc";
+    expect(markSpan(html, 5, 5, "m")).toBe(html);   // zero width
+    expect(markSpan(html, 5, 2, "m")).toBe(html);   // reversed
+    expect(markSpan(html, 0, 2, "m")).toBe(html);   // 0 is not a column
+    // Past the end simply marks nothing rather than throwing.
+    expect(textOf(markSpan(html, 9, 12, "m"))).toBe("abc");
+  });
+
+  it("marks to the end of the line when the span runs past it", () => {
+    expect(markSpan("abc", 2, 99, "m")).toBe('a<span class="m">bc</span>');
+  });
+});
+
+describe("linesToHtml with marks", () => {
+  it("applies a mark to the right line only", () => {
+    const lines = highlightLines("one\ntwo\nthree");
+    const marks = new Map([[2, [{ startCol: 1, endCol: 4, className: "m" }]]]);
+    const html = linesToHtml(lines, marks);
+    const blocks = html.split('<div class="hl-line"');
+    expect(blocks[1]).not.toContain('class="m"');
+    expect(blocks[2]).toContain('class="m"');
+    expect(blocks[3]).not.toContain('class="m"');
+  });
+
+  it("applies several marks on one line without disturbing each other", () => {
+    // Two <dfn>s on a line is the case this exists for: both get marked,
+    // and the later one's columns must still be valid after the earlier
+    // one inserts tags. Hence right-to-left.
+    const lines = highlightLines("Some AAAA here and BBBB too.");
+    const marks = new Map([[1, [
+      { startCol: 6, endCol: 10, className: "m1" },
+      { startCol: 20, endCol: 24, className: "m2" },
+    ]]]);
+    const html = linesToHtml(lines, marks);
+    expect(html).toContain('<span class="m1">AAAA</span>');
+    expect(html).toContain('<span class="m2">BBBB</span>');
+    expect(textOf(html)).toBe("Some AAAA here and BBBB too.");
+  });
+
+  it("is unchanged when there are no marks", () => {
+    const lines = highlightLines("one\ntwo");
+    expect(linesToHtml(lines)).toBe(linesToHtml(lines, new Map()));
   });
 });

@@ -116,3 +116,41 @@ describe("unplaced", () => {
     expect(u.every((p) => p.line === undefined)).toBe(true);
   });
 });
+
+describe("spans", () => {
+  const SPANNED = [
+    "  warn   c/01-l/guide.md:108:4-7: ```wat has no highlighter grammar",
+    "  warn   c/01-l/guide.md:112:6-29: <dfn>NotARealTerm</dfn> has no glossary.json entry",
+    "  warn   c/01-l/guide.md:112:39-58: <dfn>AlsoFake</dfn> has no glossary.json entry",
+    "  ERROR  c/01-l/guide.md:200: unclosed fence",
+    "  warn   c/01-l/manifest.json: stepCount drift",
+  ].join("\n");
+
+  it("reads the column range where the verifier gives one", () => {
+    const p = parseVerifyOutput(SPANNED);
+    expect(p[0]).toMatchObject({ line: 108, col: 4, endCol: 7 });
+  });
+
+  it("distinguishes two problems on the same line", () => {
+    // The whole reason spans exist: a line with several <dfn>s used to
+    // report one line number twice and leave you guessing which term.
+    const p = parseVerifyOutput(SPANNED);
+    expect(p[1]).toMatchObject({ line: 112, col: 6, endCol: 29 });
+    expect(p[2]).toMatchObject({ line: 112, col: 39, endCol: 58 });
+    expect(byLine(p).get(112)).toHaveLength(2);
+  });
+
+  it("leaves the columns undefined for line-only and file-only problems", () => {
+    const p = parseVerifyOutput(SPANNED);
+    expect(p[3]).toMatchObject({ line: 200 });
+    expect(p[3].col).toBeUndefined();
+    expect(p[4].line).toBeUndefined();
+    expect(p[4].col).toBeUndefined();
+  });
+
+  it("still parses the older line-only format, so an older app degrades quietly", () => {
+    const p = parseVerifyOutput("  warn   c/01-l/guide.md:42: something");
+    expect(p[0]).toMatchObject({ line: 42, message: "something" });
+    expect(p[0].col).toBeUndefined();
+  });
+});

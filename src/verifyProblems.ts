@@ -18,16 +18,25 @@ export interface Problem {
   file: string;
   /** 1-based, or undefined where a line would be meaningless. */
   line?: number;
+  /** 1-based start column, when the check knows the exact text at fault. */
+  col?: number;
+  /** 1-based, EXCLUSIVE — the half-open convention the verifier reports. */
+  endCol?: number;
   message: string;
 }
 
-// "  ERROR  slug/01-lab/guide.md:42: message"
-// "  warn   slug/01-lab/manifest.json: message"
+// "  ERROR  slug/01-lab/guide.md:42:4-7: message"   span known
+// "  ERROR  slug/01-lab/guide.md:42: message"        line only
+// "  warn   slug/01-lab/manifest.json: message"      neither
+//
+// All three shapes are accepted, so an older Content Manager whose
+// verifier reports no line still parses - every problem simply lands in
+// the not-tied-to-a-line count rather than the editor breaking.
 //
 // The path is non-greedy up to the LAST colon before the message, so a
 // Windows-style drive letter or a colon inside the message cannot be
 // mistaken for the line separator.
-const LINE_RE = /^\s*(ERROR|warn)\s+(\S+?)(?::(\d+))?:\s+(.*)$/;
+const LINE_RE = /^\s*(ERROR|warn)\s+(\S+?)(?::(\d+)(?::(\d+)-(\d+))?)?:\s+(.*)$/;
 
 export function parseVerifyOutput(output: string): Problem[] {
   const out: Problem[] = [];
@@ -38,7 +47,9 @@ export function parseVerifyOutput(output: string): Problem[] {
       severity: m[1] === "ERROR" ? "error" : "warn",
       file: m[2].replace(/\\/g, "/"),
       line: m[3] ? Number(m[3]) : undefined,
-      message: m[4].trim(),
+      col: m[4] ? Number(m[4]) : undefined,
+      endCol: m[5] ? Number(m[5]) : undefined,
+      message: m[6].trim(),
     });
   }
   return out;

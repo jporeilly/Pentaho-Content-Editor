@@ -1120,16 +1120,24 @@ body {
    problem is findable while scrolling past at speed. The underline is a
    repeating gradient rather than `text-decoration: wavy`, which sits on
    the text's own baseline and disappears under a line the caret is on. */
-.hl-line.has-warn,
-.hl-line.has-error {
+/* The squiggle goes under the EXACT text at fault where the verifier
+   reports a span, and under the whole line only where it does not - a
+   missing H1 is the absence of text, so there is nothing to underline
+   but the line itself. */
+.mark-warn,
+.mark-error,
+.hl-line.has-warn:not(:has(.mark-warn, .mark-error)),
+.hl-line.has-error:not(:has(.mark-warn, .mark-error)) {
   background-repeat: repeat-x;
   background-position: left bottom;
   background-size: 6px 2px;
 }
-.hl-line.has-warn {
+.mark-warn,
+.hl-line.has-warn:not(:has(.mark-warn, .mark-error)) {
   background-image: linear-gradient(to right, var(--author-warn) 0 3px, transparent 3px 6px);
 }
-.hl-line.has-error {
+.mark-error,
+.hl-line.has-error:not(:has(.mark-warn, .mark-error)) {
   background-image: linear-gradient(to right, var(--author-bad) 0 3px, transparent 3px 6px);
 }
 .hl-line.has-warn::before { color: var(--author-warn); opacity: 1; font-weight: 600; }

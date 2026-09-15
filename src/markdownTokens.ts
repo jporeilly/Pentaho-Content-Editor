@@ -188,8 +188,81 @@ export function highlightLines(body: string): HighlightedLine[] {
  * caret costs two className writes instead of re-rendering a hundred
  * elements.
  */
-export function linesToHtml(lines: HighlightedLine[]): string {
-  return lines.map((l) => `<div class="hl-line" data-n="${l.n}">${l.html}</div>`).join("");
+/**
+ * Wrap a character range of one line's markup in `className`.
+ *
+ * This is how Verify's findings get underlined precisely rather than a
+ * whole line at a time. The range is in PLAIN-TEXT columns, 1-based,
+ * `endCol` exclusive — the coordinates the verifier reports — but the
+ * markup it lands in is already full of colour spans, so the two do not
+ * line up and the offsets have to be tracked through the tags.
+ *
+ * The range is wrapped PER TEXT PIECE rather than as one element around
+ * everything it covers. A single wrapper would have to open before a
+ * colour span and close after it, interleaving tags that do not nest
+ * (`<a><b></a></b>`), which browsers silently repair into something
+ * else. Several adjacent wrappers look identical and are always valid.
+ *
+ * Entities count as ONE character: `&lt;` is one `<` in the source the
+ * verifier measured, and treating it as four would shift every column
+ * after the first angle bracket on the line.
+ */
+export function markSpan(html: string, startCol: number, endCol: number, className: string): string {
+  if (!(endCol > startCol) || startCol < 1) return html;
+  const start = startCol - 1;          // to 0-based
+  const end = endCol - 1;
+
+  let out = "";
+  let col = 0;                          // plain-text column, 0-based
+  // Split into tags and text; entities stay inside the text pieces and
+  // are counted by the character walk below.
+  for (const piece of html.split(/(<[^>]*>)/)) {
+    if (!piece) continue;
+    if (piece.startsWith("<")) { out += piece; continue; }
+
+    // Walk the text one *source* character at a time, so an entity
+    // advances the column by one rather than by its spelling.
+    let buf = "";
+    let marking = false;
+    for (const ch of piece.match(/&[a-z]+;|[\s\S]/gi) ?? []) {
+      const inRange = col >= start && col < end;
+      if (inRange !== marking) {
+        out += buf;
+        buf = "";
+        out += inRange ? `<span class="${className}">` : "</span>";
+        marking = inRange;
+      }
+      buf += ch;
+      col += 1;
+    }
+    out += buf;
+    if (marking) out += "</span>";      // close before the next tag
+  }
+  return out;
+}
+
+/** A span to mark on a line, in the verifier's 1-based columns. */
+export interface LineMark {
+  startCol: number;
+  endCol: number;
+  className: string;
+}
+
+export function linesToHtml(lines: HighlightedLine[], marks?: Map<number, LineMark[]>): string {
+  return lines
+    .map((l) => {
+      let html = l.html;
+      // Right to left, so an earlier mark's columns stay valid after a
+      // later one has inserted tags ahead of it.
+      const forLine = marks?.get(l.n);
+      if (forLine) {
+        for (const m of [...forLine].sort((a, b) => b.startCol - a.startCol)) {
+          html = markSpan(html, m.startCol, m.endCol, m.className);
+        }
+      }
+      return `<div class="hl-line" data-n="${l.n}">${html}</div>`;
+    })
+    .join("");
 }
 
 export function highlightMarkdown(body: string): string {

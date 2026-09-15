@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { linkScrollers } from "./scrollSync";
-import { highlightLines, linesToHtml, fenceRangeAt } from "./markdownTokens";
+import { highlightLines, linesToHtml, fenceRangeAt, type LineMark } from "./markdownTokens";
 import { parseVerifyOutput, problemsForGuide, byLine, worst, tooltip, unplaced } from "./verifyProblems";
 import { Toolbar } from "./Toolbar";
 import { FindBar } from "./FindBar";
@@ -200,7 +200,35 @@ export function App() {
     () => (syntaxColour ? highlightLines(body) : []),
     [body, syntaxColour],
   );
-  const highlighted = useMemo(() => linesToHtml(lines), [lines]);
+  // Verify's spans, as marks the markup builder can apply. Built before
+  // `highlighted` because the underline is woven INTO the line's markup —
+  // a character range crosses colour spans, so it cannot be a class on
+  // the line or an overlay measured in pixels.
+  // Verify's findings for the open guide. Declared BEFORE the marks and
+  // the markup that consume it: a const is not hoisted, so using it
+  // earlier is a runtime crash TypeScript catches only because the two
+  // are in the same scope.
+  const problems = useMemo(
+    // verifyOut is the API's {ok, output} envelope, or "" before a run.
+    () => problemsForGuide(parseVerifyOutput(typeof verifyOut === "string" ? "" : verifyOut?.output ?? ""), course, lab),
+    [verifyOut, course, lab],
+  );
+
+  const marks = useMemo(() => {
+    const map = new Map<number, LineMark[]>();
+    for (const p of problems) {
+      if (!p.line || !p.col || !p.endCol) continue;
+      const list = map.get(p.line) ?? [];
+      list.push({
+        startCol: p.col,
+        endCol: p.endCol,
+        className: p.severity === "error" ? "mark-error" : "mark-warn",
+      });
+      map.set(p.line, list);
+    }
+    return map;
+  }, [problems]);
+  const highlighted = useMemo(() => linesToHtml(lines, marks), [lines, marks]);
 
   // Which source line the caret is on, 0-based.
   const [caretLine, setCaretLine] = useState(0);
@@ -239,11 +267,6 @@ export function App() {
   // Verify used to print into a panel and leave you to find the line it
   // was talking about. The verifier now reports "path:line: message", so
   // the problems can be marked where they are.
-  const problems = useMemo(
-    // verifyOut is the API's {ok, output} envelope, or "" before a run.
-    () => problemsForGuide(parseVerifyOutput(typeof verifyOut === "string" ? "" : verifyOut?.output ?? ""), course, lab),
-    [verifyOut, course, lab],
-  );
   useEffect(() => {
     const root = highlightRef.current;
     if (!root) return;
