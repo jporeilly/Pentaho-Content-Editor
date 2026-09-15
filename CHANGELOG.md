@@ -15,6 +15,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **Verify marks the line.** It used to print into a panel and leave you
+  to find what it meant: now a flagged line gets a squiggle and a
+  coloured gutter number, with the message on hover. Problems that belong
+  to no line — a manifest metric, a SUMMARY link — are counted separately
+  above the editor, so a guide never looks clean in the gutter while
+  Verify is still reporting failures. Requires the Content Manager's
+  verifier to report `path:line: message`, which it does from 27aa0a2
+  (unreleased at the time of writing); against an older one every
+  problem simply lands in the not-tied-to-a-line count.
 - **The markdown source is colour-coded** with the same hues as the
   insert menus - a heading is blue in the toolbar and blue in the source,
   Media cyan in both, code green in both. Switchable from the Theme menu.
