@@ -33,12 +33,30 @@ if (!existsSync(resolve(appSrc, "components", "MarkdownBody.tsx"))) {
 // app release no VM would ever receive.
 const pkgVersion = JSON.parse(readFileSync(here("./package.json"), "utf8")).version as string;
 
+// The renderer's version, baked in beside the editor's own.
+//
+// It costs nothing from a checkout, where the preview always imports
+// whatever the sibling repo has this minute. It matters once the editor
+// is INSTALLED: the renderer is bundled at build time, so a packaged
+// editor previews with the renderer it shipped with while pointing at a
+// checkout that has moved on. That drift is invisible unless the app
+// says which one it is carrying - and "the preview doesn't match the
+// app" is precisely the bug this whole alias exists to prevent.
+const appVersion = (() => {
+  try {
+    return JSON.parse(readFileSync(resolve(appRepo, "package.json"), "utf8")).version as string;
+  } catch {
+    return "unknown";
+  }
+})();
+
 export default defineConfig({
   plugins: [react()],
   base: "./",
 
   define: {
     __APP_VERSION__: JSON.stringify(pkgVersion),
+    __PCM_VERSION__: JSON.stringify(appVersion),
   },
 
   build: {
@@ -47,7 +65,26 @@ export default defineConfig({
   },
 
   resolve: {
+    // ONE React, whoever imports it.
+    //
+    // The preview imports the Content Manager's source through `@app`,
+    // and those files `import React from "react"` - which resolves
+    // relative to THEIR location, so it finds the app's node_modules and
+    // the bundle ends up with two Reacts. Two Reacts means two hook
+    // dispatchers, and the second one is null: the production bundle
+    // died on the first `useState` with "Cannot read properties of null".
+    //
+    // It was invisible for as long as the editor only ever ran from the
+    // dev server, which resolves the bare specifier to this project's
+    // copy. The packaged build is the first thing to actually RUN the
+    // bundle, and it crashed to a blank window on launch.
+    //
+    // dedupe fixes resolution; the aliases make it explicit for the
+    // sub-paths (react/jsx-runtime) that dedupe alone does not cover.
+    dedupe: ["react", "react-dom"],
     alias: {
+      react: here("./node_modules/react"),
+      "react-dom": here("./node_modules/react-dom"),
       // The learner app's source, imported for preview fidelity.
       "@app": appSrc,
       // Renderer components import these at module load; outside Tauri
