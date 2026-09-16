@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.5.0] - 2026-09-16
+
 ### Added
 
 - **The AI review is marked in the source, anchored to the text it
@@ -45,6 +49,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   the review reported problems with the Pentaho documentation block —
   quoting it, and asking the author to delete it. The grounding now comes
   before the guide, and the guide is fenced between explicit markers.
+- **The 1.2.0 entry below, which the bump script had mangled.** Its notes
+  said find & replace takes a plain substring "because guides are full of
+  `**`, `[`, `(`, `` `$` `` and `` `|` ``" — and the ``$` `` in that list
+  was expanded by `String.replace`, which reads it as "everything before
+  the match". A second copy of this file's header was spliced into the
+  middle of the sentence, and it has been in every release since. The
+  cause is fixed in the Content Manager's shared machinery (`798f91f`),
+  where the notes are now written by a replacement function that
+  interprets nothing.
 
 ### Changed
 
@@ -52,6 +65,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   (`lineAnnotations.ts`) rather than twice inside the editor component,
   where a line carrying both could be underlined by one pass and left
   untitled by the other.
+
 
 ## [1.4.0] - 2026-09-15
 
@@ -104,20 +118,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - **Find & replace, on Ctrl/Cmd+F.** There was none, so every text sweep
   meant opening the lab in a second editor - which is precisely how an
   afternoon's work went over the side on 2026-09-03. Plain substring
-  rather than regex, because guides are full of `**`, `[`, `(`, `# Changelog — Pentaho Content Editor
-
-The authoring surface for `courses/`. Versioned separately from the
-Pentaho Content Manager learner app, which it is not shipped with: the
-editor runs from source on an author's machine and never reaches a VM.
-
-Entries before 1.0.0 live in the learner app's
-[CHANGELOG](../CHANGELOG.md), where the editor had no version of its own
-and rode along with the app's. That is the thing 1.0.0 fixes.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
- and
+  rather than regex, because guides are full of `**`, `[`, `(`, `$` and
   `|`. The browser's own Ctrl+F is suppressed on purpose: it searches the
   rendered page, so it finds the preview and the sidebar and never the
   markdown you are editing.
