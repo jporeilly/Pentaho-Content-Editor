@@ -132,16 +132,72 @@ MAX_FINDINGS = 50
 MAX_QUOTE = 400
 
 
+# A lone backslash that JSON does not recognise as an escape. Models
+# quote Windows paths constantly, and one unescaped \ in the
+# twelfth finding used to cost the other eleven.
+_LONE_BACKSLASH = re.compile(r'\\(?!["\\/bfnrtu])')
+# A comma before a closing bracket: the other thing models do.
+_TRAILING_COMMA = re.compile(r",(\s*[\]}])")
+# One top-level {...} object, non-greedy, no nesting expected in a
+# finding: four string fields and nothing else.
+_OBJECT = re.compile(r"\{[^{}]*\}", re.S)
+
+
+def _repair(block: str) -> str:
+    """Make a model's near-JSON parseable without changing its meaning."""
+    return _TRAILING_COMMA.sub(r'\1', _LONE_BACKSLASH.sub(r'\\\\', block))
+
+
+def _loads_findings(block: str) -> list[Any] | None:
+    """The array, tolerating the two mistakes models actually make."""
+    for candidate in (block, _repair(block)):
+        try:
+            data = json.loads(candidate)
+        except (ValueError, TypeError):
+            continue
+        if isinstance(data, list):
+            return data
+    return None
+
+
+def _salvage_objects(block: str) -> list[Any]:
+    """Whatever individual findings can still be read.
+
+    The last resort, and the one that matters most in practice: a single
+    unescaped backslash in the twelfth finding used to cost the other
+    eleven, because json.loads either takes a document or rejects it.
+    Parsing object by object means one malformed finding is one finding
+    lost - which is also why the object pattern does not nest, so a
+    broken brace cannot swallow its neighbours.
+    """
+    out: list[Any] = []
+    for match in _OBJECT.finditer(block):
+        for candidate in (match.group(0), _repair(match.group(0))):
+            try:
+                item = json.loads(candidate)
+            except (ValueError, TypeError):
+                continue
+            if isinstance(item, dict):
+                out.append(item)
+            break
+    return out
+
+
 def parse_findings(text: str) -> list[Finding]:
-    """Findings from a model's answer, or [] if it did not answer in JSON."""
+    """Findings from a model's answer, or [] if it did not answer in JSON.
+
+    Forgiving on purpose. The alternative is what the panel used to do
+    with a single stray backslash: fall back to printing the raw JSON at
+    the author, which is both unreadable and a silent loss of every
+    anchor, mark and Apply button the review had earned.
+    """
     block = _json_array(text or "")
     if not block:
         return []
-    try:
-        data = json.loads(block)
-    except (ValueError, TypeError):
-        return []
-    if not isinstance(data, list):
+    data = _loads_findings(block)
+    if data is None:
+        data = _salvage_objects(block)
+    if not data:
         return []
 
     out: list[Finding] = []
@@ -189,7 +245,9 @@ def review_lab(req: ReviewRequest) -> ReviewResponse:
         "something is ABSENT — no prerequisites, no closing summary — and "
         "there is therefore nothing to quote.\n"
         "`issue` states what is wrong in one sentence. `fix` says what to do "
-        "about it. Do NOT rewrite the lab.\n\n"
+        "about it. Do NOT rewrite the lab. Mind the JSON: a Windows path in a "
+        "quote needs its backslashes escaped, and a trailing comma is not "
+        "valid.\n\n"
         "Quote only from between the GUIDE markers below — nothing above them "
         "is part of the lab."
     )

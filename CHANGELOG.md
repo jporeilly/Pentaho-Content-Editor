@@ -13,6 +13,22 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Fixed
+
+- **The AI review showed raw JSON instead of findings.** One finding in
+  twelve quoted a Windows path with an unescaped backslash, `json.loads`
+  rejected the entire document, and the panel fell back to printing the
+  model's answer at the author — losing every anchor, mark, jump and
+  Apply button the review had earned, for one character. Parsing is
+  forgiving now: it repairs the two mistakes models actually make (a lone
+  backslash, a trailing comma) and, failing that, reads the findings one
+  object at a time, so a malformed finding costs only itself. The prompt
+  also asks for valid JSON, which reduces how often any of it is needed.
+- The uninstaller removes the bundled runtimes, the provisioning scripts
+  and the machine-wide registry hint it wrote. The author's settings in
+  `%APPDATA%` stay, deliberately — that is what lets a reinstall come
+  back already configured.
+
 ### Added
 
 - **The installer is self-contained, and asks what to install.** It now
