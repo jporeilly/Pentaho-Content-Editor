@@ -247,7 +247,7 @@ def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
 
     system = "You are a technical curriculum author for hands-on Pentaho workshops."
     ground, sources = _ground(f"{title}. {req.outline or ''}")
-    prompt = _lab_prompt(title, req.outline, kind) + ground
+    prompt = core.grounded_prompt(_lab_prompt(title, req.outline, kind), ground)
     try:
         raw = providers.generate(prompt, system)
     except providers.ProviderError as e:

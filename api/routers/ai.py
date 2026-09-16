@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import providers
-from core import _ground, _clean_generated, Source
+from core import _ground, _clean_generated, grounded_prompt, Source
 
 router = APIRouter()
 
@@ -37,14 +37,16 @@ def rewrite(req: RewriteRequest) -> RewriteResponse:
     instr = req.instruction or (
         "Improve clarity and flow and fix any grammar, keeping the same meaning."
     )
-    prompt = (
+    ground, sources = _ground(text)
+    prompt = grounded_prompt(
         f"Rewrite the passage below. {instr} Preserve all Markdown structure "
         "(headings, `> **Note:**`-style callouts, fenced code blocks, lists, "
         "links, and `::: tabs` blocks). Output ONLY the rewritten passage — no "
-        f"preamble, no code fence around the whole thing.\n\n---\n{text}"
+        "preamble, no code fence around the whole thing.",
+        ground,
+        text,
+        "PASSAGE",
     )
-    ground, sources = _ground(text)
-    prompt += ground
     try:
         out = providers.generate(prompt, system)
     except providers.ProviderError as e:
@@ -187,25 +189,20 @@ def review_lab(req: ReviewRequest) -> ReviewResponse:
         "something is ABSENT — no prerequisites, no closing summary — and "
         "there is therefore nothing to quote.\n"
         "`issue` states what is wrong in one sentence. `fix` says what to do "
-        "about it. Do NOT rewrite the lab.\n"
+        "about it. Do NOT rewrite the lab.\n\n"
+        "Quote only from between the GUIDE markers below — nothing above them "
+        "is part of the lab."
     )
-    # The grounding goes BEFORE the guide, and the guide is fenced off.
-    #
-    # Appended after it — the shape every other endpoint uses — the two
-    # ran together into one document, and the first live run of this
-    # review duly reported a Critical finding demanding the author delete
-    # the "Relevant Pentaho documentation" section: the grounding block's
-    # own heading, reviewed as if it were part of the lab. The anchor
-    # check caught it, because that text is nowhere in the guide. This
-    # stops it being asked in the first place, and leaves the guide as
-    # the last thing in the prompt, which is what "quote it" refers to.
+    # Assembled by the shared helper: instructions, then the grounding,
+    # then the guide fenced off and last. This endpoint is where that
+    # order was first needed — the opening live run reported a Critical
+    # problem with the "Relevant Pentaho documentation" section of a lab
+    # that has no such section, because the grounding sat at the end and
+    # read as part of the material. It was fixed here by hand, and the
+    # same bug promptly wrote 4,000 characters of documentation links
+    # into a guide through Rewrite. One assembler now, for every prompt.
     ground, sources = _ground(body[:200])
-    prompt += ground
-    prompt += (
-        "\n\nThe lab guide to review is between the markers below. Quote only "
-        "from BETWEEN them — nothing above them is part of the lab.\n"
-        f"---BEGIN GUIDE---\n{body}\n---END GUIDE---\n"
-    )
+    prompt = grounded_prompt(prompt, ground, body, "GUIDE")
     try:
         out = providers.generate(prompt, system)
     except providers.ProviderError as e:

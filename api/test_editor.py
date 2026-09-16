@@ -650,3 +650,60 @@ def test_the_built_ui_is_served_only_once_it_is_built(tmp_path):
     # Anything else is the SPA.
     assert "<title>editor</title>" in c.get("/").text
     assert "<title>editor</title>" in c.get("/some/deep/link").text
+
+
+# -- Grounding is reference, never material ---------------------------
+#
+# The documentation block used to be appended to the END of every prompt,
+# which is where a model looks for the thing it was asked to work on. It
+# cost two bugs: a review that reported a Critical problem with the
+# "Relevant Pentaho documentation" section of a lab that had no such
+# section, and a rewrite that wrote 4,000 characters of documentation
+# links into a guide. One assembler now, and these hold the order.
+
+GROUND = "\n\nRelevant Pentaho documentation (ground your answer in this):\n- A page (http://docs/x)"
+
+
+def test_grounded_prompt_puts_the_content_last_and_the_docs_before_it():
+    p = core.grounded_prompt("Do the thing.", GROUND, "the passage", "PASSAGE")
+    assert p.rstrip().endswith("---END PASSAGE---")
+    assert p.index("Relevant Pentaho") < p.index("BEGIN PASSAGE")
+    # Saying so is the other half of the fix.
+    assert "REFERENCE ONLY" in p
+
+
+def test_grounded_prompt_without_grounding_or_content():
+    # Grounding off: no reference block, no note about one.
+    assert core.grounded_prompt("Instructions.", "", "text") == (
+        "Instructions.\n\n---BEGIN PASSAGE---\ntext\n---END PASSAGE---"
+    )
+    # Generation has no passage to fence - just instructions and docs.
+    out = core.grounded_prompt("Write a lab.", GROUND)
+    assert "BEGIN" not in out and "REFERENCE ONLY" in out
+
+
+def test_rewrite_and_review_send_the_docs_before_the_text(env, client, monkeypatch):
+    """The regression, end to end, at both call sites."""
+    from routers import ai as ai_router
+
+    seen = {}
+
+    def capture(prompt, system, timeout=240):
+        seen["prompt"] = prompt
+        return "OUT"
+
+    monkeypatch.setattr(providers, "generate", capture)
+    # Patched on the ROUTER, not on core: ai.py does `from core import
+    # _ground`, so it holds its own binding and a patch of core._ground
+    # would never be seen. (The same reason core's own docstring insists
+    # COURSES_DIR is read as an attribute at call time.)
+    monkeypatch.setattr(ai_router, "_ground", lambda q: (GROUND, []))
+
+    client.post("/api/rewrite", json={"text": "the passage to fix"})
+    assert seen["prompt"].index("Relevant Pentaho") < seen["prompt"].index("the passage to fix")
+    assert seen["prompt"].rstrip().endswith("---END PASSAGE---")
+
+    seen.clear()
+    client.post("/api/review", json={"body": "# A guide\n\nWith a step."})
+    assert seen["prompt"].index("Relevant Pentaho") < seen["prompt"].index("# A guide")
+    assert seen["prompt"].rstrip().endswith("---END GUIDE---")

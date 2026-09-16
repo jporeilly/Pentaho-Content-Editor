@@ -166,7 +166,7 @@ def import_build(req: ImportBuildRequest) -> ImportBuildResponse:
                     f"(do not invent facts that contradict it):\n{context}"
                 )
             ground, srcs = _ground(f"{title}. {outline_note}")
-            body_prompt += ground
+            body_prompt = core.grounded_prompt(body_prompt, ground)
             for s in srcs:
                 all_sources[s.url] = s
             try:

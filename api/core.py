@@ -409,9 +409,15 @@ def _write_structure(course_path: Path, topics: list[StructureTopic]) -> None:
 
 def _ground(query: str) -> tuple[str, list[Source]]:
     """When GitBook-MCP grounding is enabled in Settings, search the
-    Pentaho docs and return (prompt-suffix, sources). Best-effort — a docs
-    failure never blocks generation. `sources` lets the UI cite the docs
-    the model was grounded in."""
+    Pentaho docs and return (reference block, sources). Best-effort — a
+    docs failure never blocks generation. `sources` lets the UI cite the
+    docs the model was grounded in.
+
+    Hand the block to `grounded_prompt` rather than appending it: it used
+    to be documented as a prompt SUFFIX, and that framing is what put a
+    page of documentation at the end of every prompt, where a model
+    reasonably read it as part of the material to work on.
+    """
     s = providers.load_settings()
     docs = s.get("docs") or {}
     if not docs.get("enabled") or not docs.get("url") or not query.strip():
@@ -423,6 +429,45 @@ def _ground(query: str) -> tuple[str, list[Source]]:
     ctx = mcp.as_context(hits)
     sources = [Source(title=h["title"], url=h["url"]) for h in hits if h.get("url")]
     return (("\n\n" + ctx) if ctx else ""), sources
+
+
+# The documentation is reference, not raw material. Saying so is half the
+# fix; the other half is where it sits in the prompt.
+GROUND_NOTE = (
+    "The documentation above is REFERENCE ONLY. Use it to be accurate. Never "
+    "copy it, its headings, its links or its wording into your answer."
+)
+
+
+def grounded_prompt(
+    instructions: str,
+    ground: str,
+    content: str | None = None,
+    label: str = "PASSAGE",
+) -> str:
+    """Assemble a prompt so reference material cannot be mistaken for the
+    thing being worked on.
+
+    Always: instructions, then the grounding, then the content fenced
+    between markers - so the last thing the model reads is the text it was
+    asked about, and the documentation is somewhere it cannot be confused
+    for it.
+
+    This exists because the naive order shipped twice. The AI review
+    reported a Critical problem with the "Relevant Pentaho documentation"
+    section of a lab that had no such section - it was reviewing the
+    grounding block. That was fixed in review_lab by hand, and the same
+    bug then wrote 4,000 characters of documentation links into a guide
+    through Rewrite, because rewrite still appended. Two call sites, one
+    mistake, so the assembly is one function and every site uses it.
+    """
+    parts = [instructions.rstrip()]
+    if ground.strip():
+        parts.append(ground.strip())
+        parts.append(GROUND_NOTE)
+    if content is not None:
+        parts.append(f"---BEGIN {label}---\n{content}\n---END {label}---")
+    return "\n\n".join(parts)
 
 
 def _clean_generated(text: str) -> str:
