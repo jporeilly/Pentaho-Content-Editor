@@ -13,7 +13,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **The installer wears the suite's wizard art.** It has always been an
+  NSIS install like the other PDC-Demo apps, but with Tauri's stock grey
+  wizard while they show the black Pentaho header and sidebar — so the
+  first thing an author saw looked borrowed. The bitmaps are drawn by the
+  Content Manager's own icon generator, called as a subprocess with the
+  editor's pencil badge, its own title and its own sub-line. Two flags
+  were added over there rather than a second drawing of the brand here
+  (`--out-dir`, `--subtitle`): the brand has moved once already, and one
+  composition is the whole reason the badge system works.
 
 ## [1.7.0] - 2026-09-16
 

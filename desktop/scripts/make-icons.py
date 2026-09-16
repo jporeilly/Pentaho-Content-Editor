@@ -46,6 +46,15 @@ GENERATOR = os.path.join(PCM, "scripts", "make-icons.py")
 BADGE = "pencil"
 BADGE_COLOR = "#0E7490"
 
+# The installer wizard's art, from the same composition. Without these
+# the editor gets Tauri's stock grey wizard while every sibling app shows
+# the black Pentaho header and sidebar - the install is the first thing
+# an author sees, and looking borrowed is a poor opening. The sidebar's
+# second line is ours because the generator's default is course wording,
+# which this is not.
+SIDEBAR_TITLE = "Content Editor"
+SIDEBAR_SUBTITLE = "Course authoring"
+
 
 def main():
     if not os.path.isfile(GENERATOR):
@@ -57,9 +66,30 @@ def main():
     os.makedirs(ICONS, exist_ok=True)
     ico_path = os.path.join(ICONS, "icon.ico")
 
+    # The app icon. --installer-ico writes one file and exits, which is
+    # the seam that leaves the Content Manager's own icons alone.
     subprocess.run(
         [sys.executable, GENERATOR,
          "--installer-ico", ico_path,
+         "--badge", BADGE,
+         "--badge-color", BADGE_COLOR],
+        check=True,
+        cwd=PCM,
+    )
+
+    # The wizard art. --nsis-only skips the app icons entirely, and
+    # --out-dir keeps the bitmaps here rather than in that repo.
+    subprocess.run(
+        [sys.executable, GENERATOR,
+         "--nsis-only",
+         "--out-dir", ICONS,
+         "--title", SIDEBAR_TITLE,
+         "--subtitle", SIDEBAR_SUBTITLE,
+         # The same badge as the app icon. Without these the sidebar
+         # draws the generator's DEFAULT badge - the Content Manager's
+         # amber mortarboard - so the wizard would announce one app while
+         # installing another, which is the single thing the per-app
+         # badge exists to prevent.
          "--badge", BADGE,
          "--badge-color", BADGE_COLOR],
         check=True,
@@ -76,7 +106,7 @@ def main():
     for name, size in (("32x32.png", 32), ("128x128.png", 128), ("128x128@2x.png", 256)):
         master.resize((size, size), Image.LANCZOS).save(os.path.join(ICONS, name))
 
-    print("icons written to {} (badge {} {})".format(ICONS, BADGE, BADGE_COLOR))
+    print("icons + wizard art written to {} (badge {} {})".format(ICONS, BADGE, BADGE_COLOR))
 
 
 if __name__ == "__main__":

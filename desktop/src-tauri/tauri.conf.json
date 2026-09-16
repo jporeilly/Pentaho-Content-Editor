@@ -51,7 +51,9 @@
         "installMode": "perMachine",
         "languages": ["English"],
         "installerIcon": "icons/icon.ico",
-        "installerHooks": "nsis/hooks.nsh"
+        "installerHooks": "nsis/hooks.nsh",
+        "headerImage": "icons/nsis-header.bmp",
+        "sidebarImage": "icons/nsis-sidebar.bmp"
       },
       "signCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/sign.ps1 %1"
     },
