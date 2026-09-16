@@ -5,7 +5,7 @@ browser app — **not** part of the Tauri learner app, never shipped to a
 VM, and since 2026-09-15 no longer part of its repository either.
 
 Its own repo (`jporeilly/Pentaho-Content-Editor`, private), its own
-dependencies, version (`package.json`, currently 1.0.0) and
+dependencies, version (`package.json`, currently 1.4.0) and
 [`CHANGELOG.md`](CHANGELOG.md). Entries before 1.0.0 live in the learner
 app's changelog, where the editor had no version of its own.
 
@@ -264,6 +264,40 @@ dark surface (a hard-coded colour in inline HTML, a screenshot with a
 white background, a callout with no dark variant). Both are classes on
 `<html>`, which is where the app itself puts `pcm-dark`.
 
+**The AI review anchors on TEXT; Verify anchors on coordinates**
+(`reviewFindings.ts`, merged with Verify's problems in
+`lineAnnotations.ts`). The verifier reports `path:line:col` and is right,
+because it measured the file. A model asked for a line number guesses
+one, so `/api/review` asks for the quote instead — text copied verbatim
+out of the guide — and the editor locates it in the buffer. Three
+consequences, and the second is the point of the whole design:
+
+* Exact match first, then one that sees through case, collapsed
+  whitespace and a callout's `>` continuation markers, reported as
+  `exact: false`. Guides keep most of their prose inside callouts, and a
+  quoted sentence that wraps has a `>` in the MIDDLE of it — without that
+  rule the commonest quote in the commonest construct anchors nowhere.
+* **A quote the guide does not contain is never marked.** It goes in the
+  panel's "couldn't be found" list, which is where a fabricated finding
+  surfaces instead of underlining an innocent line. The first live run
+  produced one: a *Critical* finding quoting `Relevant Pentaho
+  documentation (ground your answer in this):` — the grounding block's
+  own heading, which `_ground` used to append AFTER the guide so the two
+  read as one document. The grounding now goes before the guide and the
+  guide is fenced in markers, but the check is what caught it, and it
+  will catch the next one.
+* `locatedAtRun` is stamped once, when the review lands. Against the
+  live buffer later, a finding that no longer matches is either one the
+  author has fixed or one that never existed, and nothing but that stamp
+  tells them apart.
+
+Both channels meet in `annotateLines`, not in the component: they are
+consumed twice (the underlines woven into the markup, the classes and
+tooltip written onto the line elements), and merging them at each use is
+how a line ended up underlined by one and untitled by the other. Verify
+keeps the gutter number where both land on a line — it measured the file;
+the review has an opinion about the prose.
+
 **The code-menu contract is two tests, one per repo.** The app keeps
 "every language in the registry has a grammar"
 (`src/components/codeLanguages.test.ts` over there); the editor keeps
@@ -331,8 +365,8 @@ hotmail address.
 
 | Suite | Command | Size |
 | --- | --- | --- |
-| Frontend | `npm test` (vitest) | 144 tests, 12 files |
-| Backend | `cd api && .venv\Scripts\python -m pytest -q` | 39 tests |
+| Frontend | `npm test` (vitest) | 197 tests, 15 files |
+| Backend | `cd api && .venv\Scripts\python -m pytest -q` | 42 tests |
 
 The backend venv is normally created from `requirements.txt` alone, which
 does **not** include pytest — `python -m pytest` then fails with "No
@@ -363,13 +397,13 @@ carrier list, because that is the part that genuinely differs:
 | `package-lock.json` | `packages[""].version` |
 | `CHANGELOG.md` | the newest `## [x.y.z]` heading |
 
-**The lockfile is a carrier, and the app's script does not treat it as
-one.** That is not a stylistic difference: the Content Manager's lock sat
-at 0.4.41 while the project shipped 0.4.46, and nothing noticed, because
-`version:check` over there looks at four files and none of them is the
-lockfile. npm rewrites both keys on install, so they drift every time a
-version moves without one. If the app's script is ever revisited, this is
-the gap to close.
+**The lockfile is a carrier here, and now over there too.** It was this
+repo's addition: the Content Manager's lock sat at 0.4.41 while the
+project shipped 0.4.46 and nothing noticed, because `version:check` over
+there looked at four files and none of them was the lockfile. npm
+rewrites both keys on install, so they drift every time a version moves
+without one. The app closed the gap in `75016be`, and both bump scripts
+now check both lock keys.
 
 A bump **refuses when `[Unreleased]` is empty**, so a release cannot be
 cut with no notes, and refuses to touch `package-lock.json` unless it is

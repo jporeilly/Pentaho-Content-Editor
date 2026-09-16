@@ -105,7 +105,8 @@ the owner if something foreign holds the port.
 - **Course settings (⚙)** — a form over `course.json`, including the
   Welcome page's fields, with unknown keys preserved on save.
 - **Lab files** — manage the `files/` and `_assets/` a lab ships.
-- **Verify** — runs the Content Manager's guideline checker in-app.
+- **Verify** — runs the Content Manager's guideline checker in-app, and
+  marks each problem on the line, and under the exact text, it is about.
 - **Delete a course (⚙ → Danger zone)** — permanently removes
   `courses/<slug>/` from disk. The button stays disabled until you type
   **delete**, and the backend independently refuses without it (HTTP
@@ -186,6 +187,16 @@ the owner if something foreign holds the port.
   `api/settings.json`; **API keys are never stored** — they are read from
   `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in the environment and Settings
   only reports whether each is detected.
+- **🔍 Review — an AI read of the open lab, marked in the source.** Each
+  finding quotes the text it is about, and the editor finds that text in
+  the buffer and underlines it; click a quote in the panel to jump to it.
+  Findings whose quote is **not in the guide** are listed separately
+  instead of being marked, which is how a confident remark about a lab
+  the model half-invented is caught rather than followed — on the first
+  live run it demanded the removal of a section that existed only in its
+  own prompt. Because the marks are re-anchored to the buffer as you
+  type, a finding you have fixed reports itself as fixed rather than
+  drifting onto another line.
 - **✨ AI Lab** — draft a whole lab from a title and optional outline. The
   draft follows the block conventions, is saved as a new lab and opens
   for review. The button disables and explains itself when no provider is

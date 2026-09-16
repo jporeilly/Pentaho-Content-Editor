@@ -13,7 +13,45 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **The AI review is marked in the source, anchored to the text it
+  quotes.** It was the last panel left printing prose for the author to
+  go and find — Verify had gone panel → line → exact span across 1.3.0
+  and 1.4.0 without it. It could not follow the same route: the verifier
+  reports a line because it measured the file, while a model asked for
+  one guesses, and a confident squiggle under an innocent line is worse
+  than none. So the model is asked for the TEXT instead, copied verbatim,
+  and the editor finds it in the buffer. Each located finding underlines
+  its quote (dots, where Verify's are dashes — a verdict and an opinion
+  should not look alike), colours the gutter number, and carries its
+  issue and fix in the tooltip; the panel lists them as rows, and
+  clicking a quote jumps to it and selects it.
+- **A finding whose quote is not in the guide is listed, never marked.**
+  The anchor is also the check: a fabricated quote matches nothing, so it
+  lands under "couldn't be found in the guide — check these by hand"
+  rather than underlining whatever was nearby. It earned its place on the
+  first live run, catching a *Critical* demand to delete a section that
+  existed only in the review's own prompt.
+- Findings are re-anchored to the live buffer on every keystroke, so one
+  you have just fixed reports itself as **fixed since the review ran**
+  instead of pointing at text that is gone. Verify, which reads disk,
+  still needs its "lines may have moved" warning; this does not.
+
+### Fixed
+
+- **The docs grounding is no longer reviewed as part of the lab.** It was
+  appended after the guide, so the two ran together into one document and
+  the review reported problems with the Pentaho documentation block —
+  quoting it, and asking the author to delete it. The grounding now comes
+  before the guide, and the guide is fenced between explicit markers.
+
+### Changed
+
+- Verify's marks and the review's are merged in one tested pass
+  (`lineAnnotations.ts`) rather than twice inside the editor component,
+  where a line carrying both could be underlined by one pass and left
+  untitled by the other.
 
 ## [1.4.0] - 2026-09-15
 
