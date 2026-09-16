@@ -4,7 +4,7 @@
   "version": "1.8.0",
   "identifier": "com.pentaho.content-editor",
   "build": {
-    "beforeBuildCommand": "npm run fetch:python && npm run stage:app",
+    "beforeBuildCommand": "npm run fetch:python && npm run fetch:runtimes && npm run stage:app",
     "frontendDist": "../dist"
   },
   "app": {
@@ -37,7 +37,10 @@
     ],
     "resources": {
       "vendor/python": "python",
-      "vendor/app": "app"
+      "vendor/app": "app",
+      "vendor/tools": "tools",
+      "../scripts/find-courses.ps1": "provisioning/find-courses.ps1",
+      "../scripts/install-ollama.ps1": "provisioning/install-ollama.ps1"
     },
     "category": "DeveloperTool",
     "shortDescription": "Visual authoring for Pentaho Content Manager courses",
@@ -49,6 +52,7 @@
       },
       "nsis": {
         "installMode": "perMachine",
+        "template": "nsis/installer.nsi",
         "languages": ["English"],
         "installerIcon": "icons/icon.ico",
         "installerHooks": "nsis/hooks.nsh",

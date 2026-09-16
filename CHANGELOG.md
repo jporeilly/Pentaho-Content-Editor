@@ -15,6 +15,30 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **The installer is self-contained, and asks what to install.** It now
+  carries its own Node and git alongside its own Python, so a Full
+  install scaffolds, verifies and publishes on a machine that has
+  neither — `api/tools.py` already preferred a bundled copy over PATH,
+  which is the seam this fills. The wizard gained the Content Manager's
+  components page: **Full** and **Minimal (app only)**, with the bundled
+  runtimes shown read-only because they always ship, exactly as MinGit
+  does over there. What a component toggles is an ACTION, not a payload —
+  NSIS packs every section into the exe whether it runs or not, so a
+  components page cannot shrink a download, only two separate installers
+  could.
+- **The installer looks for your courses.** The Full install's "Find my
+  Content Manager courses" component scans the usual roots and records
+  what it finds, so the first launch opens straight into the courses
+  instead of asking. It writes to HKLM rather than the settings file,
+  and that is forced: an elevated installer's `%APPDATA%` belongs to the
+  elevating account, which on a managed laptop is an admin who will
+  never run the editor. The app treats it as a hint — below the
+  environment variable and below the author's own saved choice, and
+  ignored when it points at a folder that has since moved.
+- **Optionally installs Ollama**, the default provider and the only one
+  that keeps a lab guide on the author's machine. Only if missing, and
+  it pulls no model: that is a multi-gigabyte decision for Settings,
+  where the sizes are visible.
 - **A header pill for the Content Manager checkout**: which one, and
   whether it has moved on without you. The editor writes into a
   repository other people publish into, and nothing said so — you could

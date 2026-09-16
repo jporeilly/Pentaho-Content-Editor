@@ -191,6 +191,11 @@ impl Server {
             // be shown an empty folder and told their settings were in
             // it. One answer, chosen here, honoured there.
             .env("EDITOR_STATE_DIR", state_dir)
+            // Where the bundled Node and git live, when this build has
+            // them. api/tools.py prefers them over PATH, so a Full
+            // install scaffolds and publishes on a machine carrying
+            // neither - which is the whole point of shipping them.
+            .env("EDITOR_TOOLS_DIR", resource_dir.join("tools"))
             // uvicorn's default logging goes to stderr; capture both so a crash
             // is diagnosable instead of vanishing into a detached process.
             .stdout(Stdio::piped())

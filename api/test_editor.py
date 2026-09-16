@@ -880,3 +880,42 @@ def test_a_failed_fetch_still_reports_the_last_known_state(env, client, monkeypa
     assert out["fetched"] is False
     assert out["state"] == "behind" and out["behind"] == 2
     assert "Couldn't reach the remote" in out["detail"]
+
+
+def test_the_installer_hint_sits_below_the_author_s_own_choice(tmp_path, monkeypatch):
+    """Precedence: environment, then the saved setting, then the hint.
+
+    The installer records a checkout it found so the first launch is
+    already configured. It must never outrank a choice the author made:
+    a hint is what the machine guessed, and the settings file is what a
+    person decided.
+    """
+    hint = tmp_path / "hinted"
+    (hint / "courses").mkdir(parents=True)
+    saved = tmp_path / "chosen"
+    (saved / "courses").mkdir(parents=True)
+
+    monkeypatch.setattr(core, "installer_hint", lambda: hint)
+    monkeypatch.delenv("PCM_REPO", raising=False)
+
+    # Nothing saved: the hint is used.
+    monkeypatch.setattr(providers, "load_settings", lambda: {"pcmRepo": ""})
+    assert core._resolve_repo_root() == hint.resolve()
+
+    # The author picked one: the hint loses.
+    monkeypatch.setattr(providers, "load_settings", lambda: {"pcmRepo": str(saved)})
+    assert core._resolve_repo_root() == saved.resolve()
+
+    # The environment beats both.
+    monkeypatch.setenv("PCM_REPO", str(tmp_path / "from-env"))
+    assert core._resolve_repo_root() == (tmp_path / "from-env").resolve()
+
+
+def test_a_hint_pointing_at_nothing_is_ignored(tmp_path, monkeypatch):
+    # A folder that has since moved or been deleted must not become the
+    # answer - the first-run screen is a better outcome than an editor
+    # pointed at a path that is not there.
+    monkeypatch.delenv("PCM_REPO", raising=False)
+    monkeypatch.setattr(providers, "load_settings", lambda: {"pcmRepo": ""})
+    monkeypatch.setattr(core, "installer_hint", lambda: tmp_path / "gone")
+    assert core._resolve_repo_root() == core.DEFAULT_REPO.resolve()

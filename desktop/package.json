@@ -6,6 +6,7 @@
   "scripts": {
     "build:ui": "npm --prefix .. run build",
     "fetch:python": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-python.ps1",
+    "fetch:runtimes": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-runtimes.ps1",
     "stage:app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-app.ps1",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

@@ -18,6 +18,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,48 @@ EDITOR_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPO = EDITOR_ROOT.parent / "Pentaho-Content-Manager"
 
 
+def installer_hint() -> Path | None:
+    """A checkout the installer found, recorded machine-wide.
+
+    The installer's "Find my Content Manager courses" component writes
+    it to HKLM rather than to the settings file, and that is forced: an
+    elevated installer's %APPDATA% belongs to the ELEVATING account,
+    which on a managed laptop is an admin who will never run the editor.
+    So it leaves a hint where any account can read it, and the app -
+    running as the actual author - decides what to do with it.
+
+    Never authoritative. It sits below the environment and the author's
+    own saved choice, and a hint pointing at a folder that has since
+    moved is simply ignored.
+    """
+    if sys.platform != "win32":
+        return None
+    try:
+        import winreg
+    except ImportError:
+        return None
+    # Both registry VIEWS, and that is not belt-and-braces for its own
+    # sake. An NSIS installer is a 32-bit process, so the PowerShell it
+    # launches writes HKLM\SOFTWARE into the WOW6432Node mirror; a
+    # 64-bit reader looking only at the native view sees nothing and the
+    # editor asks on first run anyway. The installer writes the 64-bit
+    # view explicitly now, and this still reads both - an install from an
+    # older build left its hint in the other one.
+    views = (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY)
+    for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+        for view in views:
+            try:
+                with winreg.OpenKey(
+                    hive, r"SOFTWARE\Pentaho\ContentEditor", 0, winreg.KEY_READ | view
+                ) as key:
+                    value, _ = winreg.QueryValueEx(key, "PcmRepo")
+            except OSError:
+                continue
+            if value:
+                return Path(str(value)).expanduser()
+    return None
+
+
 def _resolve_repo_root() -> Path:
     from_env = os.environ.get("PCM_REPO")
     if from_env:
@@ -60,6 +103,9 @@ def _resolve_repo_root() -> Path:
     saved = providers.load_settings().get("pcmRepo")
     if saved:
         return Path(str(saved)).expanduser().resolve()
+    hint = installer_hint()
+    if hint and (hint / "courses").is_dir():
+        return hint.resolve()
     return DEFAULT_REPO.resolve()
 
 
