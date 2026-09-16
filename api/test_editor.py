@@ -609,6 +609,10 @@ def test_setup_names_what_each_missing_piece_costs(env, client, monkeypatch):
 
 def test_node_is_resolved_at_call_time_with_a_bundle_winning(tmp_path, monkeypatch):
     monkeypatch.setattr(tools, "BUNDLE_DIR", tmp_path)
+    # No Content Manager install in this test's world, or the real one on
+    # the developer's machine answers and the assertions below are about
+    # somebody else's disk.
+    monkeypatch.setattr(tools, "pcm_install", lambda: None)
     monkeypatch.setattr(tools.shutil, "which", lambda name: rf"C:\path\{name}.exe")
     # Nothing bundled: PATH answers.
     assert tools.node() == r"C:\path\node.exe"
@@ -618,6 +622,46 @@ def test_node_is_resolved_at_call_time_with_a_bundle_winning(tmp_path, monkeypat
     (bundled / "node.exe").write_text("")
     assert tools.node() == str(bundled / "node.exe")
     assert tools.status()["node"]["bundled"] is True
+
+
+def test_the_content_manager_install_answers_before_path(tmp_path, monkeypatch):
+    """Where both runtimes come from now.
+
+    The editor stopped vendoring Node and git: the learner app installs
+    both, it is the one-time install of the pair, and two apps side by
+    side were carrying two copies of the same 177 MB. So its install is
+    searched between the (empty) bundle seam and PATH.
+    """
+    pcm = tmp_path / "Pentaho Content Manager"
+    (pcm / "mingit" / "cmd").mkdir(parents=True)
+    (pcm / "mingit" / "cmd" / "git.exe").write_text("")
+    (pcm / "node").mkdir()
+    (pcm / "node" / "node.exe").write_text("")
+    monkeypatch.setattr(tools, "BUNDLE_DIR", tmp_path / "nothing-bundled")
+    monkeypatch.setattr(tools, "pcm_install", lambda: pcm)
+    monkeypatch.setattr(tools.shutil, "which", lambda name: rf"C:\path\{name}.exe")
+
+    assert tools.git() == str(pcm / "mingit" / "cmd" / "git.exe")
+    assert tools.node() == str(pcm / "node" / "node.exe")
+    assert tools.status()["git"]["source"] == "content-manager"
+    assert tools.status()["node"]["source"] == "content-manager"
+
+    # A Content Manager from before it vendored Node has no node\, and
+    # that must degrade to PATH rather than to nothing - every install
+    # of the learner app predating this change is in that state.
+    (pcm / "node" / "node.exe").unlink()
+    assert tools.node() == r"C:\path\node.exe"
+    assert tools.status()["node"]["source"] == "path"
+    assert tools.status()["git"]["source"] == "content-manager"
+
+
+def test_the_content_manager_can_be_pointed_at_without_the_registry(tmp_path, monkeypatch):
+    # For a portable copy, and so this suite never depends on what is
+    # installed on the machine running it.
+    monkeypatch.setenv("PCM_INSTALL_DIR", str(tmp_path))
+    assert tools.pcm_install() == tmp_path
+    monkeypatch.setenv("PCM_INSTALL_DIR", str(tmp_path / "not-there"))
+    assert tools.pcm_install() is None
 
 
 def test_missing_node_explains_what_still_works(env, client, monkeypatch):

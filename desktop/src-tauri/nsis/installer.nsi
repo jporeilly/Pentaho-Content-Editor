@@ -767,15 +767,17 @@ SectionEnd
 ; installers could. What "Minimal" buys is a machine nothing was done
 ; to beyond laying the app down.
 
-; Reference-only. Node and git ship as bundled resources installed by
-; the hidden section above, so they are always present - the editor
-; shells out to both, and an author who cannot scaffold or publish is
-; the wall this packaging exists to remove. SectionIn RO renders the
-; entry ticked and greyed out, so the components page SHOWS what is
-; carried rather than implying a choice that is not offered.
-Section "Node.js and git runtimes (bundled)" SecRuntimes
-  SectionIn RO
-SectionEnd
+; There is no runtimes component any more, and its absence is the point:
+; the editor carries neither Node nor git. The CONTENT MANAGER ships
+; both, it is the one-time install of the pair, and api/tools.py looks
+; there before PATH. Two apps installed side by side were carrying two
+; copies of the same 177 MB - which is also six of the nine minutes a
+; build took, since NSIS recompresses the payload every time.
+;
+; The version is the reason it belongs over there rather than here: the
+; editor scaffolds and verifies by running THAT repository's scripts,
+; and verify-course.mjs needs the Node its own .nvmrc pins. One copy,
+; owned by the repo that sets the requirement, cannot drift from it.
 
 ; Full only. The editor edits a Content Manager CHECKOUT, and on a fresh
 ; machine it has no way to guess where that is - the first-run screen
@@ -852,7 +854,6 @@ Section "Ollama runtime (local AI, keeps text on this machine)" SecOllama
 SectionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecRuntimes} "Always installed. The editor runs the Content Manager's authoring scripts with this bundled Node, and publishes with this bundled git, so neither is needed on the machine."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDetect} "Look for a Content Manager checkout on this machine and record it, so the editor opens straight into your courses."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecOllama} "Local AI runtime for the review, rewrite and assistant - it keeps your lab text on this machine. Installed only if missing; no model is pulled."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END

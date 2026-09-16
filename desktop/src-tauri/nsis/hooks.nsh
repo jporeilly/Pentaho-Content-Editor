@@ -29,6 +29,12 @@
   ; dead weight that also blocks the eventual uninstall.
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\python"
+  ; tools\ is not in this build at all - 1.9.0 through 1.12.0 vendored
+  ; Node and git, and they now come from the Content Manager's install
+  ; instead. Nothing puts this back, so without the line an upgrade
+  ; leaves 177 MB of runtimes nobody will ever look for, and the
+  ; uninstaller cannot remove a directory it never shipped.
+  RMDir /r "$INSTDIR\tools"
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL

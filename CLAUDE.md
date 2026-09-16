@@ -376,20 +376,25 @@ invisible from a checkout:
   `needsSetup`, `/api/setup` carries the detail, and `set_repo_root()`
   rebinds `REPO_ROOT`/`COURSES_DIR` live — which works only because every
   route reads them as attributes at call time. Keep it that way.
-* **`node` and `git` are resolved through `tools.py`,** bundled copy
-  first then PATH — the shape the Content Manager uses for its MinGit.
-  Both ARE bundled now (`desktop/scripts/fetch-runtimes.ps1`, 177 MB of
-  the installer's 287 MB payload), so a Full install scaffolds, verifies
-  and publishes on a machine carrying neither. The resolver is what made
-  that a vendoring job rather than a rework, and it still falls back to
-  PATH — which is why a Minimal install behaves exactly as before and the
-  first-run screen can still say which four buttons will be dark.
-  **The Node version is not a free choice:** the Content Manager's
-  `verify-course.mjs` imports a TypeScript module directly, which needs
-  Node 24's native type stripping, so the fetch script reads that repo's
-  `.nvmrc` rather than pinning its own. Vendoring 22.14 produced an
+* **`node` and `git` are resolved through `tools.py`** — a bundled copy,
+  then **the Content Manager's install**, then PATH. This editor bundles
+  neither. It did from 1.9.0 to 1.12.0, and 177 MB of a 287 MB payload
+  was two runtimes the learner app installs anyway: the Content Manager
+  is the one-time install of the pair, it already vendored MinGit for its
+  own course sync, and it now vendors Node as well
+  (`<PCM>/scripts/fetch-node.ps1`). Two apps side by side were carrying
+  two copies of the same files, which was also six of the nine minutes a
+  build took, since NSIS recompresses the payload every time.
+  **The Node version is why it belongs over there:** the editor scaffolds
+  and verifies by running that repo's scripts, and `verify-course.mjs`
+  imports a TypeScript module directly, so it needs the Node 24 that repo
+  pins in its own `.nvmrc`. One copy, owned by the repo that sets the
+  requirement, cannot drift from it — vendoring 22.14 here produced an
   installed editor whose Verify died with `ERR_UNKNOWN_FILE_EXTENSION`
-  while the same command worked from a checkout.
+  while the same command worked from a checkout. The bundle seam stays,
+  so dropping a `tools/` directory in turns vendoring back on with no
+  code change, and PATH still catches a machine whose Content Manager
+  predates the change.
 
 Two things about the installer are **deliberate differences from the
 learner app's template**, which `desktop/src-tauri/nsis/installer.nsi`

@@ -15,6 +15,37 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.13.0] - 2026-09-16
+
+### Changed
+
+- **The editor stops vendoring Node and git; the Content Manager ships
+  both.** They arrived in 1.9.0 and were 177 MB of a 287 MB payload —
+  two copies of files the learner app installs anyway, since it is the
+  one-time install of the pair and already vendored MinGit for its own
+  course sync. It now vendors Node too, and `api/tools.py` looks there
+  between the bundle seam and PATH. The installer drops from 75 MB to
+  about 35, and a build from roughly nine minutes to three, because
+  almost all of that time was NSIS recompressing the same 287 MB on
+  every build.
+  **The version is why Node belongs over there rather than here:** the
+  editor scaffolds and verifies by running that repository's scripts,
+  and `verify-course.mjs` imports a TypeScript module directly, so it
+  needs the Node 24 that repository's own `.nvmrc` pins. One copy, owned
+  by the repo that sets the requirement, cannot disagree with the
+  scripts it runs — two copies already had, in 1.9.0.
+  Nothing is lost on a machine whose Content Manager predates this:
+  PATH still answers, and the first-run screen still names the four
+  buttons that go dark without Node. `/api/setup` now also reports
+  **where** each tool came from — bundled, the Content Manager's, or
+  PATH — because "the Content Manager's" disappears if the learner app
+  is uninstalled, and that is worth being able to see.
+- The upgrade clears the 177 MB of runtimes a 1.9.0–1.12.0 install left
+  behind. Nothing in this build writes that directory, so nothing in it
+  would have removed it either, and an uninstaller cannot delete a tree
+  it never shipped.
+
+
 ## [1.12.0] - 2026-09-16
 
 ### Added

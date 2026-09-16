@@ -1,10 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2.0.0",
   "productName": "Pentaho Content Editor",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "identifier": "com.pentaho.content-editor",
   "build": {
-    "beforeBuildCommand": "npm run fetch:python && npm run fetch:runtimes && npm run stage:app",
+    "beforeBuildCommand": "npm run fetch:python && npm run stage:app",
     "frontendDist": "../dist"
   },
   "app": {
@@ -40,7 +40,6 @@
     "resources": {
       "vendor/python": "python",
       "vendor/app": "app",
-      "vendor/tools": "tools",
       "../scripts/find-courses.ps1": "provisioning/find-courses.ps1",
       "../scripts/install-ollama.ps1": "provisioning/install-ollama.ps1"
     },

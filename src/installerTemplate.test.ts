@@ -25,6 +25,40 @@ const NSI = fileURLToPath(
 );
 const template = readFileSync(NSI, "utf8");
 
+describe("what the installer carries", () => {
+  const conf = JSON.parse(
+    readFileSync(
+      fileURLToPath(new URL("../desktop/src-tauri/tauri.conf.json", import.meta.url)),
+      "utf8",
+    ),
+  );
+  const hooks = readFileSync(
+    fileURLToPath(new URL("../desktop/src-tauri/nsis/hooks.nsh", import.meta.url)),
+    "utf8",
+  );
+
+  it("ships no Node and no git", () => {
+    // They came out because the Content Manager installs both and is the
+    // one-time install of the pair: two apps side by side were carrying
+    // two copies of the same 177 MB, which was also six of the nine
+    // minutes a build took. api/tools.py looks there before PATH.
+    expect(Object.keys(conf.bundle.resources)).not.toContain("vendor/tools");
+    expect(conf.build.beforeBuildCommand).not.toContain("fetch:runtimes");
+  });
+
+  it("clears the runtimes a previous version left behind", () => {
+    // 1.9.0 through 1.12.0 installed them. Nothing in this build writes
+    // that directory, so nothing in this build would remove it either -
+    // an upgrade would strand 177 MB, and the uninstaller cannot delete
+    // a tree it never shipped.
+    const pre = hooks.slice(
+      hooks.indexOf("NSIS_HOOK_PREINSTALL"),
+      hooks.indexOf("NSIS_HOOK_POSTUNINSTALL"),
+    );
+    expect(pre).toContain('RMDir /r "$INSTDIR\\tools"');
+  });
+});
+
 describe("the course-detection component", () => {
   const section = template.slice(
     template.indexOf('Section "Find my Content Manager courses"'),

@@ -1,12 +1,11 @@
 {
   "name": "pentaho-content-editor-desktop",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "private": true,
   "description": "Windows desktop shell for the Pentaho Content Editor",
   "scripts": {
     "build:ui": "npm --prefix .. run build",
     "fetch:python": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-python.ps1",
-    "fetch:runtimes": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fetch-runtimes.ps1",
     "stage:app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-app.ps1",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
