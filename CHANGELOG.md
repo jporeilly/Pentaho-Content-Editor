@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.7.0] - 2026-09-16
+
 ### Added
 
 - **Apply a review finding with the AI.** A located finding gets an
@@ -46,6 +50,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   (`core.grounded_prompt`): instructions, then the grounding labelled
   REFERENCE ONLY, then the content fenced and last. All four grounded
   call sites use it — rewrite, review, lab generation and import.
+
 
 ## [1.6.0] - 2026-09-16
 
