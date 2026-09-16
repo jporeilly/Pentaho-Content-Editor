@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.8.0] - 2026-09-16
+
 ### Added
 
 - **The first-run screen offers the checkouts it can find**, instead of
@@ -27,6 +31,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
+- **The desktop shell's splash no longer hangs in front of a working
+  app.** Its readiness probe sent bare LF line endings, which are not
+  HTTP: uvicorn's httptools parser — pulled in by the
+  `uvicorn[standard]` extra this app vendors — answered every probe with
+  400 Bad Request and logged "Invalid HTTP request received", so
+  `server_ready` never went true and the window sat on "Starting the
+  bundled Python runtime" forever. The backend was up and healthy the
+  whole time; curl got a 200 and the UI rendered fine in a browser, which
+  is exactly why it survived verification. Inherited from the sibling
+  app's shell, where the identical code works because that app vendors
+  plain `uvicorn` and its pure-Python parser tolerates bare LF.
 - **`index.html` is never cached.** Its asset references are
   content-hashed, so a cached copy outlives the files it points at — and
   after an upgrade a webview holding the old one asks for a bundle that
@@ -34,6 +49,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   opens. Met in the flesh while verifying the screen above: a stale index
   served a JS file that no longer existed, and the feature looked broken
   when it was not.
+
 
 ## [1.7.2] - 2026-09-16
 

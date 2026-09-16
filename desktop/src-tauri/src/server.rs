@@ -87,13 +87,21 @@ pub fn http_ok(port: u16, path: &str) -> bool {
         return false;
     };
     let _ = stream.set_read_timeout(Some(Duration::from_secs(3)));
-    let req = format!(
-        "GET {path} HTTP/1.1
-Host: 127.0.0.1
-Connection: close
-
-"
-    );
+    // CRLF, and it matters. This is a real HTTP request to a real
+    // server: bare LF line endings are not HTTP, and uvicorn's httptools
+    // parser - pulled in by the `uvicorn[standard]` extra this app
+    // vendors - rejects them outright with 400 Bad Request, logging
+    // "Invalid HTTP request received" once per poll.
+    //
+    // The failure is perfectly disguised. The backend is UP and healthy,
+    // curl gets a 200, the UI renders in a browser - but server_ready
+    // never goes true, so the shell's splash spins in front of a working
+    // app forever, with its own log filling with warnings.
+    //
+    // The sibling app runs this same code and is fine, which is what
+    // hid it: it vendors plain `uvicorn`, whose pure-Python h11 parser
+    // tolerates bare LF. Same shell, different parser, different verdict.
+    let req = format!("GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
     if stream.write_all(req.as_bytes()).is_err() {
         return false;
     }
