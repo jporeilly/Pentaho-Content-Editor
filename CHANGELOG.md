@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.7.2] - 2026-09-16
+
 ### Changed
 
 - **The icon generator tie to the Content Manager is cut.** The app icon
@@ -32,6 +36,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   apps never hit this because their UI builds to `frontend/dist`, leaving
   the root free. Renaming the bundle is what makes `dist/` mean here what
   it means everywhere else.
+
 
 ## [1.7.1] - 2026-09-16
 
