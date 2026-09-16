@@ -13,7 +13,19 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Left-aligned** joins Centred and Right-aligned in the Text menu. It
+  is the default alignment, which is exactly why it was missing — and
+  why it was needed: its job is taking a paragraph back OUT of one of
+  the other two, and without it the only way out was deleting the markup
+  by hand.
+- **XML and HTML are separate entries in the Code menu.** One grammar
+  still highlights both — `html` is an alias of `xml` — but the label
+  and the badge are what an author and a learner actually read, and a
+  PDI transformation step and a snippet of page markup are not the same
+  thing. The registry lives in the Content Manager, so the change is
+  there; both halves of the two-repo contract still pass.
 
 ## [1.11.0] - 2026-09-16
 

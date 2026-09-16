@@ -161,6 +161,12 @@ export const BLOCKS: Block[] = [
   { group: "Text", label: "Attention", title: "Flag something inline that matters",
     build: (s) => ({ text: `<span class="pcm-attn">${s || "do not skip this"}</span>` }) },
   // Blank lines inside the wrapper are load-bearing, as with the images.
+  // Left is here despite being the default: it is what takes a paragraph
+  // back OUT of a centred or right-aligned wrapper, and an author who
+  // has just used one of those two looks for its opposite in the same
+  // menu rather than deleting markup by hand.
+  { group: "Text", label: "Left-aligned", title: "Left-align a paragraph",
+    build: (s) => ({ text: `<div align="left">\n\n${s || "Left-aligned text."}\n\n</div>\n\n` }) },
   { group: "Text", label: "Centred", title: "Centre a paragraph",
     build: (s) => ({ text: `<div align="center">\n\n${s || "Centred text."}\n\n</div>\n\n` }) },
   { group: "Text", label: "Right-aligned", title: "Right-align a paragraph",
