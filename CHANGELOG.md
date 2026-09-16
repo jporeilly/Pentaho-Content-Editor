@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.9.0] - 2026-09-16
+
 ### Fixed
 
 - **The AI review showed raw JSON instead of findings.** One finding in
@@ -65,6 +69,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   may not be up. Every unusable state — no git, not a checkout, no
   upstream, unreachable remote — is a state the pill renders rather than
   an error that interrupts editing.
+
 
 ## [1.8.0] - 2026-09-16
 
