@@ -209,6 +209,63 @@ fn restart_server(handle: tauri::AppHandle, state: State<'_, AppState>) -> bool 
     }
 }
 
+/// Show the main window, whenever it is that we want to be seen.
+///
+/// The window is configured `visible: false` and every path to the
+/// screen comes through here. The backend answers in about 1.4 seconds
+/// from a cold start on this machine, which is short enough that a
+/// progress screen for it is an interruption rather than information:
+/// the learner app it sits beside has no such screen, because it has no
+/// backend to wait for, and the author should not be able to tell the
+/// difference.
+///
+/// So the splash still loads, still polls, and still holds every
+/// diagnostic it earned - it is simply not SHOWN unless it has something
+/// to say. Three things can reveal the window, and the last one is the
+/// safety net that makes the other two safe to get wrong:
+///
+///   * the splash, a beat after it navigates to the app (a working
+///     start: what appears is the editor, already drawn);
+///   * the splash, at once, when it has failed or given up;
+///   * the watchdog below, come what may.
+fn reveal_now(handle: &tauri::AppHandle) {
+    if let Some(window) = handle.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
+#[tauri::command]
+fn reveal(handle: tauri::AppHandle) {
+    reveal_now(&handle);
+}
+
+/// Reveal shortly, not now: called just BEFORE the splash navigates, so
+/// the window opens onto a painted editor rather than the white frame of
+/// a page that has only just started loading.
+#[tauri::command]
+fn reveal_soon(handle: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(650));
+        reveal_now(&handle);
+    });
+}
+
+/// Nothing may leave the author staring at an empty taskbar.
+///
+/// A hidden window is a promise to show it, and every promise here runs
+/// through JavaScript in a webview that might itself be the thing that
+/// is broken. This thread keeps that promise unconditionally: it knows
+/// nothing about the backend, asks nobody, and fires from the moment the
+/// app starts. Worst case the splash appears after two and a half
+/// seconds - which is exactly the case where the author wants it.
+fn reveal_watchdog(handle: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(2500));
+        reveal_now(&handle);
+    });
+}
+
 /// Open the editor's own data folder in Explorer - where settings.json
 /// lives once the install tree is read-only. Typing an %APPDATA% path by
 /// hand is nobody's idea of a good time.
@@ -361,10 +418,13 @@ fn main() {
             save_report,
             llm_suggest,
             restart_server,
-            open_state_dir
+            open_state_dir,
+            reveal,
+            reveal_soon
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
+            reveal_watchdog(handle.clone());
             let resource_dir = strip_verbatim(&handle.path().resource_dir().unwrap_or_default());
             let app_dir = app_dir(&handle);
             let boot_py = boot_py(&handle);

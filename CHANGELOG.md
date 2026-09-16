@@ -15,6 +15,69 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.11.0] - 2026-09-16
+
+### Changed
+
+- **The install stops to tell you whether it found your courses.** The
+  "Find my Content Manager courses" component used to print a line into
+  a details pane nobody reads and move on; now it reads the hint back
+  out of the registry — from the 64-bit view, the one the app itself
+  reads — confirms the folder really holds a `courses/`, and shows the
+  answer. That read-back is the check that would have caught the bug
+  this component shipped with: a 32-bit installer's PowerShell writes
+  HKLM into WOW6432Node, so the scan succeeded, the install said so, and
+  the editor read an empty key and asked on first run anyway. An exit
+  code says the script thought it worked; only reading the value back
+  says it did. All three outcomes — connected, nothing found, recorded
+  but empty — are reported, and every dialog is behind the same guard,
+  because an unattended install that stops on a dialog is one that never
+  finishes.
+
+
+## [1.10.0] - 2026-09-16
+
+### Changed
+
+- **No splash on a normal start.** The window stays hidden while the
+  backend comes up and opens onto the editor already drawn — the learner
+  app has no startup screen, and the author should not be able to tell
+  which of the two has a server behind it. The backend answers in about
+  1.4 seconds from cold on this machine, which is too short to be worth
+  narrating. Nothing was deleted: the splash still loads and still polls,
+  and it still holds the diagnostics, the restart button and the log —
+  it is shown only when it has something to say. Three paths reveal the
+  window, and the third is what makes the first two safe: a beat after
+  the splash hands over to the app, at once when it fails, and
+  unconditionally after two and a half seconds by a watchdog that asks
+  nobody and knows nothing about the backend.
+- **A fast build for iterating: `npm run dist:fast`.** A full build was
+  526 seconds, and 516 of them were NSIS compressing 287 MB of vendored
+  Python, Node and git into a 75 MB installer with solid LZMA. Cargo is
+  five seconds of it and the UI seven, so nothing about the code was
+  ever the problem. The fast build swaps the compressor for zlib, which
+  trades installer size for turnaround; `npm run dist` is unchanged and
+  stays the one that ships.
+
+
+## [1.9.1] - 2026-09-16
+
+### Fixed
+
+- **Uninstalling deleted the author's settings.** The uninstall page
+  offers to remove the application data, and the installer template — the
+  learner app's, adopted wholesale in 1.8.0 so both install the same way
+  — ticks that box by default. For a learner it is the right default:
+  the folder holds course progress, and a reinstall means starting over.
+  Here it holds the LLM provider, the model and the path to the Content
+  Manager checkout, so an uninstall on the way to a newer build threw
+  away configuration nobody had asked it to touch, and the author found
+  out at the first-run screen. Unticked by default now; anyone who wants
+  a clean slate can still ask for one. Pinned by
+  `src/installerTemplate.test.ts`, because re-syncing the template from
+  the app would restore the old default without a word.
+
+
 ## [1.9.0] - 2026-09-16
 
 ### Fixed
@@ -31,7 +94,8 @@ Nothing yet.
 - The uninstaller removes the bundled runtimes, the provisioning scripts
   and the machine-wide registry hint it wrote. The author's settings in
   `%APPDATA%` stay, deliberately — that is what lets a reinstall come
-  back already configured.
+  back already configured. (Not actually true in this release: the
+  uninstall page's own checkbox deleted them anyway. Fixed in 1.9.1.)
 
 ### Added
 

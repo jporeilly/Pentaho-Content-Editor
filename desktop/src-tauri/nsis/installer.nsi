@@ -441,12 +441,21 @@ Function un.ConfirmShow ; Add add a `Delete app data` check box
   Pop $DeleteAppDataCheckbox
   SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $1
   SendMessage $DeleteAppDataCheckbox ${WM_SETFONT} $1 1
-  ; Default CHECKED: a fresh install after an uninstall must start the
-  ; course from the beginning (progress lives in $APPDATA, the webview's
-  ; localStorage under $LOCALAPPDATA). Learners can untick to keep
-  ; progress. Updates and additive course installs never reach this
-  ; (guarded by $UpdateMode above), so multi-course setups are safe.
-  SendMessage $DeleteAppDataCheckbox ${BM_SETCHECK} ${BST_CHECKED} 0
+  ; Default UNCHECKED, and this is the one line where the editor parts
+  ; company with the learner app whose installer this is.
+  ;
+  ; There, checked is right: a reinstall means starting the course over,
+  ; and progress is all that $APPDATA holds. Here the same folder holds
+  ; the AUTHOR'S SETUP - the LLM provider and model, and the path to
+  ; their Content Manager checkout (api/paths.py, pointed at it through
+  ; EDITOR_STATE_DIR). An uninstall on the way to a newer build has not
+  ; been asked to throw that away, and the author only finds out that it
+  ; did when the first-run screen asks for the folder again.
+  ;
+  ; Adopted checked along with the rest of the template, and it took the
+  ; settings of an installed 1.8.0 with it. Anyone who does want a clean
+  ; slate can still tick it.
+  SendMessage $DeleteAppDataCheckbox ${BM_SETCHECK} ${BST_UNCHECKED} 0
 FunctionEnd
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE un.ConfirmLeave
 Function un.ConfirmLeave
@@ -783,8 +792,47 @@ Section "Find my Content Manager courses" SecDetect
   DetailPrint "Looking for a Pentaho Content Manager checkout..."
   nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\provisioning\find-courses.ps1"'
   Pop $0
+
+  ; Read the hint BACK before claiming anything, and read it the way the
+  ; APP will: from the 64-bit view.
+  ;
+  ; This is the one check that would have caught the bug this component
+  ; shipped with. NSIS installers are 32-bit, so the PowerShell they
+  ; launch is the SysWOW64 one and its HKLM\SOFTWARE writes are
+  ; redirected into WOW6432Node. The scan ran, the script reported
+  ; success, the install said it had found the courses - and the 64-bit
+  ; editor read an empty key and asked on first run anyway. An exit code
+  ; says the script thought it worked; only reading the value back from
+  ; the app's own view says it did.
+  SetRegView 64
+  ReadRegStr $1 HKLM "SOFTWARE\Pentaho\ContentEditor" "PcmRepo"
+  SetRegView default
+
   ${If} $0 <> 0
+  ${OrIf} $1 == ""
     DetailPrint "No checkout found - the editor will ask on first run."
+    ${If} $PassiveMode <> 1
+    ${AndIfNot} ${Silent}
+      MessageBox MB_OK|MB_ICONINFORMATION "No Pentaho Content Manager checkout was found on this machine.$\r$\n$\r$\nThat is not a problem: the editor asks for the folder the first time it runs, and offers whatever it can find then.$\r$\n$\r$\nThe editor edits the Content Manager's courses, so it does need one eventually."
+    ${EndIf}
+  ${ElseIfNot} ${FileExists} "$1\courses\*.*"
+    ; Recorded, but not actually there - a stale hint helps nobody.
+    DetailPrint "Recorded $1, but it has no courses directory."
+    ${If} $PassiveMode <> 1
+    ${AndIfNot} ${Silent}
+      MessageBox MB_OK|MB_ICONEXCLAMATION "A Content Manager folder was recorded, but it has no courses directory:$\r$\n$\r$\n$1$\r$\n$\r$\nThe editor will ask for the right folder on first run."
+    ${EndIf}
+  ${Else}
+    DetailPrint "Connected to the Content Manager courses at $1"
+    ; Deliberately a pause, not a line in the log nobody reads. This is
+    ; the only moment in the install where something MIGHT have gone
+    ; wrong in a way the author can still act on cheaply - the courses
+    ; are the whole point of the editor, and being told now beats
+    ; finding out when the app opens on an empty course list.
+    ${If} $PassiveMode <> 1
+    ${AndIfNot} ${Silent}
+      MessageBox MB_OK|MB_ICONINFORMATION "Connected to your Content Manager courses:$\r$\n$\r$\n$1$\r$\n$\r$\nThe editor will open straight into them. You can point it somewhere else at any time from the editor itself."
+    ${EndIf}
   ${EndIf}
 SectionEnd
 

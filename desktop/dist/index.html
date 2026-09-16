@@ -147,6 +147,9 @@
   function fail(reason) {
     if (failed) return;
     failed = true;
+    // Now it has something to say, so now it is worth showing. The
+    // window is hidden until one of these two moments.
+    invoke("reveal").catch(function () {});
     wrap.className = "wrap is-bad";
     msg.textContent = reason;
     actions.hidden = false;
@@ -193,6 +196,11 @@
         invoke("server_ready").then(function (ready) {
           if (!ready) { setTimeout(poll, 400); return; }
           msg.textContent = "Ready";
+          // Ask for the window a beat before handing the webview to the
+          // editor: on a normal start nothing here is ever seen, and
+          // what opens is the app, drawn. Rust holds the delay because
+          // this page is about to stop existing.
+          invoke("reveal_soon").catch(function () {});
           setTimeout(function () { window.location.replace(url); }, 250);
         }).catch(function () { setTimeout(poll, 400); });
       }).catch(function () { setTimeout(poll, 400); });

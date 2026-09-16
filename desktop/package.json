@@ -1,6 +1,6 @@
 {
   "name": "pentaho-content-editor-desktop",
-  "version": "1.9.0",
+  "version": "1.11.0",
   "private": true,
   "description": "Windows desktop shell for the Pentaho Content Editor",
   "scripts": {
@@ -11,8 +11,10 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "tauri:build:fast": "tauri build --config src-tauri/tauri.fast.conf.json",
     "collect": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/collect-installer.ps1",
-    "dist": "npm run build:ui && npm run stage:app && npm run tauri:build && npm run collect"
+    "dist": "npm run build:ui && npm run stage:app && npm run tauri:build && npm run collect",
+    "dist:fast": "npm run build:ui && npm run stage:app && npm run tauri:build:fast && npm run collect"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0"
