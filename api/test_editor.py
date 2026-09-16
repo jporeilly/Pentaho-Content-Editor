@@ -631,7 +631,7 @@ def test_the_built_ui_is_served_only_once_it_is_built(tmp_path):
     from fastapi import FastAPI
     import app as appmod
 
-    # No dist/ - a checkout mid-development, where Vite serves the UI.
+    # Nothing built - a checkout mid-development, where Vite serves it.
     assert appmod.mount_ui(FastAPI(), tmp_path) is False
 
     (tmp_path / "index.html").write_text("<!doctype html><title>editor</title>", encoding="utf-8")

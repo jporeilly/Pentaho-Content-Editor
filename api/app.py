@@ -68,13 +68,15 @@ def health() -> dict[str, Any]:
 # Packaged, the editor is ONE process on ONE port: uvicorn serves the API
 # and the SPA that calls it, which is also what makes the frontend's
 # relative API base work (see .env.production). From a checkout there is
-# usually no dist/, and Vite serves the UI on 5273 with its own hot
+# usually no ui/, and Vite serves it on 5273 with its own hot
 # reload — so this mount appears only when the build output is actually
 # there, and the dev flow is untouched either way.
 #
 # Mounted LAST, after every router: it answers "/" and everything below
 # it, so anything registered afterwards would be shadowed by the SPA.
-DIST_DIR = core.EDITOR_ROOT / "dist"
+# The built UI. Named ui/ rather than dist/ because dist/ holds built
+# INSTALLERS here, as it does across this suite (vite.config.ts says why).
+DIST_DIR = core.EDITOR_ROOT / "ui"
 
 
 def mount_ui(target: FastAPI, dist: Path) -> bool:
@@ -102,7 +104,7 @@ def mount_ui(target: FastAPI, dist: Path) -> bool:
         The editor has no client-side router today, but a reload on a
         deep link must not 404, and a missing asset must not silently
         return index.html with a 200 — hence the file check first, and
-        the containment check so `..` cannot walk out of dist/.
+        the containment check so `..` cannot walk out of the UI root.
         """
         # An unknown /api path is a 404, not the SPA. Answering HTML
         # with a 200 to a mistyped endpoint turns a clear failure into a

@@ -59,7 +59,7 @@ machine needs none. No venv, no `pip install`, no two terminals.
 ```powershell
 cd desktop
 npm install          # once
-npm run dist         # -> installers\Pentaho Content Editor_<version>_x64-setup.exe
+npm run dist         # -> dist\Pentaho Content Editor_<version>_x64-setup.exe
 ```
 
 The installed editor asks on first run where your Content Manager

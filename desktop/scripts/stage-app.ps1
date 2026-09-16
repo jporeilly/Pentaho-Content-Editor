@@ -10,10 +10,10 @@
 
         app\boot.py         (desktop launcher - see desktop\boot.py)
         app\api\app.py
-        app\dist\index.html
+        app\ui\index.html
 
     That is not cosmetic. app.py resolves the built UI as
-    EDITOR_ROOT/dist - one level up from api\ - so flattening the two
+    EDITOR_ROOT/ui - one level up from api\ - so flattening the two
     into a single directory would leave the server running with no UI to
     serve, which looks exactly like a crash and is not one.
 
@@ -51,10 +51,10 @@ Set-StrictMode -Version Latest
 $desktopDir = Split-Path -Parent $PSScriptRoot
 $repoRoot   = Split-Path -Parent $desktopDir
 $srcApi     = Join-Path $repoRoot "api"
-$srcUi      = Join-Path $repoRoot "dist"
+$srcUi      = Join-Path $repoRoot "ui"
 $stageDir   = Join-Path $desktopDir "src-tauri\vendor\app"
 $stageApi   = Join-Path $stageDir "api"
-$stageUi    = Join-Path $stageDir "dist"
+$stageUi    = Join-Path $stageDir "ui"
 
 function Ok($m)   { Write-Host "  [ok] $m" -ForegroundColor Green }
 function Warn($m) { Write-Host "  [!]  $m" -ForegroundColor Yellow }
@@ -66,7 +66,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $srcApi "app.py"))) {
     throw "api\app.py not found - is $repoRoot the repo root?"
 }
 if (-not (Test-Path -LiteralPath (Join-Path $srcUi "index.html"))) {
-    throw "dist\index.html not found - run 'npm run build' in the repo root first"
+    throw "ui\index.html not found - run 'npm run build' in the repo root first"
 }
 
 if (Test-Path -LiteralPath $stageDir) { Remove-Item -LiteralPath $stageDir -Recurse -Force }
@@ -86,8 +86,10 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed staging the api package (exit $LASTEXITCODE)" }
 
 # /XF *.exe: the UI is HTML, CSS and JavaScript. Anything executable in
-# dist\ arrived by accident - as a collected installer did once, putting
-# a 29 MB copy of the installer inside the installer.
+# there arrived by accident - as a collected installer did once, when the
+# UI and the installers shared dist\, putting a 29 MB copy of the
+# installer inside the installer. They no longer share a folder; the
+# exclude stays because it costs nothing and that mistake was expensive.
 & robocopy $srcUi $stageUi "/E" "/NFL" "/NDL" "/NJH" "/NJS" "/NP" "/XF" "*.exe" | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed staging the UI (exit $LASTEXITCODE)" }
 

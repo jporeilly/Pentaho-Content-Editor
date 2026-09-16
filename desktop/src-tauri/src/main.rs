@@ -69,7 +69,7 @@ fn strip_verbatim(p: &Path) -> PathBuf {
     p.to_path_buf()
 }
 
-/// Where the app root (api/ + dist/) lives.
+/// Where the app root (api/ + ui/) lives.
 ///
 /// Packaged: bundle.resources drops the staged tree beside the
 /// executable. Dev (`npm run tauri:dev`): walk up to the checkout and use
@@ -227,7 +227,7 @@ fn diagnostics(handle: tauri::AppHandle) -> serde_json::Value {
     serde_json::json!({
         "app_dir": dir.to_string_lossy(),
         "app_py_found": dir.join("api").join("app.py").is_file(),
-        "ui_found": dir.join("dist").join("index.html").is_file(),
+        "ui_found": dir.join("ui").join("index.html").is_file(),
         "boot_py": boot_py(&handle).to_string_lossy(),
         "boot_py_found": boot_py(&handle).is_file(),
         "state_dir": state_dir(&handle).to_string_lossy(),

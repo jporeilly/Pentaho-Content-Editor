@@ -13,7 +13,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **Built installers land in `dist/` again, like every other app in the
+  suite**, and the Vite bundle moved to `ui/`. They had been sharing
+  `dist/`, which is why the installer briefly collected to `installers/`
+  instead: Vite empties its own output directory on every build, so an
+  installer collected there would be deleted by the next `npm run build`
+  — and before that, it was packaged INTO the next installer. The sibling
+  apps never hit this because their UI builds to `frontend/dist`, leaving
+  the root free. Renaming the bundle is what makes `dist/` mean here what
+  it means everywhere else.
 
 ## [1.7.1] - 2026-09-16
 

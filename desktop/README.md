@@ -31,9 +31,9 @@ npm run dist
 | Step | What it does |
 | --- | --- |
 | `build:ui` | `npm run build` in the repo root. Bundles the UI **and the Content Manager's renderer** through the `@app` alias, with `VITE_EDITOR_API=` from `.env.production` so every call is same-origin. |
-| `stage:app` | Copies `api/` and `dist/` into `src-tauri/vendor/app`, excluding the dev venv, `settings.json` and the publish cache, then proves the staged tree imports on the vendored runtime. |
+| `stage:app` | Copies `api/` and `ui/` into `src-tauri/vendor/app`, excluding the dev venv, `settings.json` and the publish cache, then proves the staged tree imports on the vendored runtime. |
 | `tauri:build` | Compiles the shell and bundles the NSIS installer. `beforeBuildCommand` re-runs `fetch:python` (idempotent) and `stage:app`. |
-| `collect` | Copies the installer to the repo root's `installers/` and prints its SHA-256. **Not** `dist/` — that is the Vite output, which staging packages as the UI, so an installer collected there ends up inside the next build's payload. It did, once: a 29 MB copy of itself. |
+| `collect` | Copies the installer to the repo root's `dist/` and prints its SHA-256 — the same place every app in this suite collects to. |
 
 `npm run fetch:python` is the one that takes minutes: it downloads
 Python's embeddable package, patches its `._pth` so site-packages works
@@ -53,7 +53,7 @@ List the artifact before installing it. The Policy installer shipped
 that:
 
 ```
-7z l "..\installers\Pentaho Content Editor_1.5.0_x64-setup.exe" | findstr /i "venv settings.json __pycache__ setup.exe"
+7z l "..\dist\Pentaho Content Editor_1.7.1_x64-setup.exe" | findstr /i "venv settings.json __pycache__ setup.exe"
 ```
 
 Nothing should match.

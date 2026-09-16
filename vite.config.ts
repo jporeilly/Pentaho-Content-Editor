@@ -61,7 +61,14 @@ export default defineConfig({
 
   build: {
     target: "esnext",
-    outDir: "dist",
+    // NOT dist/. In this suite dist/ is where a built INSTALLER lands,
+    // and Vite empties its own outDir on every build - so an installer
+    // collected there would be deleted by the next `npm run build`, and
+    // before that was noticed it got packaged INTO the installer. The
+    // sibling apps avoid the collision by building their UI to
+    // frontend/dist; this project's source is at the root, so the UI
+    // output is named instead.
+    outDir: "ui",
   },
 
   resolve: {

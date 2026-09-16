@@ -4,7 +4,11 @@ api/.venv/
 __pycache__/
 *.pyc
 
-# Build output
+# Build output. Two kinds, and they no longer share a folder:
+#   ui/    the Vite bundle (vite.config.ts says why it is not dist/)
+#   dist/  built installers, collected by desktop/scripts/collect-installer.ps1
+#          — the same place every app in this suite collects to
+ui/
 dist/
 .vite/
 
@@ -22,8 +26,6 @@ desktop/src-tauri/vendor/
 desktop/src-tauri/gen/
 desktop/src-tauri/target/
 
-# Built installers, collected by desktop/scripts/collect-installer.ps1.
-installers/
 
 # Editor/OS noise
 .DS_Store
