@@ -15,7 +15,7 @@ import {
   useCallback, useEffect, useMemo, useRef, useState,
   type ClipboardEvent, type DragEvent,
 } from "react";
-import { api, type CourseSummary, type LabDetail, type ProviderHealth, type Source } from "./api";
+import { api, type CourseSummary, type LabDetail, type ProviderHealth, type SetupStatus, type Source } from "./api";
 import { parseFindings, tagLocated, type Finding } from "./reviewFindings";
 
 /** A completed AI review: the findings to mark with, and the raw answer
@@ -41,6 +41,45 @@ export function useProviderHealth() {
   }, []);
   useEffect(() => { refreshHealth(); }, [refreshHealth]);
   return { health, refreshHealth };
+}
+
+// ── First run: is this machine set up to edit anything? ───────────
+//
+// Asked once at boot, ahead of the course list, because a machine that
+// does not know where its courses are cannot produce one. It is also
+// where the packaged editor reports what it cannot do here — a missing
+// Node costs four buttons and nothing else, and the author should hear
+// that once rather than four times.
+
+export function useSetup(setStatus: (s: string) => void) {
+  const [setup, setSetup] = useState<SetupStatus | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const next = await api.setup();
+      setSetup(next);
+      return next;
+    } catch {
+      // The API being unreachable is a different screen's problem
+      // (useCourses' apiUp); leaving this null keeps the two apart.
+      setSetup(null);
+      return null;
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  // Announce a degraded machine ONCE, and only when the editor is
+  // otherwise usable: on the setup screen the same facts are already
+  // spelled out in full, so repeating them in the status line would be
+  // noise at the exact moment the author is reading the long version.
+  useEffect(() => {
+    if (setup?.valid && setup.unavailable.length) {
+      setStatus(`⚠ Not available here: ${setup.unavailable.join(" · ")}`);
+    }
+  }, [setup, setStatus]);
+
+  return { setup, refresh };
 }
 
 // ── Courses: list + selection + glossary ──────────────────────────

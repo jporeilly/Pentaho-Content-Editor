@@ -16,7 +16,7 @@ repositories with separate version numbers.
 
 The editor has no courses of its own and no renderer of its own. Install
 [Pentaho Content Manager](https://github.com/jporeilly/Pentaho-Content-Manager)
-**first**, then this. It reaches into that repository three ways:
+**first**, then this. It reaches into that repository four ways:
 
 | What | Where it looks |
 | --- | --- |
@@ -48,6 +48,29 @@ icons/          editor.ico
 index.html   vite.config.ts   vitest.config.ts   tsconfig.json
 start-editor.ps1
 ```
+
+## Installing it
+
+There is a Windows installer, built from [`desktop/`](desktop/README.md):
+a Tauri shell that starts the editor's own server on a free port and
+points a webview at it, carrying **its own Python runtime** so the
+machine needs none. No venv, no `pip install`, no two terminals.
+
+```powershell
+cd desktop
+npm install          # once
+npm run dist         # -> installers\Pentaho Content Editor_<version>_x64-setup.exe
+```
+
+The installed editor asks on first run where your Content Manager
+checkout is — the courses are not bundled and never will be, because
+they are that repository's content and this edits it in place. It also
+reports what the machine is missing: **Node.js** (used for New Course,
+New Lab, Import and Verify, which run the Content Manager's own scripts)
+and **git** (Publish). Neither is bundled; without them the editor still
+opens, edits, saves, previews and runs its AI actions.
+
+Everything below is the development flow, from a checkout.
 
 ## Running it
 

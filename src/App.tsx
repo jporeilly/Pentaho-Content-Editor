@@ -31,7 +31,8 @@ import { Menu } from "./Menu";
 import { useEditorTheme, EDITOR_THEMES } from "./theme";
 import { handleMarkdownKey } from "./markdownKeys";
 import { WelcomePane } from "./WelcomePane";
-import { useProviderHealth, useCourses, useLab, useAi } from "./hooks";
+import { useProviderHealth, useCourses, useLab, useAi, useSetup } from "./hooks";
+import { SetupPane } from "./SetupPane";
 
 // Pane floors, in px. Narrower than these and the pane stops being
 // useful: the editor can no longer show a wrapped markdown line, and
@@ -140,6 +141,7 @@ export function App() {
   const [welcomeMode, setWelcomeMode] = useState(false);
 
   const { health, refreshHealth } = useProviderHealth();
+  const { setup } = useSetup(setStatus);
   const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, onCourseCreated } =
     useCourses(setStatus);
   const {
@@ -429,6 +431,20 @@ export function App() {
     if (!ta || !pv) return;
     return linkScrollers(ta, pv);
   }, [lab, welcomeMode, detail, textareaRef]);
+
+  // No courses to edit yet — the installed editor's first launch, or a
+  // PCM_REPO pointing somewhere that has moved. Before the API could
+  // report this, it died at import and the branch below claimed the API
+  // was unreachable, which was true and useless.
+  //
+  // The reload afterwards is deliberate and cheap: at this point no lab
+  // is open and no buffer exists (this screen replaced the whole
+  // editor), so there is nothing to lose, and re-running boot is more
+  // honest than threading a refresh through four hooks that all cached
+  // "there are no courses".
+  if (setup && !setup.valid) {
+    return <SetupPane setup={setup} onReady={() => window.location.reload()} />;
+  }
 
   if (apiUp === false) {
     return (
@@ -948,9 +964,17 @@ export function App() {
             identifies itself. */}
         <span
           className="author-version"
-          title="Course content version (course.json) and the app build this editor ships with"
+          title={
+            "Course content version (course.json), this editor's build, and the " +
+            "Content Manager whose renderer draws the preview.\n\n" +
+            "Running from a checkout the renderer is whatever the sibling repo " +
+            "has right now. Installed, it is bundled at build time \u2014 so if this " +
+            "number trails the Content Manager you are editing, the preview is " +
+            "showing you the older app."
+          }
         >
           {courseVersion ? `Course v${courseVersion} \u00b7 ` : ""}Editor v{__APP_VERSION__}
+          {` \u00b7 renderer v${__PCM_VERSION__}`}
         </span>
       </footer>
     </div>

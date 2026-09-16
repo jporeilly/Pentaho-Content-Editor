@@ -23,10 +23,22 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-SETTINGS_PATH = Path(__file__).resolve().parent / "settings.json"
+import paths
+
+# In a checkout this resolves to api/settings.json, exactly where it has
+# always been; installed, to %APPDATA% — because the install directory is
+# read-only. See paths.py for why writability is probed rather than
+# guessed from the path.
+SETTINGS_PATH = paths.state_dir() / "settings.json"
 
 DEFAULTS: dict[str, Any] = {
     "provider": "ollama",
+    # Which Content Manager checkout the editor is pointed at. Not a
+    # provider setting, but it belongs in the same file: it is the other
+    # thing this machine knows that no other machine does, and one state
+    # file is one thing to find, back up and delete. core.py owns its
+    # meaning; this module only stores it.
+    "pcmRepo": "",
     "ollama": {"url": "http://localhost:11434", "model": "llama3.2:3b"},
     # claude-opus-4-8 is the current default per Anthropic guidance; the
     # author can pick another in Settings.
@@ -37,7 +49,7 @@ DEFAULTS: dict[str, Any] = {
     "docs": {"enabled": False, "url": "https://docs.pentaho.com/~gitbook/mcp"},
 }
 
-_SETTING_KEYS = ("provider", "ollama", "anthropic", "openai", "docs")
+_SETTING_KEYS = ("provider", "pcmRepo", "ollama", "anthropic", "openai", "docs")
 
 PROVIDERS = ("ollama", "anthropic", "openai")
 

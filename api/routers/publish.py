@@ -8,7 +8,9 @@ the loop from the editor UI:
   • POST /api/courses/{course}/publish       — copy the course in, commit, push
   • POST /api/publish/tag                    — tag the repo (pin workshop images)
 
-A persistent shallow clone is kept in ``api/.publish-cache/`` and
+A persistent shallow clone is kept beside the editor's own settings
+(``api/.publish-cache/`` in a checkout, ``%APPDATA%`` installed — see
+paths.py) and
 freshened (fetch + hard reset) before every operation, so diffs are
 always against the repo's current HEAD and pushes are fast-forward.
 Auth is whatever git already has on the author's machine (credential
@@ -33,13 +35,15 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import core
+import paths
+import tools
 from core import _course_dir
 
 router = APIRouter()
 
 REPO_URL = "https://github.com/jporeilly/Pentaho-Courses.git"
 REPO_REF = "main"
-CACHE_DIR = Path(__file__).resolve().parents[1] / ".publish-cache"
+CACHE_DIR = paths.state_dir() / ".publish-cache"
 GIT_TIMEOUT_SECS = 180
 
 # Files/dirs never copied or diffed (VCS internals, local junk).
@@ -51,15 +55,20 @@ _TAG_RE = re.compile(r"^v[0-9A-Za-z][0-9A-Za-z._-]{0,63}$")
 def _git(args: list[str], cwd: Path | None = None) -> str:
     """Run git non-interactively; raise HTTPException(502) on failure."""
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GCM_INTERACTIVE="never")
+    # Read at call time, and a bundled copy wins over PATH — the shape the
+    # Content Manager uses for the MinGit it ships. See tools.py.
+    git = tools.git()
+    if not git:
+        raise HTTPException(500, "git was not found — Publish needs it. Install git and restart the editor.")
     try:
         proc = subprocess.run(
-            ["git", "-c", "credential.interactive=false", "-c", "core.longpaths=true", *args],
+            [git, "-c", "credential.interactive=false", "-c", "core.longpaths=true", *args],
             cwd=str(cwd) if cwd else None,
             capture_output=True, text=True, encoding="utf-8",
             timeout=GIT_TIMEOUT_SECS, env=env,
         )
     except FileNotFoundError:
-        raise HTTPException(500, "git is not on PATH — install git to publish.")
+        raise HTTPException(500, f"`{git}` could not be run — the git install looks broken.")
     except subprocess.TimeoutExpired:
         raise HTTPException(502, f"git {' '.join(args[:2])} timed out after {GIT_TIMEOUT_SECS}s")
     if proc.returncode != 0:

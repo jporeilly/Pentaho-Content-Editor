@@ -1376,6 +1376,44 @@ body {
 }
 .author-error { color: #f87171; font-weight: 600; }
 
+/* ── First run: point the editor at a Content Manager checkout ───── */
+.author-setup-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin: 18px 0 10px;
+}
+.author-setup-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  background: var(--author-panel);
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  color: var(--author-text);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 12.5px;
+}
+.author-setup-input:focus {
+  outline: none;
+  border-color: var(--author-accent);
+}
+/* What the machine cannot do, stated once. Bordered rather than
+   coloured as a warning: nothing has gone wrong, the app is telling you
+   which buttons will be dark. */
+.author-setup-tools {
+  margin-top: 22px;
+  padding: 12px 16px;
+  background: var(--author-panel);
+  border: 1px solid var(--author-border);
+  border-left: 3px solid var(--author-warn);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+.author-setup-tools-head { margin: 0 0 6px; font-weight: 600; }
+.author-setup-tools ul { margin: 0; padding-left: 18px; }
+.author-setup-tools li { margin-bottom: 4px; }
+
 /* ── Welcome-page editor ────────────────────────────────────────── */
 .author-welcome-row { border-bottom: 1px solid var(--author-border); margin-bottom: 4px; }
 .author-welcome-note { font-size: 11px; color: var(--author-muted); }

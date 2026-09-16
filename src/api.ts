@@ -108,11 +108,50 @@ async function json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** What a tool lookup found: a bundled copy, one on PATH, or nothing. */
+export interface ToolStatus {
+  found: boolean;
+  path: string | null;
+  bundled: boolean;
+}
+
+/** The backend's answer to "am I usable on this machine, and how much?" */
+export interface SetupStatus {
+  /** The Content Manager checkout we are pointed at. */
+  pcmRepo: string;
+  /** False only when the courses are not there — the one fatal case. */
+  valid: boolean;
+  reason: string | null;
+  defaultRepo: string;
+  /** Are the Content Manager's authoring scripts present? */
+  scaffolding: boolean;
+  tools: { node: ToolStatus; git: ToolStatus };
+  /** Features that will not work here, in the words of their buttons. */
+  unavailable: string[];
+}
+
 export const api = {
   base: API_BASE,
 
-  async health(): Promise<{ ok: boolean; coursesDir: string }> {
+  async health(): Promise<{ ok: boolean; coursesDir: string; needsSetup?: boolean }> {
     return json(await fetch(`${API_BASE}/api/health`));
+  },
+
+  async setup(): Promise<SetupStatus> {
+    return json(await fetch(`${API_BASE}/api/setup`));
+  },
+
+  /** Point the editor at a Content Manager checkout. Throws with the
+   *  backend's reason when the folder is not one — the same sentence the
+   *  first-run screen shows, so the check and the message cannot drift. */
+  async setRepo(path: string): Promise<SetupStatus> {
+    return json(
+      await fetch(`${API_BASE}/api/setup`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      }),
+    );
   },
 
   async listCourses(): Promise<CourseSummary[]> {

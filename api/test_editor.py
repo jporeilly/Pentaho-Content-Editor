@@ -14,12 +14,14 @@ import zipfile
 import io
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 import providers
 import mcp
 import extract
 import core
+import tools
 import app as appmod
 
 
@@ -506,3 +508,141 @@ def test_detect_has_video_matches_every_host_the_renderer_embeds():
     assert not core.detect_has_video("Background reading: https://vimeo.com/about")
     assert not core.detect_has_video("No video in this lab.")
     assert not core.detect_has_video("```markdown\n![Tour](https://vimeo.com/123456789)\n```")
+
+
+# -- Installability: state dir, re-pointing, preflight, the built UI ---
+#
+# Everything below is what separates "runs from the checkout that built
+# it" from "installs on a machine that has never seen it". A checkout
+# exercises none of it by accident, which is exactly why it is tested.
+
+def test_state_dir_precedence(tmp_path, monkeypatch):
+    import paths
+
+    # 1. An explicit answer wins outright.
+    explicit = tmp_path / "chosen"
+    monkeypatch.setenv("EDITOR_STATE_DIR", str(explicit))
+    paths.reset()
+    assert paths.state_dir() == explicit.resolve()
+    assert explicit.is_dir()          # created, not merely named
+
+    # 2. Otherwise api/ itself, WHEN WRITABLE - which is what keeps a
+    #    checkout reading and writing the settings.json it always has.
+    monkeypatch.delenv("EDITOR_STATE_DIR", raising=False)
+    paths.reset()
+    assert paths.state_dir() == paths.API_DIR.resolve()
+
+    # 3. And the per-user directory when it is not, which is the install.
+    monkeypatch.setattr(paths, "_writable", lambda d: False)
+    monkeypatch.setattr(paths, "_per_user", lambda: tmp_path / "appdata")
+    paths.reset()
+    assert paths.state_dir() == (tmp_path / "appdata").resolve()
+    paths.reset()
+
+
+def test_state_dir_is_where_settings_and_the_publish_cache_live(tmp_path, monkeypatch):
+    # The point of paths.py: nothing is written under the install. Both
+    # files are module constants bound at import, so this asserts the
+    # wiring rather than re-deriving it.
+    import paths
+    from routers import publish
+
+    assert providers.SETTINGS_PATH.parent == paths.state_dir()
+    assert publish.CACHE_DIR.parent == paths.state_dir()
+
+
+def test_missing_courses_dir_is_reported_not_fatal(env, client, monkeypatch, tmp_path):
+    # It used to raise at import, which killed uvicorn before the window
+    # could open and left the author with "can't reach the API".
+    monkeypatch.setattr(core, "REPO_ROOT", tmp_path / "nowhere")
+    monkeypatch.setattr(core, "COURSES_DIR", tmp_path / "nowhere" / "courses")
+
+    health = client.get("/api/health").json()
+    assert health["ok"] is True and health["needsSetup"] is True
+
+    setup = client.get("/api/setup").json()
+    assert setup["valid"] is False
+    assert "No folder at" in setup["reason"]
+    # Installed, the sibling-directory default resolves inside Program
+    # Files and has never existed. Offering it as the suggestion sends
+    # the author hunting for a folder nobody has.
+    monkeypatch.setattr(core, "DEFAULT_REPO", tmp_path / "also-nowhere")
+    assert client.get("/api/setup").json()["defaultRepo"] == ""
+
+
+def test_set_repo_root_accepts_a_checkout_and_refuses_a_stranger(env, tmp_path, monkeypatch):
+    monkeypatch.setattr(providers, "SETTINGS_PATH", tmp_path / "settings.json")
+
+    good = env.parent                      # the fixture's repo root: has courses/
+    core.set_repo_root(good)
+    assert core.REPO_ROOT == good.resolve()
+    assert core.COURSES_DIR == (good / "courses").resolve()
+    # Persisted, so the next start comes back to the same place.
+    assert providers.load_settings()["pcmRepo"] == str(good.resolve())
+
+    with pytest.raises(HTTPException) as raised:
+        core.set_repo_root(tmp_path / "not-a-repo")
+    assert raised.value.status_code == 400
+    # The old folder is still in force - a refused change changes nothing.
+    assert core.REPO_ROOT == good.resolve()
+
+
+def test_setup_names_what_each_missing_piece_costs(env, client, monkeypatch):
+    # A content-only clone on a machine with neither tool: still a usable
+    # editor, and it says so once instead of failing four times later.
+    monkeypatch.setattr(core, "scaffolding_available", lambda root=None: False)
+    monkeypatch.setattr(tools, "find", lambda tool: None)
+
+    out = client.get("/api/setup").json()
+    assert out["valid"] is True             # courses are there; that is what matters
+    assert out["scaffolding"] is False
+    assert out["tools"]["node"]["found"] is False
+    assert any("New Course" in u for u in out["unavailable"])
+    assert any("Publish" in u for u in out["unavailable"])
+
+    # With both tools and the scripts present there is nothing to warn about.
+    monkeypatch.setattr(core, "scaffolding_available", lambda root=None: True)
+    monkeypatch.setattr(tools, "find", lambda tool: rf"C:\fake\{tool}.exe")
+    assert client.get("/api/setup").json()["unavailable"] == []
+
+
+def test_node_is_resolved_at_call_time_with_a_bundle_winning(tmp_path, monkeypatch):
+    monkeypatch.setattr(tools, "BUNDLE_DIR", tmp_path)
+    monkeypatch.setattr(tools.shutil, "which", lambda name: rf"C:\path\{name}.exe")
+    # Nothing bundled: PATH answers.
+    assert tools.node() == r"C:\path\node.exe"
+    # A bundled copy takes precedence - the seam vendoring lands on.
+    bundled = tmp_path / "node"
+    bundled.mkdir()
+    (bundled / "node.exe").write_text("")
+    assert tools.node() == str(bundled / "node.exe")
+    assert tools.status()["node"]["bundled"] is True
+
+
+def test_missing_node_explains_what_still_works(env, client, monkeypatch):
+    monkeypatch.setattr(tools, "find", lambda tool: None)
+    r = client.post("/api/courses", json={"title": "New One", "kind": "workshop"})
+    assert r.status_code == 500
+    detail = r.json()["detail"]
+    assert "Node.js was not found" in detail and "Editing and saving do not" in detail
+
+
+def test_the_built_ui_is_served_only_once_it_is_built(tmp_path):
+    from fastapi import FastAPI
+    import app as appmod
+
+    # No dist/ - a checkout mid-development, where Vite serves the UI.
+    assert appmod.mount_ui(FastAPI(), tmp_path) is False
+
+    (tmp_path / "index.html").write_text("<!doctype html><title>editor</title>", encoding="utf-8")
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "assets" / "index-abc123.js").write_text("console.log(1)", encoding="utf-8")
+
+    built = FastAPI()
+    assert appmod.mount_ui(built, tmp_path) is True
+    c = TestClient(built)
+    # The hashed asset is served as itself, not swallowed by the catch-all.
+    assert c.get("/assets/index-abc123.js").text == "console.log(1)"
+    # Anything else is the SPA.
+    assert "<title>editor</title>" in c.get("/").text
+    assert "<title>editor</title>" in c.get("/some/deep/link").text

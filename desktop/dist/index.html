@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pentaho Content Editor</title>
+<!--
+  The startup screen.
+
+  This page is the Tauri "frontend" and it exists for about two seconds:
+  the shell starts the bundled Python server on a free port, this page
+  polls until it answers, then navigates the window to it. Everything
+  after that is the real editor, served over http by uvicorn - the same
+  UI the dev server serves, which is what stops the two builds drifting.
+
+  It matters most when that does NOT happen. A window that stays blank is
+  the worst possible failure report, so this page shows the backend's own
+  output while it waits, and on failure shows what the shell resolved,
+  what Python said, and offers to write the lot to a file.
+
+  Readiness is asked of RUST (invoke('server_ready')), never fetched from
+  here: this page is on a tauri:// origin, so fetch() to 127.0.0.1 is
+  cross-origin - the request goes out, uvicorn logs a 200, and the
+  webview refuses to hand the response back. The promise rejects, the
+  poll retries, and the splash spins forever against a server that has
+  been ready the whole time.
+-->
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --border: #262b36;
+    --text: #e6e8ec;
+    --muted: #9aa3b2;
+    --accent: #16a34a;
+    --bad: #fca5a5;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+  }
+  body { display: flex; align-items: center; justify-content: center; padding: 32px; }
+  .wrap { width: 100%; max-width: 680px; }
+  h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { margin: 0 0 26px; color: var(--muted); font-size: 13px; }
+  .state { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 14px; }
+  .spinner {
+    width: 15px; height: 15px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .is-bad .spinner { display: none; }
+  .is-bad .state { color: var(--bad); font-weight: 600; }
+  pre {
+    margin: 0 0 16px; padding: 12px 14px; max-height: 240px; overflow: auto;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 11.5px; line-height: 1.55; color: var(--muted);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  button {
+    padding: 7px 14px; border-radius: 6px; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    font-size: 13px; font-family: inherit;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .foot { color: var(--muted); font-size: 11.5px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <h1>Pentaho Content Editor</h1>
+  <p class="sub" id="sub">Starting the editor&hellip;</p>
+
+  <div class="state"><span class="spinner"></span><span id="msg">Starting the bundled Python runtime</span></div>
+
+  <pre id="log">(waiting for the backend)</pre>
+
+  <div class="row" id="actions" hidden>
+    <button class="primary" id="retry">Try again</button>
+    <button id="report">Save a startup report</button>
+    <button id="ask" hidden>Ask the local model</button>
+    <button id="folder">Open the data folder</button>
+  </div>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var HAS_TAURI = !!(window.__TAURI__ && window.__TAURI__.core);
+
+  function invoke(cmd) {
+    if (!HAS_TAURI) return Promise.reject(new Error("no tauri"));
+    return window.__TAURI__.core.invoke(cmd);
+  }
+
+  var msg = document.getElementById("msg");
+  var log = document.getElementById("log");
+  var sub = document.getElementById("sub");
+  var foot = document.getElementById("foot");
+  var actions = document.getElementById("actions");
+  var wrap = document.getElementById("wrap");
+  var failed = false;
+  var started = Date.now();
+
+  // Opened straight in a browser rather than by the shell. Nothing here
+  // can work, and saying so beats a spinner that never stops.
+  if (!HAS_TAURI) {
+    msg.textContent = "This page is the desktop shell's startup screen.";
+    log.textContent =
+      "window.__TAURI__ is absent, so there is no backend to talk to.\n" +
+      "Run the editor from its Start-menu entry, or from a checkout with\n" +
+      "  .\\start-editor.ps1";
+    wrap.className = "wrap is-bad";
+    document.querySelector(".spinner").hidden = true;
+    return;
+  }
+
+  invoke("env_report").then(function (r) {
+    sub.textContent = "Version " + r.version;
+    foot.textContent = "Settings and logs: " + r.state_dir;
+  }).catch(function () {});
+
+  // The backend's own words, as they arrive. A first launch reads the
+  // vendored interpreter off disk uncached and can take several seconds;
+  // uvicorn's "Application startup complete" is the honest progress bar.
+  var seen = 0;
+  function pushLines() {
+    return invoke("server_log").then(function (lines) {
+      if (!lines || lines.length === seen) return;
+      seen = lines.length;
+      log.textContent = lines.join("\n");
+      log.scrollTop = log.scrollHeight;
+    }).catch(function () {});
+  }
+
+  function fail(reason) {
+    if (failed) return;
+    failed = true;
+    wrap.className = "wrap is-bad";
+    msg.textContent = reason;
+    actions.hidden = false;
+    invoke("diagnostics").then(function (d) {
+      var out = [];
+      out.push("app dir        : " + d.app_dir);
+      out.push("api/app.py     : " + (d.app_py_found ? "found" : "MISSING"));
+      out.push("dist/index.html: " + (d.ui_found ? "found" : "MISSING"));
+      out.push("boot.py        : " + (d.boot_py_found ? "found" : "MISSING") + "  " + d.boot_py);
+      out.push("vendored python: " + (d.vendored_python ? "found" : "MISSING"));
+      out.push("state dir      : " + d.state_dir);
+      out.push("");
+      out.push(d.server_log && d.server_log.length
+        ? d.server_log.join("\n")
+        : "(the backend produced no output at all)");
+      log.textContent = out.join("\n");
+    }).catch(function () {});
+    // Only offer the local model when one is actually there.
+    invoke("env_report").then(function (r) {
+      document.getElementById("ask").hidden = !r.ollama;
+    }).catch(function () {});
+  }
+
+  // One chain, not an interval: a wedged invoke must not stack up
+  // hundreds of pending calls behind it.
+  function poll() {
+    if (failed) return;
+    pushLines();
+
+    invoke("server_alive").then(function (alive) {
+      if (!alive) {
+        fail("The backend stopped before it was ready.");
+        return;
+      }
+      // 90 seconds: a cold first launch on a slow disk is genuinely slow,
+      // and a premature failure screen in front of a working install is
+      // worse than a few more seconds of spinner.
+      if (Date.now() - started > 90000) {
+        fail("The backend did not answer within 90 seconds.");
+        return;
+      }
+      invoke("server_url").then(function (url) {
+        if (!url) { setTimeout(poll, 350); return; }
+        invoke("server_ready").then(function (ready) {
+          if (!ready) { setTimeout(poll, 400); return; }
+          msg.textContent = "Ready";
+          setTimeout(function () { window.location.replace(url); }, 250);
+        }).catch(function () { setTimeout(poll, 400); });
+      }).catch(function () { setTimeout(poll, 400); });
+    }).catch(function () { setTimeout(poll, 500); });
+  }
+
+  document.getElementById("retry").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    msg.textContent = "Restarting the backend";
+    log.textContent = "(restarting)";
+    invoke("restart_server").then(function (ok) {
+      btn.disabled = false;
+      if (!ok) { fail("The backend could not be started again."); return; }
+      failed = false;
+      seen = 0;
+      started = Date.now();
+      wrap.className = "wrap";
+      actions.hidden = true;
+      poll();
+    }).catch(function () { btn.disabled = false; });
+  });
+
+  document.getElementById("report").addEventListener("click", function () {
+    invoke("save_report").then(function (r) {
+      foot.textContent = r.written ? "Report written to " + r.path : "Could not write the report.";
+      if (r.written && window.__TAURI__.opener) {
+        window.__TAURI__.opener.revealItemInDir(r.path).catch(function () {});
+      }
+    }).catch(function () {});
+  });
+
+  document.getElementById("ask").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = "Asking…";
+    invoke("llm_suggest").then(function (r) {
+      btn.disabled = false;
+      btn.textContent = "Ask the local model";
+      if (r.status === "ok") {
+        log.textContent = "Suggestions from " + r.model + ":\n\n" + r.text + "\n\n---\n" + log.textContent;
+        log.scrollTop = 0;
+      } else if (r.status === "no_model") {
+        foot.textContent = "Ollama is running but has no model pulled.";
+      } else if (r.status === "no_ollama") {
+        foot.textContent = "Ollama is not running on this machine.";
+      } else {
+        foot.textContent = "The local model could not answer.";
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      btn.textContent = "Ask the local model";
+    });
+  });
+
+  document.getElementById("folder").addEventListener("click", function () {
+    invoke("open_state_dir").then(function (dir) {
+      if (window.__TAURI__.opener) window.__TAURI__.opener.openPath(dir).catch(function () {});
+    }).catch(function () {});
+  });
+
+  poll();
+})();
+</script>
+</body>
+</html>

@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 import providers
 import mcp
+import tools
 
 # ── Where the courses live ──────────────────────────────────────────
 # The editor is its own project now, but the courses it edits belong to
@@ -33,20 +34,88 @@ import mcp
 # and the install order is Content Manager first, editor second. So the
 # editor hooks into the app's repository rather than owning a copy.
 #
-# Default: the sibling directory. Override with PCM_REPO when the app is
-# installed somewhere else — which it will be, once the editor installs
-# to C:\ rather than running from a checkout.
+# Resolution order:
+#
+#   1. PCM_REPO in the environment — one machine, one answer, no UI.
+#   2. the saved `pcmRepo` setting — what the first-run screen writes.
+#   3. the sibling directory — right for every checkout, which is why it
+#      stayed the default through the repo split.
+#
+# **This does not raise when the answer is wrong**, and that is the whole
+# difference between a checkout and an install. From a checkout, a bad
+# PCM_REPO is a typo the author fixes in the shell they just used. From
+# an installed app there IS no shell: a RuntimeError at import kills
+# uvicorn before the window can open, and the author sees a splash saying
+# the API is unreachable — which is true, and tells them nothing. So the
+# constants stay bound to wherever we looked, `repo_problem()` says what
+# is wrong with it, and the UI offers a folder picker.
 EDITOR_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = Path(os.environ.get("PCM_REPO") or (EDITOR_ROOT.parent / "Pentaho-Content-Manager")).resolve()
+DEFAULT_REPO = EDITOR_ROOT.parent / "Pentaho-Content-Manager"
+
+
+def _resolve_repo_root() -> Path:
+    from_env = os.environ.get("PCM_REPO")
+    if from_env:
+        return Path(from_env).expanduser().resolve()
+    saved = providers.load_settings().get("pcmRepo")
+    if saved:
+        return Path(str(saved)).expanduser().resolve()
+    return DEFAULT_REPO.resolve()
+
+
+REPO_ROOT = _resolve_repo_root()
 COURSES_DIR = REPO_ROOT / "courses"
 
-if not COURSES_DIR.is_dir():
-    raise RuntimeError(
-        f"No courses directory at {COURSES_DIR}.\n"
-        "The Pentaho Content Editor edits the Content Manager's courses, so the "
-        "Content Manager must be installed first. Set PCM_REPO to its root and "
-        "start the editor again."
-    )
+
+def repo_problem(root: Path | None = None) -> str | None:
+    """Why `root` is not a usable Content Manager checkout, or None.
+
+    Only the courses are fatal. A folder with `courses/` but no
+    `scripts/` is a real thing — a content-only clone — and the editor is
+    genuinely useful against one: everything except scaffolding and
+    Verify works, because a save re-stamps its manifest metrics in
+    Python rather than by calling stamp-manifests.mjs. Refusing it
+    outright would trade a working editor for a tidier check.
+    `scaffolding_available()` is what the UI asks about that.
+    """
+    root = Path(root) if root is not None else REPO_ROOT
+    if not root.is_dir():
+        return f"No folder at {root}."
+    if not (root / "courses").is_dir():
+        return (
+            f"No courses directory in {root}.\n"
+            "The Pentaho Content Editor edits the Content Manager's courses, so "
+            "point it at that repository's root."
+        )
+    return None
+
+
+def scaffolding_available(root: Path | None = None) -> bool:
+    """Are the Content Manager's authoring scripts where we shell out to them?"""
+    root = Path(root) if root is not None else REPO_ROOT
+    return (root / "scripts" / "new-course.mjs").is_file()
+
+
+def set_repo_root(root: str | Path, persist: bool = True) -> Path:
+    """Point the editor at a Content Manager checkout.
+
+    Rebinds the module attributes rather than returning a new object,
+    because every route reads `core.COURSES_DIR` at call time — the rule
+    at the top of this file, which the tests already rely on and which
+    makes re-pointing a live server a two-line operation instead of a
+    restart.
+    """
+    global REPO_ROOT, COURSES_DIR
+    candidate = Path(root).expanduser().resolve()
+    problem = repo_problem(candidate)
+    if problem:
+        raise HTTPException(400, problem)
+
+    REPO_ROOT = candidate
+    COURSES_DIR = candidate / "courses"
+    if persist:
+        providers.save_settings({"pcmRepo": str(candidate)})
+    return REPO_ROOT
 
 
 # ── Metric helpers (mirror stamp-manifests.mjs) ─────────────────────
@@ -157,14 +226,25 @@ def _slugify(text: str) -> str:
 
 
 def _run_node(args: list[str], what: str) -> str:
+    # REPO_ROOT and the node binary are both read at call time: the first
+    # so a re-point takes effect without a restart, the second so a
+    # bundled copy is used when there is one. See tools.py.
+    node = tools.node()
+    if not node:
+        raise HTTPException(
+            500,
+            "Node.js was not found. It runs the Content Manager's authoring "
+            "scripts, so New Course, New Lab, Import and Verify need it — "
+            "install Node and restart the editor. Editing and saving do not.",
+        )
     try:
         proc = subprocess.run(
-            ["node", *args], cwd=str(REPO_ROOT),
+            [node, *args], cwd=str(REPO_ROOT),
             check=True, capture_output=True, text=True, encoding="utf-8", timeout=45,
         )
         return proc.stdout
     except FileNotFoundError:
-        raise HTTPException(500, "`node` not found on PATH — needed to scaffold")
+        raise HTTPException(500, f"`{node}` could not be run — the Node install looks broken")
     except subprocess.CalledProcessError as e:
         raise HTTPException(500, f"{what} failed: {e.stderr or e.stdout}")
 

@@ -340,6 +340,47 @@ There is no `cacheDir` override any more, and none is needed: separate
 repos mean separate `node_modules`, so the two dev servers can no longer
 re-optimize over each other's cache.
 
+## It also installs — and that is a second set of assumptions
+
+`desktop/` is a Tauri shell that starts this backend on a free port with
+a vendored Python runtime and points a webview at it (`desktop/README.md`
+has the build, the traps and the layout). The app inside is unchanged,
+which is the point: the packaged and dev builds serve the same UI.
+
+What packaging broke, and how each was fixed, because all three are
+invisible from a checkout:
+
+* **State cannot live beside the code.** `api/paths.py` resolves
+  `EDITOR_STATE_DIR` > `api/` when it is WRITABLE > `%APPDATA%`, and
+  `providers.SETTINGS_PATH` and `publish.CACHE_DIR` both hang off it. A
+  checkout therefore keeps the same `api/settings.json` it always had,
+  and an install writes to `%APPDATA%` — where the uninstaller does not
+  have to chase it. Writability is probed, never inferred from the path:
+  "am I under Program Files?" is a guess that breaks on a per-user
+  install, a portable copy and a read-only share.
+* **A missing courses directory is reported, not raised.** `core.py` used
+  to `raise RuntimeError` at import, which packaged means uvicorn dies
+  before the window opens and the author is told the API is unreachable.
+  Now `repo_problem()` says what is wrong, `/api/health` carries
+  `needsSetup`, `/api/setup` carries the detail, and `set_repo_root()`
+  rebinds `REPO_ROOT`/`COURSES_DIR` live — which works only because every
+  route reads them as attributes at call time. Keep it that way.
+* **`node` and `git` are resolved through `tools.py`,** bundled copy
+  first then PATH — the shape the Content Manager uses for its MinGit.
+  Nothing is bundled today; that module is the seam where vendoring would
+  land, and the reason the first-run screen can say which four buttons
+  will be dark on a laptop without Node.
+
+`app.py`'s `mount_ui()` serves `dist/` only when it has been built, so
+the dev flow keeps Vite on 5273 and the packaged app is one process on
+one port. The mount goes on BEFORE the SPA catch-all — Starlette matches
+in registration order, and a catch-all registered first swallows every
+hashed asset and answers index.html with a 200, which renders as a blank
+page with no error anywhere.
+
+The frontend's API base comes from `.env.production` (`VITE_EDITOR_API=`,
+empty on purpose: `src/api.ts` uses `??`, so "" survives as same-origin).
+
 ## Backend
 
 `api/routers/`: `courses` (course.json, structure, delete), `labs` (body

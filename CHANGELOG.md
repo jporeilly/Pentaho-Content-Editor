@@ -13,7 +13,76 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **The editor installs.** A Windows installer (`desktop/`, Tauri shell +
+  vendored Python, the recipe the PDC-Demo suite already uses) starts the
+  editor's own server on a free port and points a webview at it. The app
+  inside is unchanged, so the packaged and development builds cannot
+  drift. It removes the venv, the `pip install`, the two terminals and
+  the IPv4/IPv6 port trap — which is the whole wall in front of an author
+  on a locked-down laptop, who cannot install Python at all.
+- **A first-run screen.** The courses are not bundled and never will be:
+  they belong to the Content Manager, and the editor edits that
+  repository in place. So an installed editor asks where the checkout is,
+  validates it, and remembers. It also says what the machine is missing
+  — Node.js costs New Course, New Lab, Import and Verify; git costs
+  Publish — once, up front, instead of four features failing later in
+  four different ways. Neither is bundled, and without them the editor
+  still opens, edits, saves, previews and runs its AI actions.
+- **The preview's renderer version is on screen**, beside the editor's
+  own. It only matters once installed: the Content Manager's renderer is
+  compiled in at build time, so a packaged editor can be previewing with
+  an older renderer than the checkout it is editing. That drift was
+  previously invisible, and "the preview doesn't match the app" is the
+  exact bug the shared renderer exists to prevent.
+
+### Fixed
+
+- **The production bundle ran for the first time, and crashed.** Two
+  Reacts: the preview imports the Content Manager's source through
+  `@app`, and a bare `import React from "react"` in those files resolves
+  against THAT repository's node_modules, so the bundle carried the
+  editor's 19.3.0 and the app's 19.2.5. Two copies means two hook
+  dispatchers and the second is null - the packaged app opened to a blank
+  window on `useState`. Invisible for as long as the editor only ever ran
+  from the dev server, which resolves both to one copy. `npm run build`
+  was treated as the check that the cross-repo wiring holds; nobody had
+  ever RUN the artifact. Fixed with `resolve.dedupe`, and pinned by a
+  test over the config itself.
+
+### Changed
+
+- **The editor's own files moved out of the code directory** when it is
+  not writable (`api/paths.py`): settings and the publish cache resolve
+  to `%APPDATA%` for an install, and stay exactly where they were —
+  `api/settings.json` — in a checkout. An install directory that is never
+  written to is one the uninstaller can remove completely.
+- **A missing courses directory no longer kills the backend at import.**
+  It used to raise, which from a checkout is a typo you fix in the shell
+  you just used, and from an installed app is uvicorn dying before the
+  window opens and the author being told the API is unreachable. It is
+  now reported through `/api/health` and `/api/setup`, and the editor can
+  be re-pointed while it runs.
+- `node` and `git` are resolved through one module that prefers a bundled
+  copy and falls back to PATH — the shape the Content Manager already
+  uses for the MinGit it ships — so vendoring either later is a directory
+  and no code change. The errors name what still works without them.
+- Two more version carriers (`desktop/package.json`,
+  `desktop/src-tauri/tauri.conf.json`), so the installer cannot ship a
+  version the app denies. Six in total, all checked.
+- Built installers are collected to `installers/`, not `dist/`. The rest
+  of the suite collects to `dist/`, but here that is the Vite output and
+  staging packages it as the UI - so the 1.5.0 installer shipped a 29 MB
+  copy of itself inside `app/dist/`. Found by listing the artifact, which
+  is why that step is in the build's own README.
+- The uninstaller removes the resource trees wholesale
+  (`desktop/src-tauri/nsis/hooks.nsh`). NSIS deletes the exact file list
+  it installed, and the UI's filenames are content-hashed - so one
+  upgrade leaves an orphan bundle behind, and an orphan keeps the install
+  directory alive forever. Proven by the suite's marker experiment:
+  install, plant files in the state folder, uninstall, and confirm the
+  install directory is completely gone while the state is untouched.
 
 ## [1.5.0] - 2026-09-16
 

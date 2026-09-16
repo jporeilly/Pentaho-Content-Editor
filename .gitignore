@@ -8,6 +8,23 @@ __pycache__/
 dist/
 .vite/
 
+# ...but the desktop shell's dist/ is SOURCE, not output: it holds the
+# startup page Tauri loads before the backend is up. The bare `dist/`
+# rule above matches at any depth and would silently drop it.
+!desktop/dist/
+!desktop/dist/**
+
+# Desktop shell build output: the vendored Python runtime and staged app
+# (rebuilt by fetch-python.ps1 / stage-app.ps1), Tauri's generated
+# schemas, and the Rust target dir.
+desktop/node_modules/
+desktop/src-tauri/vendor/
+desktop/src-tauri/gen/
+desktop/src-tauri/target/
+
+# Built installers, collected by desktop/scripts/collect-installer.ps1.
+installers/
+
 # Editor/OS noise
 .DS_Store
 Thumbs.db

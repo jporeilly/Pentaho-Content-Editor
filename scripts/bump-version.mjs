@@ -4,10 +4,18 @@
 // The carriers differ from the Content Manager's. There is no Tauri
 // bundle and no VERSION.md here; there IS a lockfile, and it counts:
 //
-//   package.json            "version"
-//   package-lock.json       "version" (top level)
-//   package-lock.json       packages[""].version
-//   CHANGELOG.md            the newest "## [x.y.z]" heading
+//   package.json                        "version"
+//   package-lock.json                   "version" (top level)
+//   package-lock.json                   packages[""].version
+//   CHANGELOG.md                        the newest "## [x.y.z]" heading
+//   desktop/package.json                "version"
+//   desktop/src-tauri/tauri.conf.json   "version"
+//
+// The last two arrived with the Windows installer. They are what the
+// SHIPPED artifact claims: tauri.conf.json's version names the setup
+// exe, fills Add/Remove Programs, and is what the shell's splash and
+// startup report print. An installer that says 1.5.0 while the app says
+// 1.6.0 is a support question nobody can answer.
 //
 // The lockfile is included deliberately. The app's carries the same two
 // keys and for a long time nothing checked them: its lock read 0.4.41
@@ -63,6 +71,8 @@ const {
 const PKG = p("package.json");
 const LOCK = p("package-lock.json");
 const CHANGELOG = p("CHANGELOG.md");
+const DESKTOP_PKG = p("desktop", "package.json");
+const TAURI_CONF = p("desktop", "src-tauri", "tauri.conf.json");
 
 /** The version each carrier currently claims. */
 function current() {
@@ -72,6 +82,8 @@ function current() {
     "package-lock.json": lock.top,
     "package-lock.json (root pkg)": lock.rootPkg,
     "CHANGELOG.md (latest)": changelogVersion(readText(CHANGELOG).text),
+    "desktop/package.json": JSON.parse(readText(DESKTOP_PKG).text).version,
+    "desktop tauri.conf.json": JSON.parse(readText(TAURI_CONF).text).version,
   };
 }
 
@@ -106,6 +118,14 @@ function bump(next, dryRun) {
     const { text, crlf } = readText(CHANGELOG);
     const after = promoteChangelog(text, next, today);
     if (after) stage(CHANGELOG, text, after, crlf);
+  }
+
+  // The desktop shell. setJsonVersion touches the top-level key alone,
+  // which is what both of these need: tauri.conf.json carries other
+  // versions (the schema URL) that must not move.
+  for (const file of [DESKTOP_PKG, TAURI_CONF]) {
+    const { text, crlf } = readText(file);
+    stage(file, text, setJsonVersion(text, next, rel(file)), crlf);
   }
 
   if (!edits.length) {

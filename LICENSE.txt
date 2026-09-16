@@ -1,0 +1,281 @@
+Pentaho Content Editor
+Course Authoring Tool - License, Privacy and Installation Notice
+
+PLEASE READ BEFORE INSTALLING. By downloading, installing, copying or
+using this software you accept the terms below. If you do not accept
+them, do not install or use the software, and remove any copy you
+have obtained.
+
+
+1. LICENCE AND PERMITTED USE
+
+This software is a local authoring tool for the workshop courses held
+in a Pentaho Content Manager repository: it opens the lab guides in
+that repository, edits them with a live preview drawn by the learner
+application's own renderer, scaffolds new courses and labs through
+that repository's scripts, and can publish a course to the
+distribution repository that workshop machines synchronise from. It is
+used in Pentaho training and pre-sales work, and is provided for use
+on authorised machines and by authorised personnel only. You may
+install and use it for that purpose. You may not sell, sublicense,
+rent or otherwise commercially exploit the software, and you may not
+remove or alter any proprietary notice it contains.
+
+
+2. YOUR COURSES AND YOUR REPOSITORIES
+
+This software WRITES to the repository you point it at. Saving a lab
+rewrites its guide file and re-stamps the derived metrics in its
+manifest; the structure tree renames, reorders and deletes; creating a
+course or lab runs the Content Manager's own scaffolding scripts; and
+deleting a course removes its folder from disk. Nothing is written
+until you choose it in the application, and the repository is a git
+checkout, so ordinary version control remains your safety net. Keep it
+committed.
+
+Publish goes further: it commits and pushes the course to a remote
+distribution repository using the git credentials already configured
+on your machine, and workshop machines then synchronise what you
+pushed. Content you publish becomes visible to everyone with access to
+that repository and to the machines that pull from it. Review what a
+guide contains - screenshots, hostnames, sample data, credentials
+pasted into a code block - before publishing it.
+
+You are responsible for having the authority to modify each repository
+you open, to push to each remote you publish to, and for the content
+you produce.
+
+
+3. WHAT THE INSTALLER DOES TO YOUR SYSTEM
+
+You acknowledge that installation modifies the computer it runs on.
+The installer and application may:
+
+  - write program files to the chosen installation directory, and
+    create Start menu and desktop shortcuts;
+  - install a self-contained Python runtime inside the installation
+    directory - your system Python, if any, is not modified or used;
+  - install the Microsoft Edge WebView2 Runtime if it is not already
+    present, using the bootstrapper supplied by Microsoft;
+  - run a local HTTP server on a free port, bound to 127.0.0.1 only,
+    for the application's own user interface;
+  - write its settings, and a cache of the distribution repository, to
+    your per-user application data folder;
+  - read and write the Content Manager repository you point it at;
+  - where you have them installed and use the features that need
+    them, run Node.js (for scaffolding and Verify) and git (for
+    Publish) from your system PATH. Neither is bundled, and the
+    application reports on first run which of them it can find.
+
+You are solely responsible for deciding whether to install the
+software on any given machine, for having the authority to do so, and
+for complying with the policies of the organisation that owns that
+machine. Back up any important data before installing.
+
+
+4. AI ASSISTANCE - WHAT IS SENT, AND WHERE
+
+This software DOES use AI, as an optional assistant to the author, and
+you choose the provider in its settings. This section describes what
+leaves your machine so you can make that choice deliberately.
+
+  (a) The features. Drafting a lab, rewriting a selected passage,
+      reviewing the open lab, the assistant chat, and creating a
+      course from an imported document each send text to the
+      configured provider. Editing, saving, the preview, the
+      structure tree, Verify and Publish do not: they call no model
+      at all.
+
+  (b) What is sent. The lab text, passage, document or question you
+      act on, together with the instruction the feature was built
+      with. A review or a rewrite sends the guide you have open. An
+      import sends the text extracted from the document you upload.
+
+  (c) Where it goes. With the default provider, Ollama, generation
+      runs on your own machine and nothing leaves it. If you select
+      Anthropic or OpenAI, the text in (b) is sent to that company's
+      service over the internet and is subject to their terms and
+      their data handling, not this notice. Selecting a hosted
+      provider for a guide that contains customer material, internal
+      hostnames or unpublished product detail is a disclosure
+      decision; make it knowingly.
+
+  (d) Documentation grounding. When enabled, features may first send
+      a short query derived from your text to the Pentaho
+      documentation site's public endpoint to retrieve reference
+      material. It is off by default.
+
+  (e) Credentials. API keys are read from the ANTHROPIC_API_KEY and
+      OPENAI_API_KEY environment variables at the moment of the call.
+      The application never stores a key, and its settings file
+      records only which provider and model you chose.
+
+  (f) The output is a draft. Everything a model produces is inserted
+      for you to read, edit and accept. Nothing generated is
+      published, deployed or shown to a learner without an author
+      putting it there. Model output can be confidently wrong,
+      including about Pentaho itself - the review feature is built on
+      that assumption, and lists findings it cannot locate in your
+      guide separately for exactly that reason. Check technical
+      claims before they reach a workshop.
+
+
+5. DATA PROTECTION AND PRIVACY
+
+  (a) Data kept on your machine. The application's own files are its
+      settings (the provider, model and repository you chose) and a
+      cache of the distribution repository used by Publish, both in
+      your per-user application data folder. The courses themselves
+      live in the repository you point it at, not inside the
+      application.
+
+  (b) Credentials are never persisted by this software. Model API
+      keys come from the environment (section 4(e)). Git
+      authentication is whatever your machine already has - a
+      credential manager or similar - and is used, never stored or
+      copied, by this software.
+
+  (c) Personal data in course content. Course material can contain
+      personal data: screenshots of real systems, sample datasets,
+      named individuals in examples, and the contact details a guide
+      asks a learner to use. Whatever you put in a guide is what gets
+      committed, published and - if you use a hosted model on that
+      guide - sent to that provider. Prefer synthetic examples.
+
+  (d) Controller. The organisation operating the software determines
+      the purposes and means of this processing and is the data
+      controller. It is responsible for its own privacy notice,
+      lawful basis, retention periods and transfer mechanisms. The
+      authors of the software supply a tool and operate no service on
+      your behalf.
+
+  (e) Your rights. Subject to applicable law you have the right to
+      request access to, rectification of, or erasure of your
+      personal data, to restrict or object to its processing, and to
+      data portability, and to complain to your data protection
+      supervisory authority. Exercise these rights with the
+      organisation named in its privacy notice. Locally held content
+      can be removed at any time by deleting the files, though
+      published history remains in the repositories you pushed to.
+
+  (f) Data minimisation. Use the local provider where the content is
+      sensitive, enable documentation grounding only when it helps,
+      and publish only the courses you intend to distribute.
+
+
+6. REGIONAL LEGAL FRAMEWORKS
+
+Data protection law is territorial. Where the software is used, and
+where the people described in your course content are, determines
+which regime applies. The organisation operating the software is
+responsible for identifying and meeting the requirements applicable to
+it. Section 5 is written to the GDPR standard because it is the
+strictest common denominator; it does not displace local law.
+
+  (a) Regimes expressly acknowledged. Without limitation, these
+      include: the EU GDPR, UK GDPR and Data Protection Act, and
+      Swiss FADP; in the United States, the comprehensive state
+      privacy laws now in force (including California CCPA/CPRA,
+      Colorado, Connecticut, Virginia, Texas, Washington and others),
+      together with any applicable sectoral rules; in Canada, PIPEDA
+      and Quebec Law 25; in Latin America, Brazil's LGPD and Mexico's
+      LFPDPPP; in Asia-Pacific, Australia's Privacy Act, New
+      Zealand's Privacy Act 2020, Japan's APPI, South Korea's PIPA,
+      Singapore's PDPA, India's DPDP Act, and China's PIPL; and in
+      the Middle East and Africa, the UAE and Saudi PDPL regimes and
+      South Africa's POPIA.
+
+  (b) United States - no sale or sharing. The software does not sell
+      personal information, and does not share it for cross-context
+      behavioural advertising, as those terms are defined under the
+      CCPA/CPRA and comparable state laws. No personal information is
+      used for targeted advertising or profiling.
+
+  (c) Cross-border transfers. Selecting a hosted model provider, or
+      pushing content to a repository hosted outside your
+      jurisdiction, may constitute a cross-border transfer requiring
+      a transfer mechanism such as standard contractual clauses, an
+      adequacy decision or explicit consent. Choosing the provider,
+      the repository and the transfer mechanism is your
+      responsibility. The local provider keeps generation on your own
+      machine.
+
+  (d) AI regulation. Unlike the deterministic tools in this suite,
+      this software incorporates AI features (section 4) and passes
+      your text to the model provider you select. Obligations under
+      Regulation (EU) 2024/1689 (the EU AI Act) and comparable rules
+      elsewhere fall on the organisation deploying the software and
+      on the model provider, according to the role each takes. What
+      this software does is bounded and stated: it drafts and reviews
+      material for a human author, who reads and accepts it before it
+      reaches any learner, and it makes no automated decision about
+      any person. Where your organisation requires disclosure that
+      training material was drafted with AI assistance, that
+      disclosure is yours to make.
+
+
+7. THIRD-PARTY COMPONENTS
+
+This application bundles or may install the following third-party
+components, each governed by its own licence terms and not by this
+notice:
+
+  - The Python runtime and standard library, under the PSF License,
+    together with the third-party packages it bundles - the web
+    framework and its server, the document readers, and the model
+    provider client libraries - each under its own licence.
+  - Microsoft Edge WebView2 Runtime and bootstrapper, subject to the
+    applicable Microsoft licence terms.
+  - The Pentaho Content Manager's renderer, which draws the preview,
+    and its authoring scripts, which this software calls.
+
+Node.js and git are NOT bundled. Where the features that need them are
+used, they are run from your own installation under its own licence.
+
+Nothing in this notice limits any rights you have under the licence of
+a third-party component.
+
+
+8. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OR CONDITION OF
+ANY KIND, EXPRESS, IMPLIED OR STATUTORY, INCLUDING WITHOUT LIMITATION
+ANY IMPLIED WARRANTIES OR CONDITIONS OF MERCHANTABILITY, SATISFACTORY
+QUALITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, AND
+NON-INFRINGEMENT. NO WARRANTY IS GIVEN THAT THE SOFTWARE WILL BE
+UNINTERRUPTED, SECURE OR ERROR FREE, THAT DEFECTS WILL BE CORRECTED,
+OR THAT ANY CONTENT IT DRAFTS, REVIEWS, SAVES OR PUBLISHES WILL BE
+ACCURATE, COMPLETE OR FIT FOR TEACHING.
+
+
+9. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL
+THE AUTHORS OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN CONTRACT, TORT (INCLUDING NEGLIGENCE) OR
+OTHERWISE, ARISING FROM OR IN CONNECTION WITH THE DOWNLOAD,
+INSTALLATION, USE, MISUSE, PERFORMANCE OR INABILITY TO USE THE
+SOFTWARE OR ANY CONTENT IT DRAFTS, SAVES OR PUBLISHES, INCLUDING
+WITHOUT LIMITATION ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR
+PUNITIVE DAMAGES, LOSS OF PROFITS, LOSS OF BUSINESS, BUSINESS
+INTERRUPTION, LOSS OF DATA, CORRUPTION OF DATA OR OF A REPOSITORY, OR
+THE COST OF SUBSTITUTE GOODS OR SERVICES, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+YOU INSTALL AND USE THE SOFTWARE ENTIRELY AT YOUR OWN RISK.
+
+Nothing in this notice excludes or limits liability that cannot
+lawfully be excluded or limited, including liability for death or
+personal injury caused by negligence, for fraud or fraudulent
+misrepresentation, or under applicable data protection law. Where
+liability cannot be excluded, it is limited to the minimum extent
+permitted by applicable law. Some jurisdictions do not allow certain
+exclusions or limitations, so parts of the above may not apply to
+you; the remaining provisions continue in effect.
+
+
+10. TRADEMARKS
+
+Pentaho(R) is a registered trademark of Pentaho Canada Inc. All other
+trademarks are the property of their respective owners. This notice
+grants no trademark rights.
