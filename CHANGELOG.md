@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.7.1] - 2026-09-16
+
 ### Added
 
 - **The installer wears the suite's wizard art.** It has always been an
@@ -24,6 +28,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   were added over there rather than a second drawing of the brand here
   (`--out-dir`, `--subtitle`): the brand has moved once already, and one
   composition is the whole reason the badge system works.
+
 
 ## [1.7.0] - 2026-09-16
 
