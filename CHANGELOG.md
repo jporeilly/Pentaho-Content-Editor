@@ -13,7 +13,27 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **The first-run screen offers the checkouts it can find**, instead of
+  asking for an absolute path from memory. It scans the obvious roots one
+  level deep — the sibling directory, `C:\Projects`, the usual clone
+  folders under the home directory — for anything holding a `courses/`,
+  and lists what it finds; one with the authoring scripts sorts above a
+  content-only clone, which is labelled as editing-only rather than
+  hidden. Scanning happens **only when the editor is lost**: the endpoint
+  is polled at every boot, and one that knows where its courses are has
+  no reason to go looking. It takes about a tenth of a second here.
+
+### Fixed
+
+- **`index.html` is never cached.** Its asset references are
+  content-hashed, so a cached copy outlives the files it points at — and
+  after an upgrade a webview holding the old one asks for a bundle that
+  install deleted, which is a blank window and a 404 in a console nobody
+  opens. Met in the flesh while verifying the screen above: a stale index
+  served a JS file that no longer existed, and the feature looked broken
+  when it was not.
 
 ## [1.7.2] - 2026-09-16
 

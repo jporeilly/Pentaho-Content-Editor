@@ -114,7 +114,13 @@ def mount_ui(target: FastAPI, dist: Path) -> bool:
         candidate = (dist / full_path).resolve()
         if full_path and candidate.is_file() and dist.resolve() in candidate.parents:
             return FileResponse(candidate)
-        return FileResponse(dist / "index.html")
+        # index.html is never cached. Its asset references are
+        # content-hashed, so a cached copy outlives the files it points
+        # at: upgrade the app, and a webview holding yesterday's
+        # index.html asks for a bundle this install deleted — a blank
+        # window with a 404 in a console nobody opens. The assets
+        # themselves may cache forever; that is what the hash is for.
+        return FileResponse(dist / "index.html", headers={"Cache-Control": "no-store"})
 
     return True
 

@@ -128,6 +128,8 @@ export interface SetupStatus {
   tools: { node: ToolStatus; git: ToolStatus };
   /** Features that will not work here, in the words of their buttons. */
   unavailable: string[];
+  /** Checkouts found on this machine. Populated only when we are lost. */
+  candidates: { path: string; scaffolding: boolean }[];
 }
 
 export const api = {

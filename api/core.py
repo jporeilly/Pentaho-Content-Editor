@@ -96,6 +96,87 @@ def scaffolding_available(root: Path | None = None) -> bool:
     return (root / "scripts" / "new-course.mjs").is_file()
 
 
+# Where a Content Manager checkout plausibly lives. Ordered: the sibling
+# directory first, because from a checkout that is nearly always the
+# answer, then the places people actually clone into.
+#
+# One level deep only. A recursive hunt across a home directory is how a
+# first-run screen ends up waiting on OneDrive, a mapped drive or a
+# node_modules tree twelve levels down; the payoff is finding the same
+# folder half a second later.
+def _candidate_roots() -> list[Path]:
+    home = Path.home()
+    return [
+        EDITOR_ROOT.parent,
+        Path("C:/Projects"),
+        home / "Projects",
+        home / "source" / "repos",
+        home / "git",
+        home / "Documents",
+        home,
+    ]
+
+
+MAX_CANDIDATES = 6
+_MAX_SCAN_PER_ROOT = 120
+
+
+def find_repo_candidates(limit: int = MAX_CANDIDATES) -> list[dict[str, Any]]:
+    """Content Manager checkouts this machine appears to have.
+
+    For the first-run screen, which otherwise asks an author to type an
+    absolute path from memory — and on an installed editor it cannot even
+    offer a sensible default, because the sibling directory resolves to
+    somewhere inside Program Files that has never existed.
+
+    A candidate is any directory with a `courses/` in it, which is the
+    same bar `repo_problem` sets. Ones that also have the authoring
+    scripts sort first: both are usable, but only one of them can
+    scaffold and verify.
+
+    Best-effort by construction. An unreadable root, a permission error
+    or a disconnected drive skips that root rather than failing the
+    screen that is trying to rescue the situation.
+    """
+    seen: set[Path] = set()
+    found: list[dict[str, Any]] = []
+
+    def consider(path: Path) -> None:
+        try:
+            resolved = path.resolve()
+        except OSError:
+            return
+        if resolved in seen or not resolved.is_dir():
+            return
+        seen.add(resolved)
+        if repo_problem(resolved) is not None:
+            return
+        found.append({
+            "path": str(resolved),
+            "scaffolding": scaffolding_available(resolved),
+        })
+
+    for root in _candidate_roots():
+        try:
+            if not root.is_dir():
+                continue
+            # The obvious name first, then anything else one level down
+            # that happens to hold courses - a clone renamed on checkout
+            # is common, and the folder's contents are the real test.
+            consider(root / "Pentaho-Content-Manager")
+            for child in list(root.iterdir())[:_MAX_SCAN_PER_ROOT]:
+                if child.name.startswith("."):
+                    continue
+                consider(child)
+        except OSError:
+            continue
+        if len(found) >= limit:
+            break
+
+    found.sort(key=lambda c: (not c["scaffolding"], c["path"]))
+    return found[:limit]
+
+
 def set_repo_root(root: str | Path, persist: bool = True) -> Path:
     """Point the editor at a Content Manager checkout.
 

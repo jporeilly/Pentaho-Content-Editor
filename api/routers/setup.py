@@ -69,6 +69,10 @@ def _status() -> dict[str, Any]:
         "scaffolding": scaffolding,
         "tools": found,
         "unavailable": unavailable,
+        # Only when we are lost. Scanning is cheap but not free, and this
+        # endpoint is polled at every boot — an editor that already knows
+        # where its courses are has no reason to go looking for others.
+        "candidates": core.find_repo_candidates() if problem else [],
     }
 
 

@@ -1665,3 +1665,38 @@ textarea.author-input { min-height: 0; }
 /* A wrapped row needs its groups to read as groups, so the separator
    becomes a full-height rule rather than a floating tick. */
 .author-toolbar-sep { height: var(--author-ctl-h); }
+
+/* Candidates the backend found, offered before anyone is asked to type
+   an absolute path from memory. */
+.author-setup-found { margin: 18px 0 6px; }
+.author-setup-found-head { margin: 0 0 8px; font-weight: 600; font-size: 13px; }
+.author-setup-found ul { list-style: none; margin: 0 0 12px; padding: 0; }
+.author-setup-found li { margin-bottom: 6px; }
+.author-setup-candidate {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 11px;
+  border: 1px solid var(--author-border);
+  border-radius: 6px;
+  background: var(--author-panel);
+  color: var(--author-text);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.author-setup-candidate:hover:not(:disabled) {
+  border-color: var(--author-accent);
+  background: var(--author-raised);
+}
+.author-setup-candidate:disabled { opacity: 0.6; cursor: default; }
+.author-setup-candidate-path { flex: 1 1 auto; overflow-wrap: anywhere; }
+.author-setup-candidate-note {
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--author-warn);
+}

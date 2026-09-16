@@ -12,6 +12,7 @@ export) plus the request/response shape of the AI endpoints.
 import json
 import zipfile
 import io
+from pathlib import Path
 
 import pytest
 from fastapi import HTTPException
@@ -650,6 +651,12 @@ def test_the_built_ui_is_served_only_once_it_is_built(tmp_path):
     # Anything else is the SPA.
     assert "<title>editor</title>" in c.get("/").text
     assert "<title>editor</title>" in c.get("/some/deep/link").text
+    # ...and it is never cached. index.html names content-hashed assets,
+    # so a cached copy outlives the files it points at: after an upgrade
+    # a webview holding the old one asks for a bundle that install
+    # deleted. Caught in the flesh while verifying the first-run screen,
+    # where a stale index served a JS file that no longer existed.
+    assert c.get("/").headers["cache-control"] == "no-store"
 
 
 # -- Grounding is reference, never material ---------------------------
@@ -707,3 +714,60 @@ def test_rewrite_and_review_send_the_docs_before_the_text(env, client, monkeypat
     client.post("/api/review", json={"body": "# A guide\n\nWith a step."})
     assert seen["prompt"].index("Relevant Pentaho") < seen["prompt"].index("# A guide")
     assert seen["prompt"].rstrip().endswith("---END GUIDE---")
+
+# -- Finding a checkout for the first-run screen ----------------------
+
+def _make_repo(root, name, scripts=True):
+    repo = root / name
+    (repo / "courses").mkdir(parents=True)
+    if scripts:
+        (repo / "scripts").mkdir()
+        (repo / "scripts" / "new-course.mjs").write_text("// scaffolder")
+    return repo
+
+
+def test_candidates_prefer_a_checkout_that_can_scaffold(tmp_path, monkeypatch):
+    # Two usable folders: one full checkout, one content-only clone. Both
+    # are offered - the editor is genuinely useful against either - but
+    # the one that can scaffold and verify goes first.
+    roots = tmp_path / "roots"
+    roots.mkdir()
+    _make_repo(roots, "content-only", scripts=False)
+    _make_repo(roots, "Pentaho-Content-Manager", scripts=True)
+    (roots / "not-a-repo").mkdir()
+
+    monkeypatch.setattr(core, "_candidate_roots", lambda: [roots])
+    found = core.find_repo_candidates()
+
+    assert [Path(c["path"]).name for c in found] == ["Pentaho-Content-Manager", "content-only"]
+    assert [c["scaffolding"] for c in found] == [True, False]
+
+
+def test_candidates_skip_unreadable_roots_and_never_repeat_one(tmp_path, monkeypatch):
+    roots = tmp_path / "roots"
+    roots.mkdir()
+    repo = _make_repo(roots, "Pentaho-Content-Manager")
+
+    # The same root listed twice, plus one that does not exist at all -
+    # a disconnected drive, a stale path in the list. Neither may break
+    # the screen that exists to rescue the situation.
+    monkeypatch.setattr(core, "_candidate_roots",
+                        lambda: [roots, roots, tmp_path / "gone"])
+    found = core.find_repo_candidates()
+    assert [c["path"] for c in found] == [str(repo.resolve())]
+
+
+def test_setup_offers_candidates_only_when_lost(env, client, monkeypatch, tmp_path):
+    monkeypatch.setattr(core, "find_repo_candidates",
+                        lambda limit=6: [{"path": "C:\somewhere", "scaffolding": True}])
+
+    # Pointed at a good repo: no scan, no offers. This endpoint is polled
+    # at every boot, and an editor that knows where its courses are has
+    # no reason to go hunting for others.
+    assert client.get("/api/setup").json()["candidates"] == []
+
+    monkeypatch.setattr(core, "REPO_ROOT", tmp_path / "nowhere")
+    monkeypatch.setattr(core, "COURSES_DIR", tmp_path / "nowhere" / "courses")
+    out = client.get("/api/setup").json()
+    assert out["valid"] is False
+    assert out["candidates"] == [{"path": "C:\somewhere", "scaffolding": True}]

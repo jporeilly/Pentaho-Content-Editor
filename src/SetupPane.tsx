@@ -21,16 +21,20 @@ export function SetupPane({ setup, onReady }: { setup: SetupStatus; onReady: () 
   const [error, setError] = useState<string | null>(setup.reason);
   const [busy, setBusy] = useState(false);
 
-  async function choose() {
-    if (!path.trim()) return;
+  async function choose(candidate?: string) {
+    const target = (candidate ?? path).trim();
+    if (!target) return;
     setBusy(true);
     setError(null);
     try {
-      await api.setRepo(path.trim());
+      await api.setRepo(target);
       onReady();
     } catch (e) {
       // The backend's own sentence, not a paraphrase of it.
       setError(String((e as Error).message).replace(/^\d+:\s*/, ""));
+      // Put a rejected candidate in the field so it can be corrected
+      // rather than retyped from nothing.
+      if (candidate) setPath(candidate);
     } finally {
       setBusy(false);
     }
@@ -45,6 +49,38 @@ export function SetupPane({ setup, onReady }: { setup: SetupStatus; onReady: () 
         from. Point it at your copy.
       </p>
 
+      {/* What the machine already has, before asking anyone to type an
+          absolute path from memory. The installed editor cannot even
+          offer a sensible default — its sibling directory resolves to
+          somewhere inside Program Files that has never existed. */}
+      {setup.candidates.length > 0 && (
+        <div className="author-setup-found">
+          <p className="author-setup-found-head">Found on this machine:</p>
+          <ul>
+            {setup.candidates.map((c) => (
+              <li key={c.path}>
+                <button
+                  type="button"
+                  className="author-setup-candidate"
+                  onClick={() => choose(c.path)}
+                  disabled={busy}
+                  title="Use this folder"
+                >
+                  <span className="author-setup-candidate-path">{c.path}</span>
+                  {/* A courses-only clone is genuinely usable; it just
+                      cannot scaffold or verify. Saying which is which
+                      here beats four buttons failing later. */}
+                  {!c.scaffolding && (
+                    <em className="author-setup-candidate-note">no scripts/ — editing only</em>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="author-hint">Or give the path yourself:</p>
+        </div>
+      )}
+
       <div className="author-setup-row">
         <input
           className="author-setup-input"
@@ -52,10 +88,10 @@ export function SetupPane({ setup, onReady }: { setup: SetupStatus; onReady: () 
           spellCheck={false}
           placeholder={setup.defaultRepo || "C:\\path\\to\\Pentaho-Content-Manager"}
           onChange={(e) => setPath(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") choose(); }}
+          onKeyDown={(e) => { if (e.key === "Enter") void choose(); }}
           aria-label="Content Manager folder"
         />
-        <button type="button" className="author-save" onClick={choose} disabled={busy || !path.trim()}>
+        <button type="button" className="author-save" onClick={() => choose()} disabled={busy || !path.trim()}>
           {busy ? "Checking…" : "Use this folder"}
         </button>
       </div>
