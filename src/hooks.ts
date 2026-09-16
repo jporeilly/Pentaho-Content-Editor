@@ -15,7 +15,10 @@ import {
   useCallback, useEffect, useMemo, useRef, useState,
   type ClipboardEvent, type DragEvent,
 } from "react";
-import { api, type CourseSummary, type LabDetail, type ProviderHealth, type SetupStatus, type Source } from "./api";
+import {
+  api, type CourseSummary, type LabDetail, type ProviderHealth, type RepoStatus,
+  type SetupStatus, type Source,
+} from "./api";
 import { parseFindings, tagLocated, type Finding } from "./reviewFindings";
 
 /** A completed AI review: the findings to mark with, and the raw answer
@@ -80,6 +83,40 @@ export function useSetup(setStatus: (s: string) => void) {
   }, [setup, setStatus]);
 
   return { setup, refresh };
+}
+
+// ── The checkout, and whether it has moved on without us ──────────
+//
+// The editor writes into a repository other people publish into. Nothing
+// warned about that: you could rewrite a guide that was replaced
+// upstream this morning and only find out at Publish.
+//
+// Fetched once on load, because that is the moment the answer is worth
+// having, and then only when the author asks. A poll would put a network
+// round trip on a timer for a number that changes when someone else
+// pushes - rare, and not worth the VPN dialogue.
+
+export function useRepoStatus() {
+  const [repo, setRepo] = useState<RepoStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const check = useCallback(async (doFetch: boolean) => {
+    setChecking(true);
+    try {
+      setRepo(await api.repoStatus(doFetch));
+    } catch {
+      // The pill simply does not appear. An editor whose header nags
+      // about git while you are trying to write is worse than one that
+      // quietly says nothing.
+      setRepo(null);
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => { check(true); }, [check]);
+
+  return { repo, checking, recheck: () => check(true) };
 }
 
 // ── Courses: list + selection + glossary ──────────────────────────

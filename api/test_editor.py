@@ -771,3 +771,112 @@ def test_setup_offers_candidates_only_when_lost(env, client, monkeypatch, tmp_pa
     out = client.get("/api/setup").json()
     assert out["valid"] is False
     assert out["candidates"] == [{"path": "C:\somewhere", "scaffolding": True}]
+
+
+# -- The Content Manager pill: how the checkout stands ----------------
+
+def test_repo_status_is_never_fatal(env, client, monkeypatch, tmp_path):
+    """Every unusable state is a state the pill can render, not an error.
+
+    The editor works fine on a folder git has never heard of, and a
+    header that interrupts editing to complain about version control
+    would be worse than one that says nothing.
+    """
+    from routers import repo as repo_router
+
+    # No git on the machine at all.
+    monkeypatch.setattr(tools, "git", lambda: None)
+    out = client.get("/api/repo/status").json()
+    assert out["state"] == "no-git" and "git was not found" in out["detail"]
+
+    # git present, but the folder is not a checkout.
+    monkeypatch.setattr(tools, "git", lambda: "C:\fake\git.exe")
+    monkeypatch.setattr(repo_router, "_git", lambda *a, **k: (1, "not a repository"))
+    out = client.get("/api/repo/status").json()
+    assert out["state"] == "no-repo"
+
+    # The folder is gone entirely.
+    monkeypatch.setattr(core, "REPO_ROOT", tmp_path / "vanished")
+    assert client.get("/api/repo/status").json()["state"] == "no-repo"
+
+
+def test_repo_status_counts_behind_and_ahead(env, client, monkeypatch):
+    from routers import repo as repo_router
+
+    monkeypatch.setattr(tools, "git", lambda: "C:\fake\git.exe")
+
+    def fake_git(args, cwd, timeout=10):
+        if args[0] == "rev-parse" and args[1] == "--is-inside-work-tree":
+            return 0, "true"
+        if args[0] == "status":
+            return 0, " M courses/x/guide.md"
+        if args[:2] == ["rev-parse", "--abbrev-ref"] and args[-1] == "HEAD":
+            return 0, "main"
+        if args[-1] == "@{u}":
+            return 0, "origin/main"
+        if args[0] == "rev-list":
+            # left = upstream has and we do not, right = ours.
+            return 0, "3	1"
+        return 0, ""
+
+    monkeypatch.setattr(repo_router, "_git", fake_git)
+    out = client.get("/api/repo/status").json()
+    assert out["state"] == "diverged"
+    assert out["behind"] == 3 and out["ahead"] == 1
+    assert out["dirty"] is True
+    assert out["branch"] == "main" and out["upstream"] == "origin/main"
+
+
+def test_repo_status_only_fetches_when_asked(env, client, monkeypatch):
+    """A network round trip on every header render is not acceptable."""
+    from routers import repo as repo_router
+
+    monkeypatch.setattr(tools, "git", lambda: "C:\fake\git.exe")
+    calls = []
+
+    def fake_git(args, cwd, timeout=10):
+        calls.append(args[0])
+        if args[0] == "rev-parse" and args[1] == "--is-inside-work-tree":
+            return 0, "true"
+        if args[:2] == ["rev-parse", "--abbrev-ref"] and args[-1] == "HEAD":
+            return 0, "main"
+        if args[-1] == "@{u}":
+            return 0, "origin/main"
+        if args[0] == "rev-list":
+            return 0, "0	0"
+        return 0, ""
+
+    monkeypatch.setattr(repo_router, "_git", fake_git)
+
+    assert client.get("/api/repo/status").json()["state"] == "current"
+    assert "fetch" not in calls
+
+    calls.clear()
+    assert client.get("/api/repo/status?fetch=true").json()["fetched"] is True
+    assert "fetch" in calls
+
+
+def test_a_failed_fetch_still_reports_the_last_known_state(env, client, monkeypatch):
+    # A laptop off the VPN is the normal case for this call, not an error.
+    from routers import repo as repo_router
+
+    monkeypatch.setattr(tools, "git", lambda: "C:\fake\git.exe")
+
+    def fake_git(args, cwd, timeout=10):
+        if args[0] == "fetch":
+            return 1, "could not resolve host"
+        if args[0] == "rev-parse" and args[1] == "--is-inside-work-tree":
+            return 0, "true"
+        if args[:2] == ["rev-parse", "--abbrev-ref"] and args[-1] == "HEAD":
+            return 0, "main"
+        if args[-1] == "@{u}":
+            return 0, "origin/main"
+        if args[0] == "rev-list":
+            return 0, "2	0"
+        return 0, ""
+
+    monkeypatch.setattr(repo_router, "_git", fake_git)
+    out = client.get("/api/repo/status?fetch=true").json()
+    assert out["fetched"] is False
+    assert out["state"] == "behind" and out["behind"] == 2
+    assert "Couldn't reach the remote" in out["detail"]

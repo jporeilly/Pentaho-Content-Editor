@@ -1700,3 +1700,74 @@ textarea.author-input { min-height: 0; }
   font-size: 11px;
   color: var(--author-warn);
 }
+
+/* ── The Content Manager pill ────────────────────────────────────────
+   Which checkout, and whether it has moved on without us. Sits beside
+   the provider pill and borrows its shape; the dot carries the state,
+   because at a glance the colour is the message and the words are the
+   confirmation. */
+.author-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  border: 1px solid var(--author-border);
+  border-radius: 999px;
+  background: var(--author-bg);
+  color: var(--author-muted);
+  font-size: 12px;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.author-repo:hover:not(:disabled) { border-color: var(--author-accent); color: var(--author-text); }
+.author-repo:disabled { cursor: default; opacity: 0.7; }
+.author-repo-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--author-muted);
+  flex: 0 0 auto;
+}
+/* In step with the remote: the quiet, expected state. */
+.author-repo.is-current .author-repo-dot { background: var(--author-ok); }
+/* Behind is the one worth noticing - someone has published since you
+   opened this, and you are about to edit the older text. */
+.author-repo.is-behind,
+.author-repo.is-diverged { color: var(--author-warn); border-color: var(--author-warn); }
+.author-repo.is-behind .author-repo-dot,
+.author-repo.is-diverged .author-repo-dot { background: var(--author-warn); }
+.author-repo.is-ahead .author-repo-dot { background: var(--author-review); }
+.author-repo.is-checking { opacity: 0.6; }
+
+/* The header is a nowrap flex row that has pushed the Save button
+   off-screen once already (see the layout note in CLAUDE.md), and this
+   pill did it again on its first render. So it is allowed to shrink and
+   ellipsise, and Save is pinned: whatever else is squeezed, the button
+   the author needs stays reachable. */
+.author-repo {
+  min-width: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.author-save { flex: 0 0 auto; }
+.author-conn { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+
+/* The header is a single nowrap row, and at 1280px - an ordinary laptop -
+   it had exactly 14px to spare. Adding this pill put the Save button off
+   the right edge, which is the same failure the layout notes in CLAUDE.md
+   already record once. So the two least essential things yield, in order:
+   the pill's words, then the course picker's width. */
+@media (max-width: 1500px) {
+  .author-repo-label { display: none; }
+  .author-repo { padding: 5px 9px; max-width: none; }
+  .author-select { width: 200px; }
+}
+@media (max-width: 1320px) {
+  .author-select { width: 150px; }
+  /* Twelve gaps between thirteen children: 4px off each buys 48px, which
+     is more than the pill costs and cheaper than removing anything. */
+  .author-header { gap: 6px; }
+}

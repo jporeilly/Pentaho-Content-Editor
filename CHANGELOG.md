@@ -13,7 +13,18 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **A header pill for the Content Manager checkout**: which one, and
+  whether it has moved on without you. The editor writes into a
+  repository other people publish into, and nothing said so — you could
+  spend an afternoon rewriting a guide that was replaced upstream this
+  morning and find out at Publish, or not at all. It fetches once on
+  load and then only when clicked, because `behind` cannot be known
+  without asking the remote and asking costs a round trip on a VPN that
+  may not be up. Every unusable state — no git, not a checkout, no
+  upstream, unreachable remote — is a state the pill renders rather than
+  an error that interrupts editing.
 
 ## [1.8.0] - 2026-09-16
 

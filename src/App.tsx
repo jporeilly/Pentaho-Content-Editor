@@ -34,7 +34,7 @@ import { Menu } from "./Menu";
 import { useEditorTheme, EDITOR_THEMES } from "./theme";
 import { handleMarkdownKey } from "./markdownKeys";
 import { WelcomePane } from "./WelcomePane";
-import { useProviderHealth, useCourses, useLab, useAi, useSetup } from "./hooks";
+import { useProviderHealth, useCourses, useLab, useAi, useSetup, useRepoStatus } from "./hooks";
 import { SetupPane } from "./SetupPane";
 
 // Pane floors, in px. Narrower than these and the pane stops being
@@ -167,6 +167,28 @@ export function App() {
 
   const { health, refreshHealth } = useProviderHealth();
   const { setup } = useSetup(setStatus);
+  const { repo, checking: checkingRepo, recheck: recheckRepo } = useRepoStatus();
+
+  // What the pill says. Short enough for a header that already carries a
+  // course picker, six buttons and a provider pill - the detail lives in
+  // the tooltip, and the one number worth a glance is how far behind.
+  const repoLabel = useMemo(() => {
+    if (!repo) return "";
+    // The repository NAME is the long part and it is already in the
+    // tooltip. This header has pushed the Save button off-screen once
+    // before (see CLAUDE.md); it did it again the first time this pill
+    // carried the full name. "Courses" says what the number is about.
+    switch (repo.state) {
+      case "behind": return `Courses · ${repo.behind} behind`;
+      case "ahead": return `Courses · ${repo.ahead} ahead`;
+      case "diverged": return `Courses · ${repo.behind}↓ ${repo.ahead}↑`;
+      case "current": return "Courses · up to date";
+      case "no-remote": return "Courses · local only";
+      case "detached": return "Courses · detached";
+      case "no-git": return "Courses · no git";
+      default: return "Courses · no checkout";
+    }
+  }, [repo]);
   const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, onCourseCreated } =
     useCourses(setStatus);
   const {
@@ -581,6 +603,30 @@ export function App() {
         <button type="button" className={`author-tool${showChat ? " is-active" : ""}`} onClick={() => setShowChat((v) => !v)} title="Toggle the AI assistant chat">
           💬 Chat
         </button>
+        {/* Which checkout, and whether it has moved on without us. The
+            editor writes into a repository other people publish into,
+            and nothing said so: you could rewrite a guide that was
+            replaced upstream this morning and find out at Publish. */}
+        {repo && (
+          <button
+            type="button"
+            className={`author-repo is-${repo.state}${checkingRepo ? " is-checking" : ""}`}
+            onClick={recheckRepo}
+            disabled={checkingRepo}
+            title={
+              `Content Manager: ${repo.path}` +
+              (repo.branch ? `\nBranch: ${repo.branch}${repo.upstream ? ` → ${repo.upstream}` : ""}` : "") +
+              (repo.dirty ? "\nUncommitted changes in the checkout." : "") +
+              (repo.detail ? `\n${repo.detail}` : "") +
+              "\n\nClick to fetch and check again."
+            }
+          >
+            <span className="author-repo-dot" />
+            {/* The words go first when the header runs out of room; the
+                dot and the tooltip carry the meaning on a laptop. */}
+            <span className="author-repo-label">{repoLabel}</span>
+          </button>
+        )}
         <button
           type="button"
           className={`author-conn ${health?.ok ? "is-ok" : "is-bad"}`}

@@ -132,8 +132,28 @@ export interface SetupStatus {
   candidates: { path: string; scaffolding: boolean }[];
 }
 
+/** How the Content Manager checkout stands against its remote. */
+export interface RepoStatus {
+  path: string;
+  name: string;
+  state: "no-repo" | "no-git" | "detached" | "no-remote" | "behind" | "ahead" | "diverged" | "current";
+  branch: string | null;
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  dirty: boolean;
+  fetched: boolean;
+  detail: string | null;
+}
+
 export const api = {
   base: API_BASE,
+
+  /** `fetch` asks the remote, which costs a network round trip — the
+   *  header does it once on load and then only when clicked. */
+  async repoStatus(doFetch = false): Promise<RepoStatus> {
+    return json(await fetch(`${API_BASE}/api/repo/status?fetch=${doFetch ? "true" : "false"}`));
+  },
 
   async health(): Promise<{ ok: boolean; coursesDir: string; needsSetup?: boolean }> {
     return json(await fetch(`${API_BASE}/api/health`));
