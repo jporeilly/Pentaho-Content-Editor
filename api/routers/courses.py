@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import core
+import tools
 from core import _course_dir, _read_json, _write_json, _run_node, _slugify
 
 router = APIRouter()
@@ -121,8 +122,19 @@ def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
 def verify_course(course: str) -> dict[str, Any]:
     """Run the course verifier and return its report."""
     _course_dir(course)  # 404 if unknown
+    # Through the resolver, not a bare "node": a bundled copy must win,
+    # and a machine without Node needs the message naming which features
+    # that costs rather than a FileNotFoundError.
+    node = tools.node()
+    if not node:
+        raise HTTPException(
+            500,
+            "Node.js was not found. Verify runs the Content Manager's "
+            "verify-course.mjs, so it needs Node - install it and restart "
+            "the editor. Editing and saving do not.",
+        )
     proc = subprocess.run(
-        ["node", "scripts/verify-course.mjs", course],
+        [node, "scripts/verify-course.mjs", course],
         cwd=str(core.REPO_ROOT), capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     return {"ok": proc.returncode == 0, "output": (proc.stdout + proc.stderr).strip()}

@@ -64,6 +64,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   window opens and the author being told the API is unreachable. It is
   now reported through `/api/health` and `/api/setup`, and the editor can
   be re-pointed while it runs.
+- Verify and New Lab go through the tool resolver too. They built their
+  own `subprocess.run(["node", ...])` and so would have ignored a bundled
+  Node and failed with a FileNotFoundError instead of the message that
+  says which features still work. Found by running Verify against the
+  installed app rather than trusting that one call site was all of them.
+- An unknown `/api/...` path answers 404 rather than the SPA. With the UI
+  mounted, the catch-all was handing index.html back with a 200, so a
+  mistyped endpoint surfaced as a JSON parse error somewhere else
+  entirely.
 - `node` and `git` are resolved through one module that prefers a bundled
   copy and falls back to PATH — the shape the Content Manager already
   uses for the MinGit it ships — so vendoring either later is a directory

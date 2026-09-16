@@ -641,6 +641,10 @@ def test_the_built_ui_is_served_only_once_it_is_built(tmp_path):
     built = FastAPI()
     assert appmod.mount_ui(built, tmp_path) is True
     c = TestClient(built)
+    # An unknown API path is a 404, never the SPA: a mistyped endpoint
+    # answering HTML with a 200 surfaces as a JSON parse error three
+    # layers from the cause. Found by curling a GET at a POST endpoint.
+    assert c.get("/api/nope").status_code == 404
     # The hashed asset is served as itself, not swallowed by the catch-all.
     assert c.get("/assets/index-abc123.js").text == "console.log(1)"
     # Anything else is the SPA.

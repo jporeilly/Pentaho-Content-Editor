@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 import core
+import tools
 import providers
 from core import (
     _course_dir, _read_json, _write_json, _run_node,
@@ -146,9 +147,17 @@ def create_lab(course: str, req: NewLabRequest) -> Structure:
     if not req.title.strip():
         raise HTTPException(400, "Lab title is required")
     try:
+        node = tools.node()
+        if not node:
+            raise HTTPException(
+                500,
+                "Node.js was not found. New Lab runs the Content Manager's "
+                "new-lab.mjs, so it needs Node - install it and restart the "
+                "editor. Editing and saving do not.",
+            )
         subprocess.run(
             [
-                "node", "scripts/new-lab.mjs",
+                node, "scripts/new-lab.mjs",
                 "--course", course,
                 "--title", req.title,
                 "--topic", req.topic or "Workshops",

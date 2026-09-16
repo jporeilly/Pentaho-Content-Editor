@@ -25,7 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -104,6 +104,11 @@ def mount_ui(target: FastAPI, dist: Path) -> bool:
         return index.html with a 200 — hence the file check first, and
         the containment check so `..` cannot walk out of dist/.
         """
+        # An unknown /api path is a 404, not the SPA. Answering HTML
+        # with a 200 to a mistyped endpoint turns a clear failure into a
+        # JSON parse error three layers away from the cause.
+        if full_path.startswith("api/"):
+            raise HTTPException(404, f"No such endpoint: /{full_path}")
         candidate = (dist / full_path).resolve()
         if full_path and candidate.is_file() and dist.resolve() in candidate.parents:
             return FileResponse(candidate)
