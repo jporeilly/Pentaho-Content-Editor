@@ -34,6 +34,23 @@
 !macro NSIS_HOOK_POSTUNINSTALL
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\python"
+  RMDir /r "$INSTDIR\tools"
+  RMDir /r "$INSTDIR\provisioning"
   ; Only if empty: never take a directory the user has put something in.
   RMDir "$INSTDIR"
+
+  ; The machine-wide hint the "Find my Content Manager courses" component
+  ; wrote. It is the installer's own footprint, so it leaves with the
+  ; installer - unlike the author's settings in %APPDATA%, which survive
+  ; deliberately so a reinstall comes back configured.
+  ;
+  ; Both views: a 32-bit installer's HKLM\SOFTWARE writes are redirected
+  ; into WOW6432Node, and an earlier build left its hint there.
+  SetRegView 64
+  DeleteRegKey HKLM "SOFTWARE\Pentaho\ContentEditor"
+  DeleteRegKey /ifempty HKLM "SOFTWARE\Pentaho"
+  SetRegView 32
+  DeleteRegKey HKLM "SOFTWARE\Pentaho\ContentEditor"
+  DeleteRegKey /ifempty HKLM "SOFTWARE\Pentaho"
+  SetRegView default
 !macroend
