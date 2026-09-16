@@ -28,6 +28,13 @@
   --author-ok: #86efac;
   --author-warn: #fcd34d;
   --author-bad: #fca5a5;
+  /* The AI review's own colour, deliberately outside the ok/warn/bad
+     ladder: its findings are opinions, not verdicts, and a reader should
+     be able to tell at a glance which of the two underlines came from
+     the verifier. Only the two light palettes re-point it — this blue
+     falls under 3:1 on white, which for a 2px underline is the
+     difference between seeing it and not. */
+  --author-review: #6ea8fe;
 }
 
 /* ── Editor palettes ────────────────────────────────────────────────
@@ -61,6 +68,7 @@
   --author-ok: #15803d;
   --author-warn: #a16207;
   --author-bad: #b91c1c;
+  --author-review: #1d4ed8;
 }
 
 /* Ocean - deep blue, cyan accent. */
@@ -156,6 +164,10 @@
   --author-ok: #3f6d21;
   --author-warn: #8a5a12;
   --author-bad: #a32b1c;
+  /* Indigo rather than the default blue: on the sepia ground the blue
+     reads as a faded ink stain, and this is the one mark that has to be
+     distinguishable from the verifier's red at a glance. */
+  --author-review: #4338ca;
 }
 
 /* Contrast - for small or dim VM screens. Pure black ground, white
@@ -355,7 +367,7 @@ body {
 }
 .author-verify.is-ok { border-left: 3px solid var(--author-accent); }
 .author-verify.is-bad { border-left: 3px solid #f59e0b; }
-.author-verify.is-review { border-left: 3px solid #6ea8fe; }
+.author-verify.is-review { border-left: 3px solid var(--author-review); }
 .author-verify-head {
   display: flex;
   align-items: center;
@@ -1149,6 +1161,44 @@ body {
 .hl-line.has-warn::before,
 .hl-line.has-error::before { pointer-events: auto; cursor: help; }
 
+/* ── The AI review's findings, under the text they quote ─────────────
+   Dots, where Verify's are dashes. The two channels must be tellable
+   apart without reading the tooltip: the verifier measured the file and
+   is right, while this is a model's opinion about the prose — worth
+   seeing, worth checking. Denser for a critical finding, fainter for a
+   nice-to-have, so a skim reads severity off the line itself.
+
+   There is no whole-line fallback, as there is for Verify: a finding
+   with nothing to quote is never anchored in the first place, and says
+   so in the panel instead. */
+.mark-review {
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  background-size: 4px 2px;
+  background-image: linear-gradient(to right, var(--author-review) 0 1.5px, transparent 1.5px 4px);
+}
+.mark-review.is-critical {
+  background-size: 3px 2px;
+  background-image: linear-gradient(to right, var(--author-review) 0 1.5px, transparent 1.5px 3px);
+}
+.mark-review.is-nice {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--author-review) 60%, transparent) 0 1.5px,
+    transparent 1.5px 4px
+  );
+}
+/* Verify keeps the gutter number where a line carries both. It is the
+   half of the pair that measured the file, so where they disagree about
+   which matters more, it wins. */
+.hl-line.has-review:not(.has-warn):not(.has-error)::before {
+  color: var(--author-review);
+  opacity: 1;
+  font-weight: 600;
+  pointer-events: auto;
+  cursor: help;
+}
+
 /* The count above the editor. Without it a guide whose problems all lack
    a line looks clean in the gutter while Verify reports failures. */
 .author-problems {
@@ -1167,6 +1217,94 @@ body {
 .author-problems-rest { color: var(--author-muted); }
 .author-problems-stale { color: var(--author-warn); }
 .author-problems-hint { margin-left: auto; color: var(--author-muted); }
+/* A bar carrying only AI findings takes the review's colour rather than
+   the warning amber: nothing has failed, a model has an opinion. */
+.author-problems.is-review-only {
+  background: color-mix(in srgb, var(--author-review) 12%, var(--author-panel));
+}
+.author-problems-review { color: var(--author-review); font-weight: 600; }
+
+/* ── The AI review panel ─────────────────────────────────────────────
+   Findings as rows rather than a wall of prose: severity, what is wrong,
+   what to do, and the quote that anchors it — which doubles as the jump
+   target, since the text is where the fix happens. */
+.author-findings { padding: 0 14px 12px; font-size: 12px; }
+.author-findings-head {
+  margin: 10px 0 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--author-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.author-findings-count { color: var(--author-muted); font-weight: 600; }
+.author-findings-hint {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--author-muted);
+}
+.author-findings-list { margin: 0; padding: 0; list-style: none; }
+.author-finding {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid var(--author-border);
+  line-height: 1.5;
+}
+.author-finding-sev {
+  flex: 0 0 auto;
+  min-width: 82px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: center;
+  background: var(--author-raised);
+  color: var(--author-muted);
+  border: 1px solid var(--author-border);
+}
+.author-finding.is-critical .author-finding-sev { color: var(--author-bad); border-color: var(--author-bad); }
+.author-finding.is-should .author-finding-sev { color: var(--author-warn); border-color: var(--author-warn); }
+.author-finding-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.author-finding-issue { color: var(--author-text); }
+.author-finding-fix { color: var(--author-muted); }
+/* The quote is a button where it can be jumped to and plain text where
+   it cannot — same shape either way, so the row does not jump about, and
+   the pointer says which is which. */
+.author-finding-quote {
+  align-self: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 1px 0 0;
+  padding: 1px 6px;
+  max-width: 100%;
+  border: 1px solid var(--author-border);
+  border-radius: 4px;
+  background: var(--author-raised);
+  color: var(--author-muted);
+  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-size: 11.5px;
+  text-align: left;
+}
+.author-finding-quote.is-jump { cursor: pointer; color: var(--author-review); }
+.author-finding-quote.is-jump:hover {
+  border-color: var(--author-review);
+  background: color-mix(in srgb, var(--author-review) 14%, var(--author-raised));
+}
+.author-finding-quoted { overflow-wrap: anywhere; }
+.author-finding-note {
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--author-muted);
+  border-left: 1px solid var(--author-border);
+  padding-left: 6px;
+}
 
 /* Hand the text over to the layer beneath, keeping the caret. */
 .author-editor-stack:has(.author-highlight) .author-textarea {

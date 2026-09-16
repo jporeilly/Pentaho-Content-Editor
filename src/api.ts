@@ -301,7 +301,10 @@ export const api = {
     );
   },
 
-  async review(body: string): Promise<{ review: string; sources: Source[] }> {
+  /** `findings` is left `unknown` on purpose — parseFindings validates the
+   *  shape, so an older backend that answers with prose alone is a fallback
+   *  to the panel rather than a type error. */
+  async review(body: string): Promise<{ review: string; findings?: unknown; sources: Source[] }> {
     return json(
       await fetch(`${API_BASE}/api/review`, {
         method: "POST",

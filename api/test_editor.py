@@ -197,8 +197,52 @@ def test_rewrite(env, client, no_llm):
 
 
 def test_review(env, client, no_llm):
+    # A provider that ignores the JSON instruction still reaches the
+    # author: the raw answer rides along in `review`, and the editor
+    # falls back to showing it as prose.
     r = client.post("/api/review", json={"body": "# Lab\n\n## Step"})
-    assert r.status_code == 200 and r.json()["review"] == "GENERATED"
+    assert r.status_code == 200
+    assert r.json()["review"] == "GENERATED" and r.json()["findings"] == []
+
+
+def test_review_returns_findings(env, client, monkeypatch):
+    answer = (
+        "Here is what I found:\n\n```json\n"
+        '[{"severity": "Major", "quote": "Start Spoon", "issue": "no version", "fix": "say which"},\n'
+        ' {"severity": "nice", "issue": "no prerequisites"}]\n'
+        "```\n\nHope that helps."
+    )
+    monkeypatch.setattr(providers, "generate", lambda prompt, system, timeout=240: answer)
+    r = client.post("/api/review", json={"body": "# Lab\n\nStart Spoon.\n"})
+    findings = r.json()["findings"]
+    # "Major" is the model's word for critical; "nice" is taken as given.
+    assert [f["severity"] for f in findings] == ["critical", "nice"]
+    assert findings[0]["quote"] == "Start Spoon"
+    # No quote is a valid finding — it is about something that is absent.
+    assert findings[1]["quote"] == ""
+
+
+def test_parse_findings_survives_what_models_actually_send():
+    from routers.ai import parse_findings
+
+    # Prose around a bare array, no fence.
+    assert len(parse_findings('Findings: [{"issue": "x"}] — that is all.')) == 1
+    # Junk in the list is dropped, not fatal.
+    out = parse_findings('[null, "x", {"quote": "q"}, {"issue": "  keep me  "}]')
+    assert [f.issue for f in out] == ["keep me"]
+    # Not JSON at all, or not a list: prose, handled by the caller.
+    assert parse_findings("**Critical** — the lab has no prerequisites") == []
+    assert parse_findings('{"issue": "an object, not a list"}') == []
+    assert parse_findings("") == []
+
+
+def test_parse_findings_caps_a_runaway_answer():
+    from routers.ai import parse_findings, MAX_FINDINGS, MAX_QUOTE
+
+    many = json.dumps([{"issue": "x", "quote": "q" * 900}] * (MAX_FINDINGS + 40))
+    out = parse_findings(many)
+    assert len(out) == MAX_FINDINGS
+    assert len(out[0].quote) == MAX_QUOTE
 
 
 def test_chat(env, client, no_llm):

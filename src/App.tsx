@@ -11,8 +11,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { linkScrollers } from "./scrollSync";
-import { highlightLines, linesToHtml, fenceRangeAt, type LineMark } from "./markdownTokens";
-import { parseVerifyOutput, problemsForGuide, byLine, worst, tooltip, unplaced } from "./verifyProblems";
+import { highlightLines, linesToHtml, fenceRangeAt } from "./markdownTokens";
+import { parseVerifyOutput, problemsForGuide, byLine, unplaced } from "./verifyProblems";
+import { anchorFindings, groupFindings, severityLabel, type AnchoredFinding } from "./reviewFindings";
+import { annotateLines } from "./lineAnnotations";
+import { scrollTopForLine } from "./outline";
 import { Toolbar } from "./Toolbar";
 import { FindBar } from "./FindBar";
 import { Preview } from "./Preview";
@@ -39,6 +42,63 @@ const MIN_EDITOR = 320;
 const MIN_PREVIEW = 300;
 /** Width of a .author-splitter, matching the CSS `flex: 0 0 6px`. */
 const SPLITTER_PX = 6;
+
+/** One AI-review finding: what is wrong, what to do, and the text it is about. */
+function FindingRow({ f, onJump }: { f: AnchoredFinding; onJump?: (f: AnchoredFinding) => void }) {
+  const jump = onJump && f.anchor ? () => onJump(f) : undefined;
+  return (
+    <li className={`author-finding is-${f.severity}`}>
+      <span className="author-finding-sev">{severityLabel(f.severity)}</span>
+      <div className="author-finding-text">
+        <span className="author-finding-issue">{f.issue}</span>
+        {f.fix && <span className="author-finding-fix">Fix: {f.fix}</span>}
+        {f.quote && (
+          jump ? (
+            <button
+              type="button"
+              className="author-finding-quote is-jump"
+              onClick={jump}
+              title="Go to this text in the guide"
+            >
+              <span className="author-finding-quoted">“{f.quote}”</span>
+              {/* Both notes are the difference between a mark you can
+                  trust and one you should glance at first: a loose match
+                  is not the text the model claims to have quoted, and a
+                  quote occurring several times was marked in one of
+                  them, chosen by nothing better than order. */}
+              {!f.anchor!.exact && <em className="author-finding-note">matched loosely</em>}
+              {f.anchor!.occurrences > 1 && (
+                <em className="author-finding-note">{f.anchor!.occurrences} places — marked the first</em>
+              )}
+            </button>
+          ) : (
+            <span className="author-finding-quote">“{f.quote}”</span>
+          )
+        )}
+      </div>
+    </li>
+  );
+}
+
+function FindingGroup({ title, hint, findings, onJump }: {
+  title: string;
+  hint?: string;
+  findings: AnchoredFinding[];
+  onJump?: (f: AnchoredFinding) => void;
+}) {
+  if (!findings.length) return null;
+  return (
+    <>
+      <p className="author-findings-head">
+        {title} <span className="author-findings-count">({findings.length})</span>
+        {hint && <span className="author-findings-hint"> — {hint}</span>}
+      </p>
+      <ul className="author-findings-list">
+        {findings.map((f) => <FindingRow key={f.id} f={f} onJump={onJump} />)}
+      </ul>
+    </>
+  );
+}
 
 /** Severity of a status message, read off the leader the callers use. */
 function statusTone(s: string): "" | "is-ok" | "is-bad" | "is-warn" {
@@ -214,20 +274,42 @@ export function App() {
     [verifyOut, course, lab],
   );
 
-  const marks = useMemo(() => {
-    const map = new Map<number, LineMark[]>();
-    for (const p of problems) {
-      if (!p.line || !p.col || !p.endCol) continue;
-      const list = map.get(p.line) ?? [];
-      list.push({
-        startCol: p.col,
-        endCol: p.endCol,
-        className: p.severity === "error" ? "mark-error" : "mark-warn",
-      });
-      map.set(p.line, list);
+  // The AI review's findings, anchored to the text they quote.
+  //
+  // Re-anchored against the LIVE body rather than the one that was
+  // reviewed, which is what keeps these marks honest as you type: fix
+  // the sentence a finding objects to and the quote stops matching, so
+  // the mark goes rather than sliding onto whatever now occupies that
+  // line. Verify cannot do this — it reads disk and reports lines, hence
+  // the "lines may have moved" warning it needs and this does not.
+  const reviewFindings = useMemo(
+    () => anchorFindings(body, reviewOut?.findings ?? []),
+    [body, reviewOut],
+  );
+  const reviewGroups = useMemo(() => groupFindings(reviewFindings), [reviewFindings]);
+
+  // The review's line in the count bar. Empty when there is nothing to
+  // say — a review whose findings are all about the guide as a whole has
+  // marked nothing, and "0 marked" is not news.
+  const reviewNote = useMemo(() => {
+    const parts: string[] = [];
+    const { located, unlocated, fixed } = reviewGroups;
+    if (located.length) parts.push(`${located.length} marked by AI review`);
+    if (unlocated.length) {
+      parts.push(`${unlocated.length} AI finding${unlocated.length === 1 ? "" : "s"} couldn’t be located`);
     }
-    return map;
-  }, [problems]);
+    if (fixed.length) parts.push(`${fixed.length} fixed since the review`);
+    return parts.join(" · ");
+  }, [reviewGroups]);
+
+  // Both channels meet in one pure pass — the underlines woven into the
+  // markup and the classes written onto the line elements come out of the
+  // same call, because merging them twice here is how a line ended up
+  // underlined by one and untitled by the other.
+  const { marks, lines: lineNotes } = useMemo(
+    () => annotateLines(body, problems, reviewFindings),
+    [body, problems, reviewFindings],
+  );
   const highlighted = useMemo(() => linesToHtml(lines, marks), [lines, marks]);
 
   // Which source line the caret is on, 0-based.
@@ -239,6 +321,27 @@ export function App() {
     // wrapped line is several visual rows but one source line, and the
     // gutter numbers source lines.
     setCaretLine(ta.value.slice(0, ta.selectionStart).split("\n").length - 1);
+  }
+
+  // Jump to the text a finding is about, and select it.
+  //
+  // The mark shows where a finding is once you are looking at the right
+  // part of the guide; this is for the panel, where the finding is a row
+  // in a list and the text it quotes may be three screens away. Selecting
+  // is what anchors the caret — the scroll only puts it in view, and a
+  // textarea gives no per-line geometry to do better.
+  function jumpToFinding(f: AnchoredFinding) {
+    const ta = textareaRef.current;
+    if (!ta || !f.anchor) return;
+    ta.focus();
+    ta.setSelectionRange(f.anchor.start, f.anchor.end);
+    const lh = parseFloat(window.getComputedStyle(ta).lineHeight);
+    if (Number.isFinite(lh) && lh > 0) {
+      const line = body.slice(0, f.anchor.start).split("\n").length - 1;
+      // The highlight layer follows through the textarea's own onScroll.
+      ta.scrollTop = scrollTopForLine(line, lh);
+    }
+    requestAnimationFrame(syncCaretLine);
   }
 
   // The current-line band and the fence pair are written straight onto
@@ -262,27 +365,34 @@ export function App() {
     }
   }, [caretLine, highlighted, lines]);
 
-  // Verify's findings, on the lines they belong to.
+  // Verify's problems and the AI review's findings, on the lines they
+  // belong to.
   //
-  // Verify used to print into a panel and leave you to find the line it
-  // was talking about. The verifier now reports "path:line: message", so
-  // the problems can be marked where they are.
+  // Both used to print into a panel and leave you to find the line they
+  // were talking about. They are marked by the same pass because a line
+  // can carry both and has one title attribute between them — running
+  // two effects over the same nodes meant whichever came second erased
+  // the first one's tooltip.
+  //
+  // Their marks look different on purpose. Verify measured the file and
+  // is right; the review is an opinion, and one that is wrong often
+  // enough to be worth reading as an opinion.
   useEffect(() => {
     const root = highlightRef.current;
     if (!root) return;
     const kids = root.children;
     for (const el of Array.from(kids)) {
-      el.classList.remove("has-error", "has-warn");
+      el.classList.remove("has-error", "has-warn", "has-review");
       el.removeAttribute("title");
     }
-    for (const [line, group] of byLine(problems)) {
-      // The verifier counts from 1; the layer's blocks from 0.
+    for (const [line, ann] of lineNotes) {
+      // Both channels count from 1; the layer's blocks from 0.
       const el = kids[line - 1];
       if (!el) continue;
-      el.classList.add(worst(group) === "error" ? "has-error" : "has-warn");
-      el.setAttribute("title", tooltip(group));
+      el.classList.add(...ann.classes);
+      el.setAttribute("title", ann.title);
     }
-  }, [problems, highlighted]);
+  }, [lineNotes, highlighted]);
 
   // Ctrl/Cmd+F opens find & replace. Captured on the window rather than
   // the textarea so it works wherever the focus happens to be, and
@@ -436,10 +546,48 @@ export function App() {
       {reviewOut && (
         <div className="author-verify is-review">
           <div className="author-verify-head">
-            <span>🔍 AI review</span>
+            <span>
+              🔍 AI review
+              {reviewOut.findings.length > 0 &&
+                ` — ${reviewGroups.located.length} of ${reviewOut.findings.length} marked in the source`}
+            </span>
             <button type="button" className="author-mini-btn" onClick={() => setReviewOut(null)}>Dismiss</button>
           </div>
-          <pre className="author-verify-body">{reviewOut}</pre>
+          {reviewOut.findings.length === 0 ? (
+            // Nothing parseable came back: a provider ignored the JSON
+            // instruction, or answered in prose around it. Its answer is
+            // still a review, so it is shown as one rather than dropped
+            // for failing to fit the new shape.
+            <pre className="author-verify-body">{reviewOut.text}</pre>
+          ) : (
+            <div className="author-findings">
+              <FindingGroup
+                title="Marked in the source"
+                hint="click a quote to jump to it"
+                findings={reviewGroups.located}
+                onJump={jumpToFinding}
+              />
+              <FindingGroup
+                title="About the guide as a whole"
+                hint="the finding is that something is absent, so there is nothing to underline"
+                findings={reviewGroups.general}
+              />
+              <FindingGroup
+                title="Fixed since the review ran"
+                hint="the text these quoted is no longer in the guide"
+                findings={reviewGroups.fixed}
+              />
+              {/* The group that earns the anchoring. A quote the guide has
+                  never contained is a finding about a lab that does not
+                  exist — the failure mode of asking a model where a
+                  problem is, made visible instead of underlined. */}
+              <FindingGroup
+                title="Couldn’t be found in the guide"
+                hint="the quoted text is not in this lab — check these by hand before acting on them"
+                findings={reviewGroups.unlocated}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -593,29 +741,42 @@ export function App() {
                 />
               </div>
               <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
-              {problems.length > 0 && (
-                <div className="author-problems">
-                  <span className="author-problems-count">
-                    {byLine(problems).size > 0
-                      ? `${byLine(problems).size} line${byLine(problems).size === 1 ? "" : "s"} flagged by Verify`
-                      : "Verify flagged this lab"}
-                  </span>
-                  {/* Without this, a guide whose problems all lack a line
-                      looks clean in the gutter while Verify reports
-                      failures, and you would reasonably conclude the
-                      marking was broken. */}
-                  {unplaced(problems).length > 0 && (
-                    <span className="author-problems-rest">
-                      · {unplaced(problems).length} not tied to a line (see the Verify panel)
-                    </span>
+              {(problems.length > 0 || reviewNote) && (
+                <div className={`author-problems${problems.length === 0 ? " is-review-only" : ""}`}>
+                  {problems.length > 0 && (
+                    <>
+                      <span className="author-problems-count">
+                        {byLine(problems).size > 0
+                          ? `${byLine(problems).size} line${byLine(problems).size === 1 ? "" : "s"} flagged by Verify`
+                          : "Verify flagged this lab"}
+                      </span>
+                      {/* Without this, a guide whose problems all lack a line
+                          looks clean in the gutter while Verify reports
+                          failures, and you would reasonably conclude the
+                          marking was broken. */}
+                      {unplaced(problems).length > 0 && (
+                        <span className="author-problems-rest">
+                          · {unplaced(problems).length} not tied to a line (see the Verify panel)
+                        </span>
+                      )}
+                      {/* Verify reads DISK; this pane shows the buffer. With
+                          unsaved edits the two disagree about what is on
+                          which line, and a marker can sit a few lines off.
+                          Saying so beats quietly pointing at the wrong line. */}
+                      {dirty && (
+                        <span className="author-problems-stale">
+                          · unsaved edits — lines may have moved since Verify ran
+                        </span>
+                      )}
+                    </>
                   )}
-                  {/* Verify reads DISK; this pane shows the buffer. With
-                      unsaved edits the two disagree about what is on
-                      which line, and a marker can sit a few lines off.
-                      Saying so beats quietly pointing at the wrong line. */}
-                  {dirty && (
-                    <span className="author-problems-stale">
-                      · unsaved edits — lines may have moved since Verify ran
+                  {/* The review's own tally. It needs no staleness warning:
+                      its marks are re-anchored to the buffer on every
+                      keystroke, so they cannot be pointing at a line that
+                      has moved. */}
+                  {reviewNote && (
+                    <span className="author-problems-review">
+                      {problems.length > 0 && "· "}{reviewNote}
                     </span>
                   )}
                   <span className="author-problems-hint">hover a flagged line number for the message</span>

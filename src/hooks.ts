@@ -16,6 +16,14 @@ import {
   type ClipboardEvent, type DragEvent,
 } from "react";
 import { api, type CourseSummary, type LabDetail, type ProviderHealth, type Source } from "./api";
+import { parseFindings, tagLocated, type Finding } from "./reviewFindings";
+
+/** A completed AI review: the findings to mark with, and the raw answer
+ *  behind them for the case where nothing could be parsed out of it. */
+export interface ReviewResult {
+  text: string;
+  findings: Finding[];
+}
 
 /** One-level undo range for the last AI rewrite. */
 export interface RewriteUndo {
@@ -276,7 +284,7 @@ export function useAi(args: UseAiArgs) {
 
   const [working, setWorking] = useState(false);
   const [sources, setSources] = useState<Source[]>([]);
-  const [reviewOut, setReviewOut] = useState<string | null>(null);
+  const [reviewOut, setReviewOut] = useState<ReviewResult | null>(null);
   const [verifyOut, setVerifyOut] = useState<{ ok: boolean; output: string } | null>(null);
 
   const rewriteSelection = useCallback(async () => {
@@ -366,10 +374,20 @@ export function useAi(args: UseAiArgs) {
     setStatus("Reviewing lab with AI…");
     setReviewOut(null);
     try {
-      const { review, sources: srcs } = await api.review(body);
-      setReviewOut(review);
+      const { review, findings, sources: srcs } = await api.review(body);
+      // Stamped against the body that was reviewed, NOT re-derived later:
+      // once the author starts editing, a finding that no longer matches
+      // could be one they have just fixed or one the model invented, and
+      // only a mark taken at this moment tells the two apart.
+      const parsed = tagLocated(body, parseFindings(findings));
+      setReviewOut({ text: review, findings: parsed });
       setSources(srcs ?? []);
-      setStatus("Review ready — see the panel.");
+      const marked = parsed.filter((f) => f.locatedAtRun).length;
+      setStatus(
+        parsed.length
+          ? `Review ready — ${parsed.length} finding${parsed.length === 1 ? "" : "s"}, ${marked} marked in the source.`
+          : "Review ready — see the panel.",
+      );
     } catch (e) {
       setStatus(`Review failed: ${(e as Error).message}`);
     } finally {
