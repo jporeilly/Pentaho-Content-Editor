@@ -13,7 +13,10 @@ import { api } from "./api";
 import { linkScrollers } from "./scrollSync";
 import { highlightLines, linesToHtml, fenceRangeAt } from "./markdownTokens";
 import { parseVerifyOutput, problemsForGuide, byLine, unplaced } from "./verifyProblems";
-import { anchorFindings, groupFindings, severityLabel, type AnchoredFinding } from "./reviewFindings";
+import {
+  anchorFindings, groupFindings, severityLabel, applyScope, rewriteInstruction,
+  type AnchoredFinding,
+} from "./reviewFindings";
 import { annotateLines } from "./lineAnnotations";
 import { scrollTopForLine } from "./outline";
 import { Toolbar } from "./Toolbar";
@@ -45,7 +48,11 @@ const MIN_PREVIEW = 300;
 const SPLITTER_PX = 6;
 
 /** One AI-review finding: what is wrong, what to do, and the text it is about. */
-function FindingRow({ f, onJump }: { f: AnchoredFinding; onJump?: (f: AnchoredFinding) => void }) {
+function FindingRow({ f, onJump, onApply }: {
+  f: AnchoredFinding;
+  onJump?: (f: AnchoredFinding) => void;
+  onApply?: (f: AnchoredFinding) => void;
+}) {
   const jump = onJump && f.anchor ? () => onJump(f) : undefined;
   return (
     <li className={`author-finding is-${f.severity}`}>
@@ -76,16 +83,34 @@ function FindingRow({ f, onJump }: { f: AnchoredFinding; onJump?: (f: AnchoredFi
             <span className="author-finding-quote">“{f.quote}”</span>
           )
         )}
+        {/* Only where the finding is anchored: applying to a quote we
+            could not find would be rewriting a passage chosen by
+            accident. */}
+        {onApply && f.anchor && (
+          <button
+            type="button"
+            className="author-finding-apply"
+            onClick={() => onApply(f)}
+            title={
+              "Rewrite the block this quote sits in, asking for this fix.\n\n" +
+              "The result lands in the editor for you to read — nothing is saved, " +
+              "and ↺ Reset puts the original back."
+            }
+          >
+            Apply with AI
+          </button>
+        )}
       </div>
     </li>
   );
 }
 
-function FindingGroup({ title, hint, findings, onJump }: {
+function FindingGroup({ title, hint, findings, onJump, onApply }: {
   title: string;
   hint?: string;
   findings: AnchoredFinding[];
   onJump?: (f: AnchoredFinding) => void;
+  onApply?: (f: AnchoredFinding) => void;
 }) {
   if (!findings.length) return null;
   return (
@@ -95,7 +120,7 @@ function FindingGroup({ title, hint, findings, onJump }: {
         {hint && <span className="author-findings-hint"> — {hint}</span>}
       </p>
       <ul className="author-findings-list">
-        {findings.map((f) => <FindingRow key={f.id} f={f} onJump={onJump} />)}
+        {findings.map((f) => <FindingRow key={f.id} f={f} onJump={onJump} onApply={onApply} />)}
       </ul>
     </>
   );
@@ -151,7 +176,7 @@ export function App() {
   } = useLab(course, lab, setStatus);
   const {
     working, sources, setSources, reviewOut, setReviewOut, verifyOut, setVerifyOut,
-    rewriteSelection, undoRewrite, uploadAndInsertImage, onEditorPaste, onEditorDrop,
+    rewriteSelection, rewriteRange, undoRewrite, uploadAndInsertImage, onEditorPaste, onEditorDrop,
     runReview, runVerify,
   } = useAi({
     course, body, setBody, setDirty, setStatus,
@@ -344,6 +369,35 @@ export function App() {
       ta.scrollTop = scrollTopForLine(line, lh);
     }
     requestAnimationFrame(syncCaretLine);
+  }
+
+  // Apply a finding: select the block its quote sits in, then run the
+  // ordinary Rewrite over that block with the reviewer's own words as the
+  // instruction.
+  //
+  // Deliberately NOT a one-click patch from the review's own output. The
+  // reviewer is the least reliable thing in the editor - the first live
+  // run demanded the removal of a section that existed only in its own
+  // prompt - so applying goes the long way round: a second call, over a
+  // passage the author can see selected, landing in the buffer under the
+  // same undo as every other rewrite. Nothing is saved.
+  //
+  // What it cannot do is reach beyond the block. A finding whose fix is
+  // "add a Get Started link at the end of the page" is not a rewording
+  // problem, and no amount of instruction makes the paragraph it quoted
+  // into the right place to solve it. Those stay a job for the author,
+  // which is why the panel still leads with the quote and the jump.
+  function applyFinding(f: AnchoredFinding) {
+    const ta = textareaRef.current;
+    if (!ta || !f.anchor) return;
+    const scope = applyScope(body, f.anchor);
+    ta.focus();
+    ta.setSelectionRange(scope.start, scope.end);
+    const line = body.slice(0, scope.start).split("\n").length - 1;
+    const lh = parseFloat(window.getComputedStyle(ta).lineHeight);
+    if (Number.isFinite(lh) && lh > 0) ta.scrollTop = scrollTopForLine(line, lh);
+    requestAnimationFrame(syncCaretLine);
+    rewriteRange(scope.start, scope.end, rewriteInstruction(f), `Applying: ${f.issue}`);
   }
 
   // The current-line band and the fence pair are written straight onto
@@ -579,9 +633,10 @@ export function App() {
             <div className="author-findings">
               <FindingGroup
                 title="Marked in the source"
-                hint="click a quote to jump to it"
+                hint="click a quote to jump to it, or let the AI attempt the fix"
                 findings={reviewGroups.located}
                 onJump={jumpToFinding}
+                onApply={health?.ok === false ? undefined : applyFinding}
               />
               <FindingGroup
                 title="About the guide as a whole"

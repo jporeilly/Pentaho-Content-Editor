@@ -1296,6 +1296,25 @@ body {
   background: color-mix(in srgb, var(--author-review) 14%, var(--author-raised));
 }
 .author-finding-quoted { overflow-wrap: anywhere; }
+/* Deliberately quieter than the quote it sits under. Applying spends a
+   model call and changes the buffer; the primary action in this panel is
+   still reading the finding and deciding for yourself. */
+.author-finding-apply {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 9px;
+  border: 1px solid var(--author-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--author-muted);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.author-finding-apply:hover {
+  border-color: var(--author-review);
+  color: var(--author-review);
+}
 .author-finding-note {
   flex: 0 0 auto;
   font-family: inherit;

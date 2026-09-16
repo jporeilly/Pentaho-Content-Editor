@@ -13,7 +13,39 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Apply a review finding with the AI.** A located finding gets an
+  "Apply with AI" button: it selects the markdown block the quote sits
+  in and runs the ordinary Rewrite over that block, with the reviewer's
+  own issue and fix as the instruction. Deliberately the long way round
+  rather than a one-click patch from the review's own output - the
+  reviewer is the least reliable thing in the editor, so applying goes
+  through a second call, over a passage you can see selected, landing in
+  the buffer under the same one-level undo as every other rewrite.
+  Nothing is saved. The feedback loop closes itself: once applied, the
+  quote stops matching and the finding reports as *fixed since the
+  review ran*.
+- It cannot reach beyond the block, and does not pretend to. A finding
+  whose fix is "add a link at the end of the page" is not a rewording
+  problem; those stay a job for the author, which is why the panel still
+  leads with the quote and the jump.
+
+### Fixed
+
+- **The docs grounding is reference material, not raw material** —
+  everywhere, now, rather than at the one endpoint where it was caught.
+  It used to be appended to the END of every prompt, which is where a
+  model looks for the thing it was asked to work on. That cost two bugs:
+  a review reporting a *Critical* problem with the "Relevant Pentaho
+  documentation" section of a lab that had no such section, and then —
+  found by the very first use of Apply — a rewrite that wrote 4,000
+  characters of documentation links and a Google Cloud SDK URL straight
+  into a guide. The first was patched in place; the second proved that
+  was the wrong fix. Prompt assembly is now one function
+  (`core.grounded_prompt`): instructions, then the grounding labelled
+  REFERENCE ONLY, then the content fenced and last. All four grounded
+  call sites use it — rewrite, review, lab generation and import.
 
 ## [1.6.0] - 2026-09-16
 

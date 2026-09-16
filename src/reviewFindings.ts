@@ -248,6 +248,56 @@ export function spanToMarks(body: string, start: number, end: number): LineSpan[
   return out;
 }
 
+// A quoted run is rarely the right thing to REWRITE. It is the evidence
+// for a finding - a heading, a phrase, the three words that gave the
+// problem away - and rewriting three words in isolation cannot address
+// "this step never says which version". The block around it can: a model
+// given the whole paragraph and the reviewer's complaint has somewhere to
+// put a clarifying sentence.
+//
+// So the scope is the enclosing markdown block, blank-line delimited,
+// which is also the unit an author would have selected by hand.
+const MAX_SCOPE = 4000;
+
+/**
+ * The passage a finding's fix should be applied to.
+ *
+ * Falls back to the quoted span itself when the enclosing block is
+ * enormous - a 4,000-character "paragraph" is a table, a fence or a
+ * mis-formatted guide, and handing all of it to a rewrite risks far more
+ * than the finding was about.
+ */
+export function applyScope(body: string, anchor: Anchor): { start: number; end: number } {
+  const before = body.lastIndexOf("\n\n", anchor.start);
+  let start = before === -1 ? 0 : before + 2;
+  const after = body.indexOf("\n\n", anchor.end);
+  let end = after === -1 ? body.length : after;
+
+  // Leading and trailing whitespace belongs to the layout, not the
+  // passage: sending it invites the model to return it differently.
+  while (start < anchor.start && /\s/.test(body[start])) start++;
+  while (end > anchor.end && /\s/.test(body[end - 1])) end--;
+
+  if (end - start > MAX_SCOPE) return { start: anchor.start, end: anchor.end };
+  return { start, end };
+}
+
+/**
+ * What to ask the rewrite for, in the reviewer's own words.
+ *
+ * The finding is passed through rather than paraphrased. It is the only
+ * thing in this loop that knows what is wrong, and a paraphrase of a
+ * paraphrase is how "no version given" becomes "improve clarity".
+ */
+export function rewriteInstruction(f: Finding): string {
+  const fix = f.fix ? ` Their suggested fix: ${f.fix}` : "";
+  return (
+    `A reviewer raised this problem with the passage below: ${f.issue}${fix} ` +
+    "Apply it. You may add, remove or reorder text within the passage if the " +
+    "fix requires it, but change nothing the problem does not touch."
+  );
+}
+
 /** One finding, as the tooltip its marked lines carry. */
 export function findingTooltip(f: Finding): string {
   const head = `AI review (${severityLabel(f.severity)}): ${f.issue}`;

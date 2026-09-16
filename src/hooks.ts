@@ -326,26 +326,44 @@ export function useAi(args: UseAiArgs) {
   const [reviewOut, setReviewOut] = useState<ReviewResult | null>(null);
   const [verifyOut, setVerifyOut] = useState<{ ok: boolean; output: string } | null>(null);
 
-  const rewriteSelection = useCallback(async () => {
+  /**
+   * Rewrite one range of the body, optionally with an instruction.
+   *
+   * The single path by which generated text reaches a guide. Applying a
+   * review finding goes through here rather than getting a route of its
+   * own: it is the same call, on a range the author can see selected,
+   * landing in the buffer under the same one-level undo. A second way in
+   * would be a second thing to make safe.
+   */
+  const rewriteRange = useCallback(async (
+    start: number,
+    end: number,
+    instruction?: string,
+    working?: string,
+  ) => {
     const ta = textareaRef.current;
     if (!ta) return;
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const selected = body.slice(start, end);
-    if (!selected.trim()) {
-      setStatus("Select some text in the editor first, then Rewrite.");
+    const passage = body.slice(start, end);
+    if (!passage.trim()) {
+      setStatus("There is nothing to rewrite there.");
       return;
     }
     setWorking(true);
-    setStatus("Rewriting selection…");
+    setStatus(working ?? "Rewriting selection…");
     try {
-      const { text, sources: srcs } = await api.rewrite(selected);
+      const { text, sources: srcs } = await api.rewrite(passage, instruction);
       const next = body.slice(0, start) + text + body.slice(end);
       setBody(next);
       setDirty(true);
-      setLastRewrite({ start, end: start + text.length, original: selected });
+      setLastRewrite({ start, end: start + text.length, original: passage });
       setSources(srcs ?? []);
-      setStatus("Rewrote selection — review, Reset to undo, or Save.");
+      setStatus(
+        instruction
+          ? "Applied — read it, then ↺ Reset if it is not what you wanted."
+          : "Rewrote selection — review, Reset to undo, or Save.",
+      );
+      // Selected, not just inserted: the author should see exactly what
+      // changed, and the next keystroke replaces it if it is wrong.
       requestAnimationFrame(() => {
         ta.focus();
         ta.setSelectionRange(start, start + text.length);
@@ -356,6 +374,16 @@ export function useAi(args: UseAiArgs) {
       setWorking(false);
     }
   }, [body, setBody, setDirty, setLastRewrite, setStatus, textareaRef]);
+
+  const rewriteSelection = useCallback(async () => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    if (ta.selectionStart === ta.selectionEnd) {
+      setStatus("Select some text in the editor first, then Rewrite.");
+      return;
+    }
+    await rewriteRange(ta.selectionStart, ta.selectionEnd);
+  }, [rewriteRange, setStatus, textareaRef]);
 
   const undoRewrite = useCallback(() => {
     if (!lastRewrite) return;
@@ -452,7 +480,7 @@ export function useAi(args: UseAiArgs) {
 
   return {
     working, sources, setSources, reviewOut, setReviewOut, verifyOut, setVerifyOut,
-    rewriteSelection, undoRewrite, uploadAndInsertImage, onEditorPaste, onEditorDrop,
+    rewriteSelection, rewriteRange, undoRewrite, uploadAndInsertImage, onEditorPaste, onEditorDrop,
     runReview, runVerify,
   };
 }

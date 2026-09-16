@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   parseFindings, locate, anchorFindings, tagLocated, spanToMarks,
-  groupFindings, findingTooltip, type Finding,
+  groupFindings, findingTooltip, applyScope, rewriteInstruction, type Finding,
 } from "./reviewFindings";
 
 // A guide shaped like the real ones: a heading, a callout, a step, and a
@@ -189,5 +189,62 @@ describe("findingTooltip", () => {
       .toBe("AI review (Critical): no version\nFix: say which");
     expect(findingTooltip(finding({ issue: "no version" })))
       .toBe("AI review (Should fix): no version");
+  });
+});
+
+describe("applyScope", () => {
+  // What gets REWRITTEN when a finding is applied. Not the quote: three
+  // words cannot absorb "this step never says which version", and the
+  // block around them can.
+  it("widens a quote to the markdown block it sits in", () => {
+    const a = locate(GUIDE, "Start Spoon")!;
+    const scope = applyScope(GUIDE, a);
+    expect(GUIDE.slice(scope.start, scope.end)).toBe("Start Spoon from the shortcut.");
+  });
+
+  it("takes a whole multi-line block, markers and all", () => {
+    const a = locate(GUIDE, "read a CSV")!;
+    const scope = applyScope(GUIDE, a);
+    expect(GUIDE.slice(scope.start, scope.end)).toBe(
+      "> **Note:**\n>\n> In this lab you will read a CSV and write it\n> to a database table.",
+    );
+  });
+
+  it("holds the ends of the document without running off either", () => {
+    const a = locate(GUIDE, "Load a CSV")!;
+    const scope = applyScope(GUIDE, a);
+    expect(scope.start).toBe(0);
+    expect(GUIDE.slice(scope.start, scope.end)).toBe("# Load a CSV");
+
+    const last = "# One\n\nThe final line with no trailing blank.";
+    const b = locate(last, "final line")!;
+    expect(last.slice(...Object.values(applyScope(last, b)) as [number, number]))
+      .toBe("The final line with no trailing blank.");
+  });
+
+  it("refuses to widen into something enormous", () => {
+    // A 4,000-character "paragraph" is a table or a mis-formatted guide;
+    // handing all of it to a rewrite risks far more than the finding.
+    const huge = "x ".repeat(3000) + "needle" + " y".repeat(3000);
+    const a = locate(huge, "needle")!;
+    const scope = applyScope(huge, a);
+    expect(scope).toEqual({ start: a.start, end: a.end });
+  });
+});
+
+describe("rewriteInstruction", () => {
+  it("passes the reviewer's own words through, fix included", () => {
+    const i = rewriteInstruction(finding({ issue: "No version is given.", fix: "Name the version." }));
+    expect(i).toContain("No version is given.");
+    expect(i).toContain("Their suggested fix: Name the version.");
+    // The licence to restructure is explicit: a fix that needs a sentence
+    // added cannot be done by rewording alone.
+    expect(i).toContain("add, remove or reorder");
+  });
+
+  it("reads correctly when the reviewer offered no fix", () => {
+    const i = rewriteInstruction(finding({ issue: "Ambiguous.", fix: "" }));
+    expect(i).toContain("Ambiguous.");
+    expect(i).not.toContain("suggested fix");
   });
 });
