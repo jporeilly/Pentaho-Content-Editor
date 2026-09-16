@@ -5,7 +5,7 @@ browser app — **not** part of the Tauri learner app, never shipped to a
 VM, and since 2026-09-15 no longer part of its repository either.
 
 Its own repo (`jporeilly/Pentaho-Content-Editor`, private), its own
-dependencies, version (`package.json`, currently 1.4.0) and
+dependencies, version (`package.json`, currently 1.12.0) and
 [`CHANGELOG.md`](CHANGELOG.md). Entries before 1.0.0 live in the learner
 app's changelog, where the editor had no version of its own.
 
@@ -378,9 +378,44 @@ invisible from a checkout:
   route reads them as attributes at call time. Keep it that way.
 * **`node` and `git` are resolved through `tools.py`,** bundled copy
   first then PATH — the shape the Content Manager uses for its MinGit.
-  Nothing is bundled today; that module is the seam where vendoring would
-  land, and the reason the first-run screen can say which four buttons
-  will be dark on a laptop without Node.
+  Both ARE bundled now (`desktop/scripts/fetch-runtimes.ps1`, 177 MB of
+  the installer's 287 MB payload), so a Full install scaffolds, verifies
+  and publishes on a machine carrying neither. The resolver is what made
+  that a vendoring job rather than a rework, and it still falls back to
+  PATH — which is why a Minimal install behaves exactly as before and the
+  first-run screen can still say which four buttons will be dark.
+  **The Node version is not a free choice:** the Content Manager's
+  `verify-course.mjs` imports a TypeScript module directly, which needs
+  Node 24's native type stripping, so the fetch script reads that repo's
+  `.nvmrc` rather than pinning its own. Vendoring 22.14 produced an
+  installed editor whose Verify died with `ERR_UNKNOWN_FILE_EXTENSION`
+  while the same command worked from a checkout.
+
+Two things about the installer are **deliberate differences from the
+learner app's template**, which `desktop/src-tauri/nsis/installer.nsi`
+was copied from wholesale. Both are pinned by
+`src/installerTemplate.test.ts`, because re-syncing that template — the
+obvious move when the wizard gains a page over there — would undo either
+one silently:
+
+* **The uninstall page's "delete application data" box is UNTICKED.**
+  Over there, ticked is right: the folder holds course progress and a
+  reinstall means starting over. Here it holds the author's provider,
+  model and Content Manager path, and it arrived ticked — taking the
+  settings of an installed 1.8.0 on the way to 1.9.1.
+* **The course-detection component reads its hint back** out of the
+  64-bit registry view and checks the folder really holds a `courses/`
+  before reporting success. An exit code only says the script thought it
+  worked; it said exactly that while writing into WOW6432Node, where the
+  64-bit app could never see it.
+
+**The window starts hidden** (`visible: false`) and is revealed three
+ways: by the splash a beat after it navigates to the app, at once when
+the splash fails, and unconditionally by a watchdog thread 2.5 s after
+start. The watchdog is not belt-and-braces — "hidden until ready" fails
+as an app that appears not to start, with no window and nothing to read,
+so the reveal must not depend on the backend or on any JavaScript
+running at all. `src/desktopShell.test.ts` holds those three paths.
 
 `app.py`'s `mount_ui()` serves `dist/` only when it has been built, so
 the dev flow keeps Vite on 5273 and the packaged app is one process on
@@ -417,8 +452,8 @@ hotmail address.
 
 | Suite | Command | Size |
 | --- | --- | --- |
-| Frontend | `npm test` (vitest) | 197 tests, 15 files |
-| Backend | `cd api && .venv\Scripts\python -m pytest -q` | 42 tests |
+| Frontend | `npm test` (vitest) | 220 tests, 19 files |
+| Backend | `cd api && .venv\Scripts\python -m pytest -q` | 68 tests |
 
 The backend venv is normally created from `requirements.txt` alone, which
 does **not** include pytest — `python -m pytest` then fails with "No

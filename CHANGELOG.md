@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.12.0] - 2026-09-16
+
 ### Added
 
 - **Left-aligned** joins Centred and Right-aligned in the Text menu. It
@@ -26,6 +30,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   PDI transformation step and a snippet of page markup are not the same
   thing. The registry lives in the Content Manager, so the change is
   there; both halves of the two-repo contract still pass.
+
 
 ## [1.11.0] - 2026-09-16
 
