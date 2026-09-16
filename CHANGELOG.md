@@ -15,6 +15,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- **The icon generator tie to the Content Manager is cut.** The app icon
+  and the wizard bitmaps are committed artifacts now, and nothing in this
+  repo generates them — so building needs no icon tooling and no reach
+  across. They are still drawn by that app's generator, which owns the
+  brand, but on demand and by hand: `desktop/README.md` carries the exact
+  recipe for the day the brand moves. Copying ~340 lines of drawing code
+  here was the alternative, and a second drawing of a brand that has
+  already been revised once diverges on the next revision.
 - **Built installers land in `dist/` again, like every other app in the
   suite**, and the Vite bundle moved to `ui/`. They had been sharing
   `dist/`, which is why the installer briefly collected to `installers/`

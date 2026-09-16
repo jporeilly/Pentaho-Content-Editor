@@ -58,6 +58,53 @@ that:
 
 Nothing should match.
 
+## The icons are committed artifacts
+
+`src-tauri/icons/` holds six files — the app icon (`.ico` plus three
+PNGs) and the two NSIS wizard bitmaps — and they are **checked in**. The
+build reads them and nothing generates them, so building this repo needs
+no icon tooling at all.
+
+That is deliberate. They were drawn by the Content Manager's icon
+generator, which owns the 2026 brand: a black tile with a white capital
+P, plus a per-app badge that is the only thing separating the suite's
+taskbar pins at 24 px. Copying ~340 lines of that drawing code here would
+have created a second drawing of a brand that has already moved once (the
+swirl and the red are retired), and the two would diverge on the next
+move. Reaching across on every build was the other extreme. Committed
+output is neither: one drawing, no live dependency.
+
+**To regenerate** — only when the brand moves, and from a machine with
+the Content Manager checked out, which building this repo already
+requires for the renderer:
+
+```powershell
+$gen = "<PCM>\scripts\make-icons.py"
+$icons = "desktop\src-tauri\icons"
+
+# the app icon: black P tile + this app's badge
+python $gen --installer-ico "$icons\icon.ico" --badge pencil --badge-color "#0E7490"
+
+# the installer wizard's header and sidebar
+python $gen --nsis-only --out-dir $icons --badge pencil --badge-color "#0E7490" `
+            --title "Content Editor" --subtitle "Course authoring"
+
+# the PNGs Tauri's bundle.icon list names, scaled DOWN from the .ico's
+# largest frame (never up - that is what a blurry taskbar icon is made of)
+python -c "from PIL import Image; im=Image.open(r'$icons\icon.ico'); im.size=max(im.ico.sizes()); m=im.convert('RGBA'); [m.resize((s,s), Image.LANCZOS).save(rf'$icons\{n}') for n,s in (('32x32.png',32),('128x128.png',128),('128x128@2x.png',256))]"
+```
+
+Two things that bite, both already paid for:
+
+- **`--nsis-only` uses the generator's DEFAULT badge.** Omit the badge
+  flags on that second command and the sidebar comes out wearing the
+  Content Manager's amber mortarboard while the app icon wears the
+  pencil — the wizard announcing one app while installing another, which
+  is the single thing the per-app badge exists to prevent.
+- **Cargo does not track `icon.ico` as a build input.** After changing it,
+  run `cargo clean --release -p pentaho-content-editor-desktop` or the
+  cached exe keeps the old icon embedded.
+
 ## The traps, all of them paid for once
 
 - **`\\?\` paths.** `resource_dir()` canonicalises to the verbatim form,
@@ -75,9 +122,8 @@ Nothing should match.
   fails invisibly.
 - **Relative `/XD` names in staging.** An absolute path matches only the
   top level, so subpackage `__pycache__` ships.
-- **Icons are not a cargo build input.** After `make-icons.py`, run
-  `cargo clean --release -p pentaho-content-editor-desktop` or the cached
-  exe keeps the old icon embedded.
+- **Icons are not a cargo build input** — see the regeneration note
+  above; an icon-only change needs `cargo clean --release` first.
 - **Hashed asset names outlive an upgrade.** NSIS uninstalls the exact
   file list it installed, so `index-<oldhash>.js` from a previous version
   survives and its directory cannot be removed. `src-tauri/nsis/hooks.nsh`
@@ -96,7 +142,8 @@ Nothing should match.
 desktop/
   boot.py                     puts api/ on sys.path, then runs uvicorn
   dist/index.html             the startup screen (SOURCE, not build output)
-  scripts/                    fetch-python, stage-app, make-icons, sign, collect
+  scripts/                    fetch-python, stage-app, sign, collect
+  src-tauri/icons/            committed artifacts — nothing generates them
   src-tauri/
     src/main.rs               paths, commands, the window
     src/server.rs             free port, job object, log draining, readiness
