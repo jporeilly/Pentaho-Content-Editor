@@ -10,6 +10,7 @@
 //   CHANGELOG.md                        the newest "## [x.y.z]" heading
 //   desktop/package.json                "version"
 //   desktop/src-tauri/tauri.conf.json   "version"
+//   desktop/src-tauri/Cargo.toml        [package] version
 //
 // The last two arrived with the Windows installer. They are what the
 // SHIPPED artifact claims: tauri.conf.json's version names the setup
@@ -73,6 +74,30 @@ const LOCK = p("package-lock.json");
 const CHANGELOG = p("CHANGELOG.md");
 const DESKTOP_PKG = p("desktop", "package.json");
 const TAURI_CONF = p("desktop", "src-tauri", "tauri.conf.json");
+const CARGO_TOML = p("desktop", "src-tauri", "Cargo.toml");
+
+/**
+ * The [package] version of a Cargo.toml - the first `version = "x.y.z"`
+ * in the file, which is the package's own. A dependency's version is
+ * always inside a later table, so anchoring on the first occurrence is
+ * enough and keeps this to one regex.
+ *
+ * Not in the shared machinery, because it is not shared: the Content
+ * Manager leaves its crate pinned at 0.1.0 while shipping 0.4.49. That
+ * works - Tauri takes the product version from tauri.conf.json - but a
+ * crate version that disagrees with the product is a question someone
+ * has to answer twice, and answering it once here is cheaper.
+ */
+function setCargoVersion(text, next) {
+  const re = /^(version\s*=\s*")[0-9]+\.[0-9]+\.[0-9]+(")$/m;
+  if (!re.test(text)) throw new Error("no [package] version in Cargo.toml");
+  return text.replace(re, `$1${next}$2`);
+}
+
+/** The [package] version a Cargo.toml currently declares. */
+function cargoVersion(text) {
+  return /^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"$/m.exec(text)?.[1];
+}
 
 /** The version each carrier currently claims. */
 function current() {
@@ -84,6 +109,7 @@ function current() {
     "CHANGELOG.md (latest)": changelogVersion(readText(CHANGELOG).text),
     "desktop/package.json": JSON.parse(readText(DESKTOP_PKG).text).version,
     "desktop tauri.conf.json": JSON.parse(readText(TAURI_CONF).text).version,
+    "desktop Cargo.toml": cargoVersion(readText(CARGO_TOML).text),
   };
 }
 
@@ -126,6 +152,11 @@ function bump(next, dryRun) {
   for (const file of [DESKTOP_PKG, TAURI_CONF]) {
     const { text, crlf } = readText(file);
     stage(file, text, setJsonVersion(text, next, rel(file)), crlf);
+  }
+
+  {
+    const { text, crlf } = readText(CARGO_TOML);
+    stage(CARGO_TOML, text, setCargoVersion(text, next), crlf);
   }
 
   if (!edits.length) {

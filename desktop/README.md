@@ -7,8 +7,11 @@ drift apart.
 
 What packaging removes: the venv, `pip install`, `npm install`, two
 terminals, and knowing that Vite binds IPv6 while uvicorn binds IPv4.
-The audience is authors on locked-down laptops, who cannot install
-Python at all.
+The audience is authors on corporate laptops. They can install tooling —
+which is why Node and git are required rather than vendored — but a
+Python environment is not something anyone should have to stand up in
+order to write a lab guide, and a version of it that drifts from the one
+this was tested against is worse than none.
 
 What it does **not** remove: the content. The editor edits a Pentaho
 Content Manager checkout's `courses/` and scaffolds by shelling out to

@@ -8,7 +8,10 @@
 //
 // What it buys: no venv, no `pip install`, no two terminals, no knowing
 // that Vite binds IPv6 while uvicorn binds IPv4. The audience is authors
-// on locked-down laptops, who cannot install Python at all.
+// on corporate laptops - able to install tooling (hence Node and git are
+// required, not vendored), but with no reason to stand up a Python
+// environment, or to debug one that drifted from the tested set, just to
+// write a lab guide.
 //
 // What it does NOT carry is the content. The editor edits the Content
 // Manager's courses/ and scaffolds by shelling out to that repo's own

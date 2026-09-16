@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.6.0] - 2026-09-16
+
 ### Added
 
 - **The editor installs.** A Windows installer (`desktop/`, Tauri shell +
@@ -20,8 +24,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   editor's own server on a free port and points a webview at it. The app
   inside is unchanged, so the packaged and development builds cannot
   drift. It removes the venv, the `pip install`, the two terminals and
-  the IPv4/IPv6 port trap — which is the whole wall in front of an author
-  on a locked-down laptop, who cannot install Python at all.
+  the IPv4/IPv6 port trap — the whole setup wall in front of an author on
+  a corporate laptop, who can perfectly well install tooling but should
+  not have to stand up a Python environment to write a lab guide.
 - **A first-run screen.** The courses are not bundled and never will be:
   they belong to the Content Manager, and the editor edits that
   repository in place. So an installed editor asks where the checkout is,
@@ -92,6 +97,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   directory alive forever. Proven by the suite's marker experiment:
   install, plant files in the state folder, uninstall, and confirm the
   install directory is completely gone while the state is untouched.
+
 
 ## [1.5.0] - 2026-09-16
 
