@@ -8,7 +8,7 @@
 // documents markdown, or a shell script full of comments, contains
 // lines starting with "#" that are not headings; treating them as
 // headings would fill the outline with noise and jump to the wrong
-// place. So the scan tracks fences, exactly as the renderer does.
+// place. So the scan tracks fences, exactly as the Engine does.
 
 export interface OutlineEntry {
   /** 1-6. Steps are h2, sub-steps h3. */

@@ -15,6 +15,33 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.13.1] - 2026-09-17
+
+### Changed
+
+- **The preview's rendering layer is called the Engine.** The status line
+  reads `Engine v0.4.50` where it said `renderer`, and the word changed
+  everywhere the project uses it — comments, docs and test names, in both
+  repositories (Content Manager `1e5d15a`). Nothing that anything imports
+  was renamed: `GuideRenderer` keeps its name. Three places kept the old
+  word on purpose — the SVG graph renderer, which is a genuinely
+  different thing; course content and video narration, which are
+  learner-facing rather than project vocabulary; and released changelog
+  entries, which record what was said at the time.
+
+### Fixed
+
+- **The Rewrite button stayed on "↺ Reset" after a save.** Rewrite a
+  passage, save it, publish it — and the button still offered to put the
+  original back. `lastRewrite` was cleared by a manual edit and by
+  switching lab, but not by saving, so a rewrite followed straight by
+  Ctrl+S left the undo live against text already written to disk and
+  pushed. Pressing it then would have quietly reintroduced the old
+  wording as an unsaved change. Cleared on a SUCCESSFUL save only: a save
+  that failed wrote nothing, and Reset is still exactly what an author
+  might want next — put the original back and save that instead.
+
+
 ## [1.13.0] - 2026-09-16
 
 ### Changed

@@ -1,12 +1,12 @@
 """Pentaho Content Editor API — FastAPI backend for the visual editor.
 
 A thin, local read/write service over the repo's ``courses/`` folder so
-the React editor (which reuses the app's own MarkdownBody renderer for a
+the React editor (which reuses the Engine's own MarkdownBody for a
 true-WYSIWYG preview) can list, open, and save courses and labs without
 the author touching JSON or the folder layout by hand.
 
 Runs on the author's machine only — it is NOT shipped to the learner VMs
-(those run the Tauri renderer). Start it with::
+(those run the learner app). Start it with::
 
     cd api
     pip install -r requirements.txt

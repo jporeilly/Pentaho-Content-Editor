@@ -9,7 +9,9 @@
 // A few pieces are genuinely shared and threaded between hooks: `setStatus`
 // (the one header status line), `structureKey` (bumped on save/settings to
 // refresh the tree), and `lastRewrite` (set by a rewrite, cleared by any
-// manual edit or lab switch).
+// manual edit, lab switch, or SUCCESSFUL save - once the rewrite is on
+// disk there is nothing left to undo, and the button sat on "↺ Reset"
+// through a save and a publish because saving was missing from this list).
 
 import {
   useCallback, useEffect, useMemo, useRef, useState,
@@ -291,6 +293,11 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
       clearDraft(course, lab);
       setDetail(updated);
       setDirty(false);
+      // The rewrite is on disk now, so there is nothing left to undo. Only
+      // on SUCCESS: a save that failed wrote nothing, and ↺ Reset is still
+      // exactly what an author might want next - put the original back and
+      // save that instead.
+      setLastRewrite(null);
       bumpStructure(); // refresh titles/metadata in the tree
       const m = updated.manifest as any;
       setStatus(`Saved · ${m.stepCount} steps · ~${m.estimatedMinutes} min${m.hasVideo ? " · has video" : ""}`);
@@ -307,7 +314,7 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
     } finally {
       setSaving(false);
     }
-  }, [course, lab, body, detail?.bodyHash, bumpStructure, setStatus]);
+  }, [course, lab, body, detail?.bodyHash, bumpStructure, setStatus, setLastRewrite]);
 
   // Warn before the page unloads with unsaved text — F5, closing the tab,
   // and the dev server's full reloads all pass through here.

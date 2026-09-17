@@ -1,6 +1,6 @@
 {
   "name": "pentaho-content-editor",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "private": true,
   "type": "module",
   "description": "Authoring surface for Pentaho workshop courses. Runs from source on an author's machine; never shipped to a VM.",

@@ -4,10 +4,10 @@ import { createLowlight } from "lowlight";
 import { BLOCKS } from "./Toolbar";
 import { CODE_LANGUAGES, HIGHLIGHT_ALIASES, HIGHLIGHT_LANGUAGES, codeFence } from "@app/components/codeLanguages";
 
-// The editor's Code menu writes fences that the LEARNER APP's renderer
+// The editor's Code menu writes fences that the LEARNER APP's Engine
 // has to be able to highlight. That registry lives in the app's repo,
 // which this test reaches through the same @app alias the preview uses -
-// so if the editor ever drifts from the renderer it is caught here, on
+// so if the editor ever drifts from the Engine it is caught here, on
 // the side that did the drifting.
 //
 // The other half of the contract, that every language in the registry

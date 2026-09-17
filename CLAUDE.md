@@ -12,13 +12,13 @@ app's changelog, where the editor had no version of its own.
 ## It needs the Content Manager installed first
 
 The editor edits *that* app's courses and previews them with *that* app's
-renderer, so it is useless alone. **Install order is Content Manager,
+Engine, so it is useless alone. **Install order is Content Manager,
 then editor.** Both halves find it the same way — the sibling directory
 by default, overridden by the **`PCM_REPO`** environment variable:
 
 | Hook | Where | Resolves to |
 | --- | --- | --- |
-| The renderer | `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | `@app` → `<PCM>/src` |
+| The Engine | `vite.config.ts`, `vitest.config.ts`, `tsconfig.json` | `@app` → `<PCM>/src` |
 | The courses | `api/core.py` | `COURSES_DIR` → `<PCM>/courses` |
 | The scaffolder + verifier | `api/core.py`, `routers/{labs,courses,imports}.py` | `node <script>` run with `cwd=REPO_ROOT` |
 | The release machinery | `scripts/bump-version.mjs` | `<PCM>/scripts/lib/version-carriers.mjs` |
@@ -46,7 +46,7 @@ the day the brand moves. Copying the drawing code here was the other
 option and is worse: a second drawing of a brand that has already been
 revised once will diverge on the next revision.
 
-Because the renderer lives outside this project root, Vite needs the app
+Because the Engine lives outside this project root, Vite needs the app
 repo in `server.fs.allow` — it is, alongside `.`.
 
 ## Two processes, both required
@@ -169,7 +169,7 @@ a fixed stub is worse than no help:
 - **Callout — with title** (`CalloutModal`, `callouts.ts`) picks the
   kind and writes the `####` title strip. `quoteLines` prefixes **every**
   line: a multi-line callout that only quoted the first one silently
-  truncated in the renderer.
+  truncated in the Engine.
 
 **Go to → Outline** (`outline.ts`) jumps to a heading. It is fence-aware,
 so a `#` inside a code block is not mistaken for a heading — including
@@ -181,7 +181,7 @@ tilde fences and fences longer than three characters.
 Anything that decides how a guide looks is imported from the app through
 `@app` — never copied. Eleven modules today, among them:
 
-- `@app/components/MarkdownBody` — the renderer itself.
+- `@app/components/MarkdownBody` — the Engine itself.
 - `@app/components/GuideHeader` — title, `~N min`, video badge,
   description, progress bar.
 - `@app/components/guideBody` — `stripLeadingH1`, `countSteps`,
@@ -240,7 +240,7 @@ re-rendered — the caret moves far more often than the text changes.
 **The command palette** (`commandRanking.ts`, `CommandPalette.tsx`) on
 Ctrl/Cmd+/ or Ctrl/Cmd+Shift+P. Commands are generated from `BLOCKS` and
 call the same `insert()` the menus do — never a second list, which is how
-the Callout menu once ended up missing a kind the renderer supported.
+the Callout menu once ended up missing a kind the Engine supported.
 Ranking is deliberately explicable (exact, prefix, contains, group,
 title, then subsequence) with ties holding registry order, so the list
 does not reshuffle as you type.
@@ -342,7 +342,7 @@ and must agree: `vite.config.ts` (dev + build), `vitest.config.ts`
 
 **A shim whose signature disagrees with the thing it stands in for is a
 trap.** While the shims were only a *Vite* alias, tsc still checked the
-renderer against the genuine `@tauri-apps` types, so nobody noticed the
+Engine against the genuine `@tauri-apps` types, so nobody noticed the
 `invoke` shim took one argument where the real API takes two. Mapping
 them in `tsconfig.json` during the repo split turned every two-argument
 call into a type error. Fixed — but keep signatures honest.
@@ -470,7 +470,7 @@ api\.venv\Scripts\python -m pip install -r api\requirements-dev.txt
 ```
 
 `npm run build` runs `tsc` then a Vite production build, which bundles
-the app's renderer through `@app` — so it is the check that the
+the app's Engine through `@app` — so it is the check that the
 cross-repo wiring still holds.
 
 ## Versioning

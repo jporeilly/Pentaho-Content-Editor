@@ -10,7 +10,7 @@ export async function invoke<T = unknown>(
   // invisible while only Vite aliased the file - TypeScript still saw
   // the genuine @tauri-apps types. Once the editor moved out of the
   // app's repo and mapped these in tsconfig as well, every two-argument
-  // call in the renderer became a type error. A shim whose signature
+  // call in the Engine became a type error. A shim whose signature
   // disagrees with the thing it stands in for is a trap either way.
   args?: Record<string, unknown>,
 ): Promise<T> {

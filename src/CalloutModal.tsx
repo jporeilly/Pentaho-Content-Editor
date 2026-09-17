@@ -2,7 +2,7 @@
 //
 // The quick entries in the Callout menu stay one click, because that is
 // the common case. This exists for the thing they cannot do: the
-// renderer promotes a leading `#### heading` inside a callout to the
+// Engine promotes a leading `#### heading` inside a callout to the
 // panel's title strip, and nothing in the editor ever wrote one, so the
 // feature was invisible unless an author had read the source.
 

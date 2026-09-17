@@ -7,7 +7,7 @@
 // quote followed by loose prose. CommonMark ends the blockquote at the
 // first unprefixed line, so the rest silently fell out of the panel.
 //
-// It also had a gap: the renderer promotes a leading `#### heading`
+// It also had a gap: the Engine promotes a leading `#### heading`
 // inside a callout to the panel's title strip, and nothing in the
 // editor wrote one, so the feature was invisible to authors.
 //
@@ -25,7 +25,7 @@ export interface CalloutKind {
 }
 
 /**
- * Every kind the renderer understands, in menu order. `parseCalloutTag`
+ * Every kind the Engine understands, in menu order. `parseCalloutTag`
  * maps these onto its seven kinds; `toolbarBlocks.test.ts` checks that
  * none of them is missing a button.
  */
@@ -58,7 +58,7 @@ export function quoteLines(text: string): string {
 export interface CalloutOptions {
   /** "" for an untagged quote (the casual italic one). */
   tag: string;
-  /** Promoted to the panel's title strip by the renderer. */
+  /** Promoted to the panel's title strip by the Engine. */
   title?: string;
   body: string;
 }
@@ -70,7 +70,7 @@ export function buildCallout({ tag, title, body }: CalloutOptions): string {
   if (title && title.trim()) parts.push(`#### ${title.trim()}`);
   parts.push(body.trim() === "" ? "" : body);
   // A blank quoted line between each part - that separation is what
-  // makes the renderer treat the #### as a heading rather than as the
+  // makes the Engine treat the #### as a heading rather than as the
   // first words of the paragraph.
   return quoteLines(parts.join("\n\n")) + "\n\n";
 }

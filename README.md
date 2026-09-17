@@ -4,7 +4,7 @@ A local, browser-based **visual editor** for Pentaho Content Manager
 courses. It removes the "you must know markdown and hand-edit JSON"
 barrier: pick a course and lab, edit the guide with an insert-block
 toolbar, watch a **live preview rendered by the learner app's own
-renderer**, and save — the lab's `manifest.json` metrics are recomputed
+Engine**, and save — the lab's `manifest.json` metrics are recomputed
 for you.
 
 This is an **authoring tool that runs on your machine only.** It is *not*
@@ -14,13 +14,13 @@ repositories with separate version numbers.
 
 ## It needs the Content Manager first
 
-The editor has no courses of its own and no renderer of its own. Install
+The editor has no courses of its own and no Engine of its own. Install
 [Pentaho Content Manager](https://github.com/jporeilly/Pentaho-Content-Manager)
 **first**, then this. It reaches into that repository four ways:
 
 | What | Where it looks |
 | --- | --- |
-| The renderer (preview fidelity) | `<PCM>/src`, via the `@app` alias |
+| The Engine (preview fidelity) | `<PCM>/src`, via the `@app` alias |
 | The courses it edits | `<PCM>/courses` |
 | The scaffolder + verifier it shells out to | `<PCM>/scripts/*.mjs`, run with Node |
 | The version-bump machinery | `<PCM>/scripts/lib/version-carriers.mjs` |
@@ -39,7 +39,7 @@ C:\Projects\
 ## Layout
 
 ```text
-src/            React frontend (imports the app's renderer through @app)
+src/            React frontend (imports the app's Engine through @app)
   shims/        inert browser stand-ins for the @tauri-apps modules
 api/            FastAPI backend — reads and writes <PCM>/courses/
   routers/      courses, labs, assets, imports, ai, export, publish, settings
@@ -146,7 +146,7 @@ the owner if something foreign holds the port.
   stub: **Table** (shape + per-column alignment), **Tidy table** (re-pad
   the table at the cursor), **Tabs** (name your own tabs), and
   **Callout — with title**.
-- **Callout** — all seven kinds the renderer parses: Note, Tip, Warning,
+- **Callout** — all seven kinds the Engine parses: Note, Tip, Warning,
   Critical, Success, Objectives, and **Under the hood**, the teaching
   panel that goes *after* an action to explain what the engine did.
 - **Media** — image (flush-left with a centred caption), centred and
@@ -260,7 +260,7 @@ The backend venv is normally built from `requirements.txt`, which does
 api\.venv\Scripts\python -m pip install -r api\requirements-dev.txt
 ```
 
-`npm run build` bundles the learner app's renderer through `@app`, so it
+`npm run build` bundles the learner app's Engine through `@app`, so it
 is also the check that the cross-repo wiring still holds.
 
 ### Versioning

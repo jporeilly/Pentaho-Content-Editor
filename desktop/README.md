@@ -30,7 +30,7 @@ npm run dist
 
 | Step | What it does |
 | --- | --- |
-| `build:ui` | `npm run build` in the repo root. Bundles the UI **and the Content Manager's renderer** through the `@app` alias, with `VITE_EDITOR_API=` from `.env.production` so every call is same-origin. |
+| `build:ui` | `npm run build` in the repo root. Bundles the UI **and the Content Manager's Engine** through the `@app` alias, with `VITE_EDITOR_API=` from `.env.production` so every call is same-origin. |
 | `stage:app` | Copies `api/` and `ui/` into `src-tauri/vendor/app`, excluding the dev venv, `settings.json` and the publish cache, then proves the staged tree imports on the vendored runtime. |
 | `tauri:build` | Compiles the shell and bundles the NSIS installer. `beforeBuildCommand` re-runs `fetch:python` (idempotent) and `stage:app`. |
 | `collect` | Copies the installer to the repo root's `dist/` and prints its SHA-256 — the same place every app in this suite collects to. |
@@ -43,7 +43,7 @@ version **and** the requirements hash, so adding a dependency rebuilds
 it and forgetting to is not a silent old-dependency-set install.
 
 **The build machine needs the Content Manager checkout.** The preview's
-renderer is compiled in, so `PCM_REPO` (or the sibling directory) gates
+Engine is compiled in, so `PCM_REPO` (or the sibling directory) gates
 releases as well as development.
 
 ## Verify what you built
@@ -76,7 +76,7 @@ output is neither: one drawing, no live dependency.
 
 **To regenerate** — only when the brand moves, and from a machine with
 the Content Manager checked out, which building this repo already
-requires for the renderer:
+requires for the Engine:
 
 ```powershell
 $gen = "<PCM>\scripts\make-icons.py"

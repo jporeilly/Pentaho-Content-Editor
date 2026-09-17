@@ -1067,15 +1067,15 @@ export function App() {
           className="author-version"
           title={
             "Course content version (course.json), this editor's build, and the " +
-            "Content Manager whose renderer draws the preview.\n\n" +
-            "Running from a checkout the renderer is whatever the sibling repo " +
+            "Content Manager Engine that draws the preview.\n\n" +
+            "Running from a checkout the Engine is whatever the sibling repo " +
             "has right now. Installed, it is bundled at build time \u2014 so if this " +
             "number trails the Content Manager you are editing, the preview is " +
             "showing you the older app."
           }
         >
           {courseVersion ? `Course v${courseVersion} \u00b7 ` : ""}Editor v{__APP_VERSION__}
-          {` \u00b7 renderer v${__PCM_VERSION__}`}
+          {` \u00b7 Engine v${__PCM_VERSION__}`}
         </span>
       </footer>
     </div>

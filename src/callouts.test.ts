@@ -25,7 +25,7 @@ describe("buildCallout", () => {
     expect(md.endsWith("\n\n")).toBe(true);
   });
 
-  it("promotes a title to the #### strip the renderer looks for", () => {
+  it("promotes a title to the #### strip the Engine looks for", () => {
     const md = buildCallout({ tag: "Under the hood", title: "Why that worked", body: "Because." });
     expect(md.trimEnd().split("\n")).toEqual([
       "> **Under the hood:**",

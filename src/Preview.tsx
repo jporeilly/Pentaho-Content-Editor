@@ -1,4 +1,4 @@
-// Live preview pane — reuses the app's REAL renderer so the author sees
+// Live preview pane — reuses the app's REAL Engine so the author sees
 // exactly what a learner will see: the same guide header (title, time,
 // description, progress bar), the same body rules (leading-H1 strip,
 // step numbering only when the manifest tracks progress), and the same
@@ -14,7 +14,7 @@
 //   • Vite aliases (vite.config.ts) that shim the @tauri-apps
 //     imports to inert browser versions, and
 //   • the ToolPanelProvider + GlossaryProvider wrappers below, which the
-//     renderer's hooks require.
+//     Engine's hooks require.
 
 import { useMemo } from "react";
 import { MarkdownBody } from "@app/components/MarkdownBody";

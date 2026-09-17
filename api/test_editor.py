@@ -495,7 +495,7 @@ def test_save_lab_refuses_stale_tab_unless_forced(env, client):
     assert client.put("/api/courses/sample/labs/01-intro", json={"body": "# Script text"}).status_code == 200
 
 
-def test_detect_has_video_matches_every_host_the_renderer_embeds():
+def test_detect_has_video_matches_every_host_the_engine_embeds():
     # The guide renders vimeo.com links as a player (VideoEmbed.tsx), so the
     # sidebar's play badge must agree — Vimeo joined Loom, YouTube and local
     # files here on 2026-09-07 after a Vimeo embed left the badge dark.

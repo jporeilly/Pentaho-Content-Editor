@@ -23,7 +23,7 @@ import config from "../vite.config";
 describe("vite config", () => {
   const resolve = (config as any).resolve;
 
-  it("keeps ONE React for both this project and the imported renderer", () => {
+  it("keeps ONE React for both this project and the imported Engine", () => {
     expect(resolve.dedupe).toContain("react");
     expect(resolve.dedupe).toContain("react-dom");
   });
@@ -39,7 +39,7 @@ describe("vite config", () => {
     }
   });
 
-  it("still aliases the renderer and the Tauri shims", () => {
+  it("still aliases the Engine and the Tauri shims", () => {
     // The dedupe fix sits in the same block as these; a careless edit
     // that drops one is the kind of thing this file is for.
     expect(resolve.alias["@app"]).toBeTruthy();

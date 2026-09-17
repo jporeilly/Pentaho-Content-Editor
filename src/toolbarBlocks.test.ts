@@ -4,7 +4,7 @@ import { BLOCKS } from "./Toolbar";
 import { parseCalloutTag } from "@app/components/Callout";
 import type { CalloutKind } from "@app/components/Callout";
 
-// Every callout kind the renderer understands should be reachable from
+// Every callout kind the Engine understands should be reachable from
 // the toolbar. It wasn't: parseCalloutTag mapped seven kinds while the
 // menu offered six, so "Success" rendered perfectly and no author could
 // find it. Nobody decided that - the two lists just live in different
@@ -32,7 +32,7 @@ function tagLineOf(text: string): string {
 describe("toolbar callout coverage", () => {
   const callouts = BLOCKS.filter((b) => b.group === "Callout");
 
-  it("offers a block for every callout kind the renderer supports", () => {
+  it("offers a block for every callout kind the Engine supports", () => {
     const covered = new Set(
       callouts
         .map((b) => parseCalloutTag(tagLineOf(b.build("body").text))?.kind)
@@ -80,7 +80,7 @@ describe("toolbar blocks", () => {
     expect(text).not.toContain("loom.com");
   });
 
-  it("emits every env-check profile the renderer branches on", () => {
+  it("emits every env-check profile the Engine branches on", () => {
     const envText = BLOCKS.filter((b) => b.label.startsWith("Env check"))
       .map((b) => b.build("").text)
       .join("");
@@ -93,7 +93,7 @@ describe("toolbar blocks", () => {
 describe("captioned video block", () => {
   const block = BLOCKS.find((b) => b.group === "Media" && b.label === "Video — with caption");
 
-  it("exists and carries the caption class the renderer keys on", () => {
+  it("exists and carries the caption class the Engine keys on", () => {
     expect(block).toBeDefined();
     const text = block!.build("Walkthrough").text;
     // MarkdownBody's figcaption override only adds the icon when this

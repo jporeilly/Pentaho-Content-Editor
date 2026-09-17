@@ -61,7 +61,7 @@ interface Block {
 // single line with no markdown link/image syntax. Selecting a whole block
 // and choosing Image used to wrap that block as the alt text.
 const altFrom = (s: string) => (s && !/[\n\[\]()]/.test(s) ? s : "alt text");
-// Exported for the coverage test: the Callout menu and the renderer's
+// Exported for the coverage test: the Callout menu and the Engine's
 // tag parser are two lists in two files, and nothing tied them together
 // until a kind (Success) turned out to render fine but have no button.
 export const BLOCKS: Block[] = [
@@ -73,7 +73,7 @@ export const BLOCKS: Block[] = [
 
   // ── Callouts ──
   // Generated from the shared registry so the menu, the dialog and the
-  // renderer cannot drift. buildCallout quotes EVERY line of the
+  // Engine cannot drift. buildCallout quotes EVERY line of the
   // selection - the old concatenation prefixed only the first, so a
   // selected paragraph fell out of the blockquote after line one.
   ...CALLOUT_KINDS.map((k): Block => ({
@@ -107,7 +107,7 @@ export const BLOCKS: Block[] = [
   // VideoEmbed also still accepts YouTube and Loom URLs.
   { group: "Media", label: "Video", title: "Vimeo (also YouTube / Loom) - paste the whole share link, access hash and all",
     build: (s) => ({ text: `![${s || "Walkthrough"}](https://vimeo.com/VIDEO_ID/ACCESS_HASH)\n\n` }) },
-  // The caption row matches the Welcome page's: the renderer puts the
+  // The caption row matches the Welcome page's: the Engine puts the
   // same lucide video icon in front of it when the class is present.
   { group: "Media", label: "Video — with caption", title: "Vimeo video with a captioned row underneath, matching the Welcome page",
     build: (s) => ({ text: `<figure>\n\n![${s || "Walkthrough"}](https://vimeo.com/VIDEO_ID/ACCESS_HASH)\n\n<figcaption class="pcm-video-caption">Watch: what this lab builds</figcaption>\n\n</figure>\n\n` }) },
@@ -123,7 +123,7 @@ export const BLOCKS: Block[] = [
 
   // ── Code ──
   // One entry per language in the shared registry, so the menu can only
-  // ever write a fence the renderer highlights; codeLanguages.test.ts
+  // ever write a fence the Engine highlights; codeLanguages.test.ts
   // holds the two together. Selected text becomes the body.
   ...CODE_LANGUAGES.map((l): Block => ({
     group: "Code", label: l.label, title: `Fenced ${l.badge} code block with a copy button`,
@@ -303,7 +303,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   // and routed through the same insert(), so the palette can never offer
   // something the menus do not, or insert it differently — two lists of
   // the same thing is how the Callout menu ended up missing a kind the
-  // renderer had supported all along.
+  // Engine had supported all along.
   const commands: Command[] = useMemo(
     () => BLOCKS.map((b) => ({
       id: `${b.group}:${b.label}`,
