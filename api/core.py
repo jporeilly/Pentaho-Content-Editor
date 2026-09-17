@@ -254,9 +254,35 @@ def _strip_fences(body: str) -> str:
     return _FENCE_RE.sub("", body)
 
 
+# A heading that is NOT a step: named reference material ("Lab Files",
+# "Verify your work"), or one the author marked with
+# `## Troubleshooting <!-- no-step -->`.
+#
+# This mirrors MarkdownBody's NO_STEP_RE / REFERENCE_HEADINGS and the
+# Content Manager's course-authoring.mjs. The mirroring is the whole
+# problem: four copies of one rule, and this one had already drifted -
+# it counted reference headings the Engine never shows a checkbox for,
+# so a save stamped a stepCount one higher than the learner could tick.
+# The editor is the surface that stamps most manifests, so this copy
+# being wrong was the one that mattered.
+_NO_STEP = re.compile(r"<!--\s*no-?step\s*-->", re.IGNORECASE)
+_REFERENCE_HEADING = re.compile(r"^\s*(lab files|verify your work)\s*$", re.IGNORECASE)
+
+
+def is_step_heading(text: str) -> bool:
+    """Does this heading's text earn a checkbox?"""
+    if _NO_STEP.search(text):
+        return False
+    return not _REFERENCE_HEADING.match(_NO_STEP.sub("", text).strip())
+
+
 def count_steps(body: str) -> int:
     without_fences = _strip_fences(body)
-    heading_count = len(re.findall(r"^#{2,3}\s+\S", without_fences, re.MULTILINE))
+    heading_count = sum(
+        1
+        for h in re.findall(r"^#{2,3}\s+(.+)$", without_fences, re.MULTILINE)
+        if is_step_heading(h)
+    )
     tab_count = 0
     m = re.search(r'data-tabs="([^"]+)"', without_fences)
     if m:

@@ -13,6 +13,7 @@ import { placeholderRange } from "./placeholder";
 import { TableModal } from "./TableModal";
 import { TabsModal } from "./TabsModal";
 import { tidyTableAt } from "./tableBuilder";
+import { toggleHeadingAt } from "./headingTracking";
 import { CALLOUT_KINDS, buildCallout } from "./callouts";
 import { CalloutModal } from "./CalloutModal";
 import { outlineOf, scrollTopForLine } from "./outline";
@@ -54,7 +55,7 @@ interface Block {
   /** Open a dialog instead of inserting build()'s text straight away.
    *  build() stays the fallback, and is what the placeholder probe
    *  and the block tests exercise. */
-  dialog?: "table" | "tabs" | "tidy" | "callout";
+  dialog?: "table" | "tabs" | "tidy" | "callout" | "track";
 }
 
 // A selection is used as image alt text only when it looks like one: a
@@ -70,6 +71,28 @@ export const BLOCKS: Block[] = [
     build: (s) => ({ text: `## ${s || "Step title"}\n\n` }) },
   { group: "Heading", label: "Sub-step (H3)", title: "Sub-heading (also a tracked step)",
     build: (s) => ({ text: `### ${s || "Sub-step"}\n\n` }) },
+  // Untracked headings. The marker is an HTML comment, so it shows in
+  // no renderer anywhere and travels with the heading when it is
+  // renamed, moved or copied into another lab. The section keeps its
+  // anchor and its place in "On this page" - it loses the checkbox and
+  // stops counting toward the step total, which is the whole point:
+  // Troubleshooting is not a step the learner works through.
+  { group: "Heading", label: "Section (H2, untracked)", title: "Heading with NO checkbox — for Troubleshooting and the like; not counted as a step",
+    build: (s) => ({ text: `## ${s || "Troubleshooting"} <!-- no-step -->\n\n` }) },
+  { group: "Heading", label: "Sub-section (H3, untracked)", title: "Sub-heading with NO checkbox; not counted as a step",
+    build: (s) => ({ text: `### ${s || "If something goes wrong"} <!-- no-step -->\n\n` }) },
+  // H1 is never a step - only ## and ### are - and a LEADING one is
+  // stripped entirely, because the guide header already shows the lab
+  // title from manifest.json. So this is for a divider inside a long
+  // guide, and the label says where it works.
+  { group: "Heading", label: "Title (H1, mid-guide)", title: "Large heading, never tracked. A leading H1 is stripped — the lab title comes from the manifest",
+    build: (s) => ({ text: `# ${s || "Part Two"}\n\n` }) },
+  // The toggle, for the headings already written. Acts on the heading
+  // the caret is ON, the same way Tidy table acts on the table it is in.
+  // build() is the fallback the block tests exercise; the dialog hook is
+  // what actually runs.
+  { group: "Heading", label: "Tracking on/off (this heading)", title: "Put the cursor on a heading: adds or removes its step checkbox", dialog: "track",
+    build: (s) => ({ text: `## ${s || "Section"} <!-- no-step -->\n\n` }) },
 
   // ── Callouts ──
   // Generated from the shared registry so the menu, the dialog and the
@@ -258,7 +281,33 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
       }
     });
   }
+  /** Add or remove the step checkbox on the heading the caret is on. */
+  function toggleTracking() {
+    const caret = textarea?.selectionStart ?? 0;
+    const out = toggleHeadingAt(value, caret);
+    if ("problem" in out) {
+      window.alert(
+        out.problem === "h1"
+          ? "An H1 is never a tracked step — only ## and ### carry checkboxes."
+          : out.problem === "h4-plus"
+            ? "Only ## and ### are tracked steps, so there is nothing to toggle on this heading."
+            : out.problem === "tab-title"
+              ? "That heading is a TAB TITLE inside a ::: tabs block, not a step — it never had a checkbox to remove."
+              : "Put the cursor on a heading line first (## or ###).",
+      );
+      return;
+    }
+    onChange(out.ok.text);
+    requestAnimationFrame(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(out.ok.start, out.ok.end);
+      }
+    });
+  }
+
   function insert(block: Block) {
+    if (block.dialog === "track") { toggleTracking(); return; }
     if (block.dialog === "tidy") { tidyTable(); return; }
     if (block.dialog) { setDialog(block.dialog); return; }
     const start = textarea?.selectionStart ?? value.length;

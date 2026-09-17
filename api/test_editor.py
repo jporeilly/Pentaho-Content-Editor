@@ -495,6 +495,38 @@ def test_save_lab_refuses_stale_tab_unless_forced(env, client):
     assert client.put("/api/courses/sample/labs/01-intro", json={"body": "# Script text"}).status_code == 200
 
 
+def test_count_steps_matches_what_the_learner_can_tick():
+    """The editor stamps stepCount on every save, so this copy of the
+    rule is the one that reaches most manifests - and it was wrong.
+
+    It counted reference headings the Engine never draws a checkbox
+    for, so a lab with a "Lab Files" section carried a stepCount one
+    higher than the learner could possibly complete, and the progress
+    bar finished at 3 of 4. The same cases are pinned against the
+    Content Manager's two copies in its guideBody.test.ts; neither file
+    can import across the two repositories.
+    """
+    assert core.count_steps("## One\n\n### Two\n") == 2
+    # Named reference material.
+    assert core.count_steps("## One\n\n## Lab Files\n\n## Verify your work\n") == 1
+    # The author's own opt-out - Troubleshooting is the case it exists for.
+    assert core.count_steps("## One\n\n## Troubleshooting <!-- no-step -->\n") == 1
+    # Spelling of the marker must not matter.
+    assert core.count_steps("## A <!--no-step-->\n\n## B <!--  No-Step  -->\n\n## C\n") == 1
+    # A heading inside a fence is shell output, not a step.
+    assert core.count_steps("## Real\n\n```\n## Fake\n```\n") == 1
+
+
+def test_an_untracked_heading_keeps_its_text():
+    # The marker is stripped for the decision, never from the guide: the
+    # heading still reads "Troubleshooting", still gets an anchor, and
+    # still appears in "On this page". It loses the checkbox, nothing
+    # else.
+    assert core.is_step_heading("Troubleshooting") is True
+    assert core.is_step_heading("Troubleshooting <!-- no-step -->") is False
+    assert core.is_step_heading("Lab Files") is False
+
+
 def test_detect_has_video_matches_every_host_the_engine_embeds():
     # The guide renders vimeo.com links as a player (VideoEmbed.tsx), so the
     # sidebar's play badge must agree — Vimeo joined Loom, YouTube and local

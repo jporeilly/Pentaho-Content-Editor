@@ -15,6 +15,55 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.14.0] - 2026-09-17
+
+### Added
+
+- **Tracking on/off for one heading**, in the Heading menu. Put the
+  cursor on a `##` or `###` and it adds or removes that heading's step
+  checkbox — the same toggle the page-level ☑ Tracking button is, at the
+  heading level, which is the point: writing an untracked heading from
+  the menu only helps at the moment you type it, and "this
+  Troubleshooting section should not be a step" is a thought you have
+  while reading a guide that is already written. It acts on the line the
+  cursor is ON, never the nearest heading above — in a long guide the
+  cursor is usually in prose, and an author who meant a heading three
+  screens up would not see what changed.
+  It refuses, and says why, on the three headings that never had a
+  checkbox to remove: an H1, an H4 or deeper, and a `###` that is really
+  a **tab title** inside a `::: tabs` block. That last one is not
+  hypothetical — the template workshop's Troubleshooting is exactly such
+  a tab, so it was the first thing the toggle was tried on, and without
+  the guard it wrote the marker into the label the learner clicks.
+- **Headings that are not steps.** The Heading menu gained **Section
+  (H2, untracked)** and **Sub-section (H3, untracked)**, which write
+  `## Troubleshooting <!-- no-step -->`. The section renders normally
+  and keeps its anchor and its place in "On this page"; it carries no
+  checkbox, takes no step number, and does not count toward the total.
+  Troubleshooting is the case it exists for — reference material in one
+  course and a real step in another, so the Engine's existing
+  exclude-by-name list could never have covered it. Both entries reach
+  the command palette automatically, because that is generated from the
+  same registry rather than a second list.
+- **Title (H1, mid-guide)** in the same menu, labelled for where it
+  works: an H1 at the very top is stripped, since the guide header
+  already shows the lab title from `manifest.json`. It is never a
+  tracked step either way — only `##` and `###` are.
+
+### Fixed
+
+- **A save stamped `stepCount` too high on any lab with a reference
+  section.** `count_steps` counted "Lab Files" and "Verify your work",
+  which the Engine has never drawn a checkbox for, so a four-heading lab
+  with a Lab Files section was stamped `4` while the learner could tick
+  three — and the progress bar finished at 3 of 4. This copy is the one
+  that reaches most manifests, because the editor stamps on every save.
+  Three of the four implementations of that rule were wrong; the
+  Content Manager's `0.4.51` fixes its two and unifies the Engine on a
+  single source-derived decision. **Labs already saved keep the old
+  number until the next save re-stamps them.**
+
+
 ## [1.13.1] - 2026-09-17
 
 ### Changed
