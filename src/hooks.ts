@@ -300,13 +300,27 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
       }
       lastPush.current = now;
     }
+    // Where the author was reading. A toolbar action clicked with a
+    // MOUSE moves focus out of the textarea and back, and both panes
+    // come back at zero - apply a colour half way down a guide and the
+    // editor and the preview both jump to the top, losing the place.
+    // Only programmatic edits: during typing the browser keeps the caret
+    // in view correctly, and forcing a scroll on every keystroke would
+    // fight it.
+    const keepScroll = programmatic ? textareaRef.current?.scrollTop : undefined;
+
     setBody(next);
     setDirty(true);
     setLastRewrite(null); // a manual edit invalidates the rewrite undo range
     if (course && lab) writeDraft(course, lab, { body: next, baseHash, at: Date.now() });
-    if (caret !== undefined && textareaRef.current) {
+    if (caret !== undefined || keepScroll !== undefined) {
       requestAnimationFrame(() => {
-        textareaRef.current?.setSelectionRange(caret, caret);
+        const ta = textareaRef.current;
+        if (!ta) return;
+        if (caret !== undefined) ta.setSelectionRange(caret, caret);
+        // After the selection, which scrolls the caret into view itself:
+        // restoring first and then moving the caret would undo this.
+        if (keepScroll !== undefined) ta.scrollTop = keepScroll;
       });
     }
   }, [course, lab, baseHash]);

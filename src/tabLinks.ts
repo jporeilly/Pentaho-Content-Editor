@@ -87,3 +87,21 @@ export function tabsInBody(body: string): TabRef[] {
 export function tabLink(tab: TabRef): string {
   return `[${tab.title}](#${tab.slug})`;
 }
+
+/**
+ * A nav BUTTON to the same place.
+ *
+ * An anchor wearing `pcm-btn`, not a `<button>`: the Engine only wires
+ * buttons carrying `data-launch` or `data-graph`, so a bare `<button>`
+ * in a guide renders and does nothing at all - the trap an author falls
+ * into writing one by hand. As a link it also keeps the in-page hash
+ * behaviour, keyboard focus and middle-click.
+ */
+export function navButton(label: string, anchor: string): string {
+  return `<a class="pcm-btn" href="#${anchor}">${label}</a>`;
+}
+
+// A heading's anchor is NOT mirrored here. `headingAnchorId` is imported
+// from the Engine through @app by whoever needs it - the rule has three
+// copies in that repository already, and countSteps taught this project
+// what a fourth copy of a rule is worth.

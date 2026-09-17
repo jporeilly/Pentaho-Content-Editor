@@ -15,6 +15,34 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.17.0] - 2026-09-17
+
+### Added
+
+- **Nav button**, beside Go to → Outline: every jump target in the lab
+  in one list — headings *and* tabs, in document order — writing
+  `<a class="pcm-btn" href="#…">`. One list because "where can I send
+  the reader" is one question, and splitting it would make the author
+  remember which kind a section is.
+  **It writes a link, not a `<button>`.** A bare `<button>` in a guide
+  renders and does nothing: the Engine only wires the ones carrying
+  `data-launch` or `data-graph`. That is the trap of writing one by
+  hand, and it is why this exists as a menu entry. The heading anchor
+  comes from the Engine's own `headingAnchorId`, imported rather than
+  mirrored.
+
+### Fixed
+
+- **Applying anything from the toolbar jumped the editor to the top of
+  the guide.** Clicking a menu with the MOUSE moves focus out of the
+  text area and back, and both panes came back at zero — apply a colour
+  half way down a lab and you lost your place. Measured: scroll 1200 →
+  0, preview 319 → 0. Now every programmatic edit restores the scroll
+  position after the focus round trip, so it holds exactly. It affected
+  every toolbar action, not just colour; it went unnoticed because a
+  programmatic test never changes focus and so never reproduces it.
+
+
 ## [1.16.0] - 2026-09-17
 
 ### Added

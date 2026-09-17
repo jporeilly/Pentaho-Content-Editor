@@ -16,7 +16,8 @@ import { tidyTableAt } from "./tableBuilder";
 import { CALLOUT_KINDS, buildCallout } from "./callouts";
 import { CalloutModal } from "./CalloutModal";
 import { outlineOf, scrollTopForLine } from "./outline";
-import { tabsInBody, tabLink } from "./tabLinks";
+import { tabsInBody, tabLink, navButton } from "./tabLinks";
+import { headingAnchorId } from "@app/components/MarkdownBody";
 import { TEXT_COLOURS } from "@app/components/textColours";
 import { applyColour } from "./textColour";
 
@@ -236,6 +237,19 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   const outline = outlineOf(value);
   const tabs = tabsInBody(value);
 
+  // Every place a nav button can send the reader, in document order:
+  // the guide's headings and its tabs, merged. The heading anchor is
+  // the ENGINE's own function, imported rather than mirrored.
+  const navTargets = useMemo(() => {
+    const fromHeadings = outlineOf(value).map((h) => ({
+      kind: "heading" as const, label: h.text, anchor: headingAnchorId(h.text), line: h.line + 1,
+    }));
+    const fromTabs = tabs.map((t) => ({
+      kind: "tab" as const, label: t.title, anchor: t.slug, line: t.line,
+    }));
+    return [...fromHeadings, ...fromTabs].sort((a, b) => a.line - b.line);
+  }, [value, tabs]);
+
   /** Colour the selection, or strip its colour when `name` is null.
    *  Nothing selected is a no-op with a reason: colouring the caret
    *  would insert an empty span the author cannot see and would then
@@ -248,10 +262,15 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
       return;
     }
     const out = applyColour(value, s, e, name);
+    // Where the author was reading, restored after the focus round trip
+    // that a mouse click on this menu forces. Without it the pane comes
+    // back at the top of the guide.
+    const keepScroll = textarea.scrollTop;
     onChange(out.text);
     requestAnimationFrame(() => {
       textarea.focus();
       textarea.setSelectionRange(out.start, out.end);
+      textarea.scrollTop = keepScroll;
     });
   }
 
@@ -415,6 +434,27 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           label: t.title,
           title: `Writes [${t.title}](#${t.slug}) — line ${t.line}`,
           onSelect: () => insertText(tabLink(t)),
+        }))}
+      />
+      {/* Nav buttons. Every jump target in the guide, in one list -
+          headings and tabs - because "where can I send the reader" is
+          one question and splitting it across two menus makes the author
+          remember which kind a section is. Writes an anchor wearing
+          pcm-btn: a bare <button> in a guide renders and does nothing,
+          which is the trap of writing one by hand. */}
+      <Menu
+        label="Nav button"
+        title={
+          navTargets.length
+            ? "Insert a button that jumps to a heading or tab in this lab"
+            : "This lab has no headings or tabs to jump to yet"
+        }
+        disabled={navTargets.length === 0}
+        items={navTargets.map((t) => ({
+          id: `${t.kind}:${t.anchor}`,
+          label: `${t.kind === "tab" ? "▸ " : ""}${t.label}`,
+          title: `Writes a button linking to #${t.anchor}`,
+          onSelect: () => insertText(navButton(t.label, t.anchor)),
         }))}
       />
       <span className="author-toolbar-sep" aria-hidden />

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { tabsInBody, tabLink } from "./tabLinks";
+import { tabsInBody, tabLink, navButton } from "./tabLinks";
 import { tabAnchorIds } from "@app/components/Tabs";
 
 // Linking to a tab, and the half of the contract that lives here.
@@ -61,6 +61,21 @@ describe("tabLink", () => {
   it("writes the markdown an author would otherwise hand-type", () => {
     const [tab] = tabsInBody("::: tabs\n\n### Troubleshooting\n\n:::\n");
     expect(tabLink(tab)).toBe("[Troubleshooting](#tab-troubleshooting)");
+  });
+});
+
+describe("navButton", () => {
+  it("writes a LINK wearing pcm-btn, never a <button>", () => {
+    // The Engine only wires buttons carrying data-launch or data-graph.
+    // A bare <button> in a guide renders and does nothing whatsoever,
+    // which is the trap an author falls into writing one by hand.
+    const out = navButton("Troubleshooting", "tab-troubleshooting");
+    expect(out).toBe('<a class="pcm-btn" href="#tab-troubleshooting">Troubleshooting</a>');
+    expect(out).not.toContain("<button");
+  });
+
+  it("works for a heading anchor as well as a tab", () => {
+    expect(navButton("Set up", "set-up-your-environment")).toContain('href="#set-up-your-environment"');
   });
 });
 
