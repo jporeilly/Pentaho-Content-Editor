@@ -194,7 +194,7 @@ export function App() {
     useCourses(setStatus);
   const {
     detail, setDetail, body, setBody, setDirty, dirty, saving, save,
-    onBodyChange, insertAtCaret, textareaRef, baseUrl,
+    onBodyChange, undoEdit, insertAtCaret, textareaRef, baseUrl,
     structureKey, bumpStructure, lastRewrite, setLastRewrite,
   } = useLab(course, lab, setStatus);
   const {
@@ -259,7 +259,7 @@ export function App() {
       );
       return;
     }
-    onBodyChange(out.ok.text);
+    onBodyChange(out.ok.text, undefined, true);
     setStatus(
       out.ok.tracked
         ? `“${out.ok.title}” is a tracked step again.`
@@ -525,6 +525,29 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Ctrl/Cmd+Z.
+  //
+  // All of it, not just the toolbar's edits. The plan was to leave
+  // typing to the browser's own undo and only cover what React assigns -
+  // until a real keyboard proved the browser undoes NEITHER here. Press
+  // three keys in the textarea, press Ctrl+Z, and all three stay: a
+  // controlled textarea has its value reassigned on every keystroke, and
+  // a value the page sets is not an edit the browser has history for.
+  // So there was never a native stack to protect, and the editor simply
+  // had no undo at all.
+  //
+  // preventDefault only when the history actually stepped back, so
+  // Ctrl+Z at the bottom behaves like an unhandled shortcut instead of
+  // looking broken.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z" || e.shiftKey) return;
+      if (undoEdit()) e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undoEdit]);
 
   // Keep the two panes looking at the same part of the lab.
   //
@@ -927,7 +950,13 @@ export function App() {
                   }}
                 />
               </div>
-              <Toolbar textarea={textareaRef.current} value={body} onChange={onBodyChange} />
+              <Toolbar
+                textarea={textareaRef.current}
+                value={body}
+                /* programmatic: the browser never saw these, so they
+                   need recording for Ctrl+Z to reach them. */
+                onChange={(next, caret) => onBodyChange(next, caret, true)}
+              />
               {(problems.length > 0 || reviewNote) && (
                 <div className={`author-problems${problems.length === 0 ? " is-review-only" : ""}`}>
                   {problems.length > 0 && (

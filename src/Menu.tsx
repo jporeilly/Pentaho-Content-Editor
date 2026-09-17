@@ -9,7 +9,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export interface MenuItem {
-  label: string;
+  /** ReactNode so a palette can show a swatch beside the name. The key
+   *  below needs a stable string, hence `id`. */
+  label: ReactNode;
+  /** Stable key when `label` is not a string. Defaults to the label. */
+  id?: string;
   title?: string;
   onSelect: () => void;
 }
@@ -97,7 +101,7 @@ export function Menu({ label, title, items, disabled, tone }: MenuProps) {
         <div className="author-menu-pop" role="menu" data-tone={tone} style={{ top: at.top, left: at.left }}>
           {items.map((it) => (
             <button
-              key={it.label}
+              key={it.id ?? String(it.label)}
               type="button"
               role="menuitem"
               className="author-menu-item"

@@ -48,7 +48,10 @@ export const EDITOR_THEMES: EditorThemeDef[] = [
   { id: "contrast",  label: "Contrast",  hint: "Maximum contrast for small or dim VM screens", dark: true  },
 ];
 
-export const DEFAULT_EDITOR_THEME = "midnight";
+// Parchment, not Midnight. The author's own preference, and it only
+// affects a machine that has never chosen: the choice is remembered in
+// localStorage, so anyone already on another theme keeps it.
+export const DEFAULT_EDITOR_THEME = "parchment";
 
 const EDITOR_KEY = "pcm-author-theme";
 const PREVIEW_KEY = "pcm-author-preview-theme";

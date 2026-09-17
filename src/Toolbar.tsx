@@ -17,6 +17,8 @@ import { CALLOUT_KINDS, buildCallout } from "./callouts";
 import { CalloutModal } from "./CalloutModal";
 import { outlineOf, scrollTopForLine } from "./outline";
 import { tabsInBody, tabLink } from "./tabLinks";
+import { TEXT_COLOURS } from "@app/components/textColours";
+import { applyColour } from "./textColour";
 
 // Inline formatting. These share `toggleWrap` with the keyboard
 // shortcuts rather than re-implementing the wrap, so a button and its
@@ -234,6 +236,25 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   const outline = outlineOf(value);
   const tabs = tabsInBody(value);
 
+  /** Colour the selection, or strip its colour when `name` is null.
+   *  Nothing selected is a no-op with a reason: colouring the caret
+   *  would insert an empty span the author cannot see and would then
+   *  type outside of. */
+  function colourSelection(name: string | null) {
+    if (!textarea) return;
+    const { selectionStart: s, selectionEnd: e } = textarea;
+    if (s === e) {
+      window.alert('Select the words you want to colour first.');
+      return;
+    }
+    const out = applyColour(value, s, e, name);
+    onChange(out.text);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(out.start, out.end);
+    });
+  }
+
 
   // Jump to a heading. A textarea has no per-line geometry, so the
   // scroll position is computed from the line number and the computed
@@ -410,6 +431,39 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           {f.label}
         </button>
       ))}
+      {/* Colour sits with bold and italic because it is the same kind of
+          thing: a property of the selected words, not a block to insert.
+          The swatches are the Engine's registry, so the palette cannot
+          offer a colour the stylesheet does not define. */}
+      <Menu
+        label="🎨 Colour"
+        tone="text"
+        title="Colour the selected text. Each swatch is a theme token, so it stays legible in both the light and dark guide themes"
+        items={[
+          ...TEXT_COLOURS.map((c) => ({
+            id: c.name,
+            label: (
+              <span className="author-swatch-row">
+                <span className="author-swatch" style={{ background: c.swatch }} aria-hidden />
+                {c.label}
+              </span>
+            ),
+            title: c.use,
+            onSelect: () => colourSelection(c.name),
+          })),
+          {
+            id: "none",
+            label: (
+              <span className="author-swatch-row">
+                <span className="author-swatch is-none" aria-hidden />
+                None — remove colour
+              </span>
+            ),
+            title: "Strip the colour from the selected text, leaving the words",
+            onSelect: () => colourSelection(null),
+          },
+        ]}
+      />
       <span className="author-toolbar-sep" aria-hidden />
       <span className="author-toolbar-label">Insert</span>
       {GROUP_ORDER.map((group) => (

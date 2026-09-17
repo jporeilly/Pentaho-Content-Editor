@@ -261,7 +261,45 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
   );
 
   const baseHash = detail?.bodyHash;
-  const onBodyChange = useCallback((next: string, caret?: number) => {
+
+  // Undo.
+  //
+  // This started as a small thing - record the edits React assigns
+  // (a toolbar insert, a colour) and leave typing to the browser, whose
+  // native undo is better than any re-implementation. Measuring killed
+  // that plan: in this editor the browser undoes NEITHER. Real key
+  // presses, then Ctrl+Z, and the characters stay - the controlled
+  // textarea's value is reassigned by React on every keystroke, and a
+  // value the page sets is not an edit the browser has history for.
+  //
+  // So the whole history is ours. A snapshot of the body before each
+  // change, typed or programmatic, with one rule that makes it feel like
+  // an undo rather than a tape recorder: consecutive TYPED changes
+  // coalesce, so a run of keystrokes is one step. A programmatic edit
+  // never coalesces - it was one deliberate act and it undoes as one.
+  const COALESCE_MS = 700;
+  const MAX_HISTORY = 200;
+  const history = useRef<string[]>([]);
+  const lastPush = useRef(0);
+  /** True while an undo is being applied, so it does not record itself. */
+  const undoing = useRef(false);
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
+
+  const onBodyChange = useCallback((next: string, caret?: number, programmatic = false) => {
+    const prev = bodyRef.current;
+    if (!undoing.current && next !== prev) {
+      const now = Date.now();
+      // Skipping the push during a typing run is what coalesces it: the
+      // state already on the stack is the start of the run, which is
+      // where an author expects one Ctrl+Z to land.
+      const coalesce = !programmatic && history.current.length > 0 && now - lastPush.current < COALESCE_MS;
+      if (!coalesce) {
+        history.current.push(prev);
+        if (history.current.length > MAX_HISTORY) history.current.shift();
+      }
+      lastPush.current = now;
+    }
     setBody(next);
     setDirty(true);
     setLastRewrite(null); // a manual edit invalidates the rewrite undo range
@@ -272,6 +310,32 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
       });
     }
   }, [course, lab, baseHash]);
+
+  /**
+   * Step back one change. False when there is nothing left, which tells
+   * the caller not to swallow the key - so Ctrl+Z at the bottom of the
+   * stack behaves like any other unhandled shortcut rather than looking
+   * broken.
+   */
+  const undoEdit = useCallback((): boolean => {
+    const prev = history.current.pop();
+    if (prev === undefined) return false;
+    undoing.current = true;
+    onBodyChange(prev);
+    undoing.current = false;
+    // The next keystroke starts a fresh run rather than coalescing into
+    // whatever was being typed before the undo.
+    lastPush.current = 0;
+    setStatus(history.current.length ? "Undone." : "Undone — back to where this lab opened.");
+    return true;
+  }, [onBodyChange, setStatus]);
+
+  // A lab switch is a new document: the previous one's history is not
+  // reachable and must never be applied to it.
+  useEffect(() => {
+    history.current = [];
+    lastPush.current = 0;
+  }, [course, lab]);
 
   const insertAtCaret = useCallback((text: string) => {
     const ta = textareaRef.current;
@@ -339,7 +403,7 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
 
   return {
     detail, setDetail, body, setBody, dirty, setDirty, saving, save,
-    onBodyChange, insertAtCaret, textareaRef, baseUrl,
+    onBodyChange, undoEdit, insertAtCaret, textareaRef, baseUrl,
     structureKey, bumpStructure, lastRewrite, setLastRewrite,
   };
 }

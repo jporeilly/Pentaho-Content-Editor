@@ -15,6 +15,39 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.16.0] - 2026-09-17
+
+### Added
+
+- **Undo — `Ctrl/Cmd+Z` — which the editor did not have.** This was
+  meant to be a small thing: record the edits React assigns (a toolbar
+  insert, a colour) and leave typing to the browser, whose own undo is
+  better than any re-implementation. Measuring killed that plan. Press
+  three keys in the text area, press Ctrl+Z, and all three stay: a
+  controlled textarea has its value reassigned on every keystroke, and a
+  value the page sets is not an edit the browser has history for. There
+  was never a native stack to protect — there was no undo at all.
+  So the history is the editor's now, typed and programmatic alike, with
+  one rule that makes it an undo rather than a tape recorder:
+  consecutive typed changes coalesce into one step, while a toolbar
+  action never coalesces, because it was one deliberate act. A lab
+  switch clears it — the previous document's history must never be
+  applied to this one.
+- **🎨 Colour**, beside bold and italic: select text, pick a swatch.
+  Seven colours plus **None**, which actually removes the colour —
+  picking a second replaces the first rather than nesting it, and a
+  selection works whether you grabbed the words or the whole span. The
+  swatches are theme tokens rather than hex, so a colour stays legible
+  in both learner themes; `0.4.54` in the Content Manager is the half
+  that defines them, and says why.
+
+### Changed
+
+- **Parchment is the default editor theme**, replacing Midnight. Only
+  affects a machine that has never chosen one — the preference is
+  remembered, so an existing choice is untouched.
+
+
 ## [1.15.0] - 2026-09-17
 
 ### Added

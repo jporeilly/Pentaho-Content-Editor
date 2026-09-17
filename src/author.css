@@ -1476,6 +1476,33 @@ body {
 }
 .author-toolbar-fmt.is-bold   { font-weight: 700; }
 .author-toolbar-fmt.is-italic { font-style: italic; }
+
+/* Colour palette rows. The swatch shows the LIGHT value of a token that
+   has a lifted dark one — it is an identifier for the colour, not a
+   promise about the exact hex a learner sees, which is the whole reason
+   these are tokens and not a hex picker. */
+.author-swatch-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.author-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  /* A hairline so a pale swatch still reads as a swatch on the menu's
+     own background rather than disappearing into it. */
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.25);
+}
+/* "None" is the absence of a colour, drawn as an empty box rather than
+   a white one — white is a colour, and on a light menu it would look
+   like a swatch that failed to load. */
+.author-swatch.is-none {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px currentColor;
+  opacity: 0.45;
+}
 .author-toolbar-fmt.is-strike { text-decoration: line-through; }
 .author-toolbar-fmt.is-code   { font-size: 11px; }
 
