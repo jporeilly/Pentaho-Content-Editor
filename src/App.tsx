@@ -31,6 +31,7 @@ import { CourseSettingsModal } from "./CourseSettingsModal";
 import { ChatPanel } from "./ChatPanel";
 import { Splitter, useSplit } from "./Splitter";
 import { Menu } from "./Menu";
+import { toggleHeadingAt } from "./headingTracking";
 import { useEditorTheme, EDITOR_THEMES } from "./theme";
 import { handleMarkdownKey } from "./markdownKeys";
 import { WelcomePane } from "./WelcomePane";
@@ -235,6 +236,43 @@ export function App() {
   // Per-lab progress-tracking toggle (manifest.noProgress). Manifest-only
   // save: the guide text on disk is never touched by this control, so a
   // tab holding an older copy can't write it back. Pending edits stay pending.
+  /**
+   * Add or remove the step checkbox on the heading the cursor is on.
+   *
+   * The lab-level sibling below writes the manifest; this one writes the
+   * guide, because that is where the fact lives - a marker on the
+   * heading travels with it when it is renamed, moved or copied, and a
+   * list of slugs in the manifest would not.
+   */
+  function toggleHeadingTracking() {
+    const ta = textareaRef.current;
+    const out = toggleHeadingAt(body, ta?.selectionStart ?? 0);
+    if ("problem" in out) {
+      setStatus(
+        out.problem === "h1"
+          ? "An H1 is never a tracked step — only ## and ### carry checkboxes."
+          : out.problem === "h4-plus"
+            ? "Only ## and ### are tracked steps, so there is nothing to toggle here."
+            : out.problem === "tab-title"
+              ? "That heading is a TAB TITLE inside a ::: tabs block, not a step — it never had a checkbox."
+              : "Put the cursor on a heading line first (## or ###).",
+      );
+      return;
+    }
+    onBodyChange(out.ok.text);
+    setStatus(
+      out.ok.tracked
+        ? `“${out.ok.title}” is a tracked step again.`
+        : `“${out.ok.title}” no longer tracks — no checkbox, and it does not count toward the steps.`,
+    );
+    requestAnimationFrame(() => {
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(out.ok.start, out.ok.end);
+      }
+    });
+  }
+
   async function toggleTracking() {
     if (!course || !lab || !detail) return;
     const next = detail.manifest?.noProgress ? null : true;
@@ -803,27 +841,59 @@ export function App() {
                 >
                   {lastRewrite ? "↺ Reset" : "✨ Rewrite"}
                 </button>
+                {/* Find & replace was keyboard-only — Ctrl/Cmd+F and
+                    nothing else — so an author who did not already know
+                    it existed had no way to discover it, and asked for
+                    a feature the editor had shipped for weeks. A binding
+                    is not a feature until something on screen says so.
+                    The shortcut still works and the title names it. */}
+                <button
+                  type="button"
+                  className={`author-toolbar-btn${showFind ? " is-active" : ""}`}
+                  onClick={() => setShowFind((v) => !v)}
+                  disabled={working}
+                  title="Find & replace in this lab (Ctrl/Cmd+F). Plain text, never regex — guides are full of ** and [ and |"
+                >
+                  🔍 Find
+                </button>
                 <button type="button" className="author-toolbar-btn" onClick={() => imageInputRef.current?.click()} disabled={working} title="Upload an image (or paste / drop one into the editor)">
                   🖼 Image
                 </button>
                 <button type="button" className="author-toolbar-btn" onClick={() => setShowLabFiles(true)} disabled={working} title="Manage this lab's downloadable files (.ktr / .kjb / data)">
                   📎 Files
                 </button>
-                <button
-                  type="button"
-                  className={`author-toolbar-btn${detail?.manifest?.noProgress ? " is-active" : ""}`}
-                  onClick={toggleTracking}
-                  disabled={working || !detail || detail.manifest?.kind === "page"}
+                {/* Tracking is TWO questions at two scopes — does this
+                    lab track at all, and does this heading — so it is
+                    one menu rather than a button here and an entry
+                    buried in the Heading insert menu, where a toggle
+                    never belonged: that menu inserts, this one changes
+                    what is already written. */}
+                <Menu
+                  label={detail?.manifest?.noProgress ? "◻ No tracking" : "☑ Tracking"}
+                  tone="tracking"
                   title={
                     detail?.manifest?.kind === "page"
                       ? "Pages never track steps"
-                      : detail?.manifest?.noProgress
-                        ? "Tracking is OFF for this lab (no checkboxes / step numbers) — click to turn it on"
-                        : "Tracking is ON — click to turn off checkboxes, progress, and step numbers for this lab"
+                      : "Step tracking — for this lab, or for the heading the cursor is on"
                   }
-                >
-                  {detail?.manifest?.noProgress ? "◻ No tracking" : "☑ Tracking"}
-                </button>
+                  disabled={working || !detail || detail.manifest?.kind === "page"}
+                  items={[
+                    {
+                      label: detail?.manifest?.noProgress
+                        ? "This lab: turn tracking ON"
+                        : "This lab: turn tracking OFF",
+                      title: detail?.manifest?.noProgress
+                        ? "Tracking is OFF for this lab — no checkboxes, no step numbers, no progress bar"
+                        : "Turn off checkboxes, progress and step numbers for the whole lab",
+                      onSelect: toggleTracking,
+                    },
+                    {
+                      label: "This heading: tracking on/off",
+                      title: "Put the cursor on a ## or ### heading, then choose this to add or remove its step checkbox",
+                      onSelect: toggleHeadingTracking,
+                    },
+                  ]}
+                />
                 <label
                   className="author-toolbar-timing"
                   title="Estimated minutes for this lab — the Welcome page's total time is the sum across labs. Blank = estimate from the step count."

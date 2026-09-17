@@ -13,10 +13,10 @@ import { placeholderRange } from "./placeholder";
 import { TableModal } from "./TableModal";
 import { TabsModal } from "./TabsModal";
 import { tidyTableAt } from "./tableBuilder";
-import { toggleHeadingAt } from "./headingTracking";
 import { CALLOUT_KINDS, buildCallout } from "./callouts";
 import { CalloutModal } from "./CalloutModal";
 import { outlineOf, scrollTopForLine } from "./outline";
+import { tabsInBody, tabLink } from "./tabLinks";
 
 // Inline formatting. These share `toggleWrap` with the keyboard
 // shortcuts rather than re-implementing the wrap, so a button and its
@@ -55,7 +55,7 @@ interface Block {
   /** Open a dialog instead of inserting build()'s text straight away.
    *  build() stays the fallback, and is what the placeholder probe
    *  and the block tests exercise. */
-  dialog?: "table" | "tabs" | "tidy" | "callout" | "track";
+  dialog?: "table" | "tabs" | "tidy" | "callout";
 }
 
 // A selection is used as image alt text only when it looks like one: a
@@ -67,6 +67,14 @@ const altFrom = (s: string) => (s && !/[\n\[\]()]/.test(s) ? s : "alt text");
 // until a kind (Success) turned out to render fine but have no button.
 export const BLOCKS: Block[] = [
   // ── Headings ──
+  // Largest first, then the untracked pair in the same order. A menu of
+  // headings that does not run H1, H2, H3 makes the reader check.
+  //
+  // H1 is never a step - only ## and ### are - and a LEADING one is
+  // stripped entirely, because the guide header already shows the lab
+  // title from manifest.json. So the label says where it works.
+  { group: "Heading", label: "Title (H1, mid-guide)", title: "Large heading, never tracked. A leading H1 is stripped — the lab title comes from the manifest",
+    build: (s) => ({ text: `# ${s || "Part Two"}\n\n` }) },
   { group: "Heading", label: "Step (H2)", title: "Heading — a tracked step with a checkbox",
     build: (s) => ({ text: `## ${s || "Step title"}\n\n` }) },
   { group: "Heading", label: "Sub-step (H3)", title: "Sub-heading (also a tracked step)",
@@ -81,18 +89,10 @@ export const BLOCKS: Block[] = [
     build: (s) => ({ text: `## ${s || "Troubleshooting"} <!-- no-step -->\n\n` }) },
   { group: "Heading", label: "Sub-section (H3, untracked)", title: "Sub-heading with NO checkbox; not counted as a step",
     build: (s) => ({ text: `### ${s || "If something goes wrong"} <!-- no-step -->\n\n` }) },
-  // H1 is never a step - only ## and ### are - and a LEADING one is
-  // stripped entirely, because the guide header already shows the lab
-  // title from manifest.json. So this is for a divider inside a long
-  // guide, and the label says where it works.
-  { group: "Heading", label: "Title (H1, mid-guide)", title: "Large heading, never tracked. A leading H1 is stripped — the lab title comes from the manifest",
-    build: (s) => ({ text: `# ${s || "Part Two"}\n\n` }) },
-  // The toggle, for the headings already written. Acts on the heading
-  // the caret is ON, the same way Tidy table acts on the table it is in.
-  // build() is the fallback the block tests exercise; the dialog hook is
-  // what actually runs.
-  { group: "Heading", label: "Tracking on/off (this heading)", title: "Put the cursor on a heading: adds or removes its step checkbox", dialog: "track",
-    build: (s) => ({ text: `## ${s || "Section"} <!-- no-step -->\n\n` }) },
+  // The toggle for a heading ALREADY written lives under ☑ Tracking in
+  // the lab-action bar, not here. This menu inserts; that one changes
+  // what exists, and it is the same question the page-level control
+  // answers - "does this track?" - one level down.
 
   // ── Callouts ──
   // Generated from the shared registry so the menu, the dialog and the
@@ -123,6 +123,17 @@ export const BLOCKS: Block[] = [
   // than body-text size.
   { group: "Media", label: "Image", title: "Shared course image with a centred caption (../_assets/images/…)",
     build: (s) => ({ text: `<figure>\n\n![${altFrom(s)}](../_assets/images/example.png)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+  // The image variants follow the plain one rather than being split by
+  // the videos, and the alignment three run left, centred, right the way
+  // the Text menu's do. Blank lines INSIDE each wrapper are
+  // load-bearing: without them CommonMark keeps the ![…] line inside the
+  // HTML block and renders it as literal text instead of an image.
+  { group: "Media", label: "Image — centred", title: "Centred image with an optional caption (house pattern for dialog screenshots)",
+    build: (s) => ({ text: `<div align="center">\n<figure>\n\n![${altFrom(s)}](../_assets/images/example.png#w=420)\n\n<figcaption><em>Caption</em></figcaption>\n</figure>\n</div>\n\n` }) },
+  { group: "Media", label: "Image — float left", title: "Image on the left with the text wrapping beside it; the next step heading starts below it",
+    build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+  { group: "Media", label: "Image — float right", title: "Image on the right with the text wrapping beside it; the next step heading starts below it",
+    build: (s) => ({ text: `<figure class="pcm-float-right">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
   // Course videos live on Vimeo, so that is the default the button
   // writes. An Unlisted video's link carries an access hash as a second
   // path segment and the player refuses the bare id without it, so the
@@ -134,15 +145,11 @@ export const BLOCKS: Block[] = [
   // same lucide video icon in front of it when the class is present.
   { group: "Media", label: "Video — with caption", title: "Vimeo video with a captioned row underneath, matching the Welcome page",
     build: (s) => ({ text: `<figure>\n\n![${s || "Walkthrough"}](https://vimeo.com/VIDEO_ID/ACCESS_HASH)\n\n<figcaption class="pcm-video-caption">Watch: what this lab builds</figcaption>\n\n</figure>\n\n` }) },
-  // Alignment wrappers. The blank lines INSIDE the wrapper are load-bearing:
-  // without them CommonMark keeps the ![…] line inside the HTML block and
-  // renders it as literal text instead of an image.
-  { group: "Media", label: "Image — centred", title: "Centred image with an optional caption (house pattern for dialog screenshots)",
-    build: (s) => ({ text: `<div align="center">\n<figure>\n\n![${altFrom(s)}](../_assets/images/example.png#w=420)\n\n<figcaption><em>Caption</em></figcaption>\n</figure>\n</div>\n\n` }) },
-  { group: "Media", label: "Image — float right", title: "Image on the right with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-right">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
-  { group: "Media", label: "Image — float left", title: "Image on the left with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+  // PDF last: it is Media, but it is neither an image nor a video, and
+  // it used to sit after the whole Block group - so it arrived at the
+  // end of the menu by accident rather than by intent.
+  { group: "Media", label: "PDF", title: "Embed a PDF from the lab's files/ folder",
+    build: (s) => ({ text: `![${s || "Reference sheet"}](files/example.pdf)\n\n` }) },
 
   // ── Code ──
   // One entry per language in the shared registry, so the menu can only
@@ -168,8 +175,6 @@ export const BLOCKS: Block[] = [
     build: () => ({ text: `\n---\n\n` }) },
   { group: "Block", label: "Collapsible", title: "Fold a long aside away behind a one-line summary",
     build: (s) => ({ text: `<details>\n<summary>Show the details</summary>\n\n${s || "The long version, folded away until asked for."}\n\n</details>\n\n` }) },
-  { group: "Media", label: "PDF", title: "Embed a PDF from the lab's files/ folder",
-    build: (s) => ({ text: `![${s || "Reference sheet"}](files/example.pdf)\n\n` }) },
 
   // ── Text (inline emphasis + alignment) ──
   // Semantic, not decorative: each maps to a theme token, so the same
@@ -227,6 +232,8 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   // Recomputed on every keystroke. A guide is a few hundred lines, so
   // one pass over it costs nothing next to React's own render.
   const outline = outlineOf(value);
+  const tabs = tabsInBody(value);
+
 
   // Jump to a heading. A textarea has no per-line geometry, so the
   // scroll position is computed from the line number and the computed
@@ -281,33 +288,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
       }
     });
   }
-  /** Add or remove the step checkbox on the heading the caret is on. */
-  function toggleTracking() {
-    const caret = textarea?.selectionStart ?? 0;
-    const out = toggleHeadingAt(value, caret);
-    if ("problem" in out) {
-      window.alert(
-        out.problem === "h1"
-          ? "An H1 is never a tracked step — only ## and ### carry checkboxes."
-          : out.problem === "h4-plus"
-            ? "Only ## and ### are tracked steps, so there is nothing to toggle on this heading."
-            : out.problem === "tab-title"
-              ? "That heading is a TAB TITLE inside a ::: tabs block, not a step — it never had a checkbox to remove."
-              : "Put the cursor on a heading line first (## or ###).",
-      );
-      return;
-    }
-    onChange(out.ok.text);
-    requestAnimationFrame(() => {
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(out.ok.start, out.ok.end);
-      }
-    });
-  }
-
   function insert(block: Block) {
-    if (block.dialog === "track") { toggleTracking(); return; }
     if (block.dialog === "tidy") { tidyTable(); return; }
     if (block.dialog) { setDialog(block.dialog); return; }
     const start = textarea?.selectionStart ?? value.length;
@@ -393,6 +374,26 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           label: `${"  ".repeat(Math.max(0, h.level - 1))}${h.text}`,
           title: `Line ${h.line + 1}`,
           onSelect: () => jumpTo(h.offset, h.line, h.text.length + h.level + 1),
+        }))}
+      />
+      {/* Linking to a tab is an INSERT, but it belongs beside Outline
+          rather than in the Block menu with the plain Link: both answer
+          "where in this guide", and both need the guide read to build
+          their list. Offering the tabs by name is the point - the anchor
+          is derived from the title, and an author guessing the slug
+          finds out whether they guessed right at review time. */}
+      <Menu
+        label="Link to tab"
+        title={
+          tabs.length
+            ? "Insert a link to one of this lab's tabs"
+            : "This lab has no ::: tabs blocks to link to"
+        }
+        disabled={tabs.length === 0}
+        items={tabs.map((t) => ({
+          label: t.title,
+          title: `Writes [${t.title}](#${t.slug}) — line ${t.line}`,
+          onSelect: () => insertText(tabLink(t)),
         }))}
       />
       <span className="author-toolbar-sep" aria-hidden />

@@ -11,6 +11,7 @@
 //   desktop/package.json                "version"
 //   desktop/src-tauri/tauri.conf.json   "version"
 //   desktop/src-tauri/Cargo.toml        [package] version
+//   desktop/src-tauri/Cargo.lock        this crate's [[package]] version
 //
 // The last two arrived with the Windows installer. They are what the
 // SHIPPED artifact claims: tauri.conf.json's version names the setup
@@ -23,6 +24,15 @@
 // while the project shipped 0.4.46, and the drift only surfaced when an
 // unrelated `npm install` quietly corrected it. npm rewrites those keys
 // on install, so they drift whenever a version moves without one.
+//
+// Cargo.lock is the eighth and arrived the same way. cargo rewrites this
+// crate's version entry whenever it builds, so a release committed
+// BEFORE the build left the lock one version behind - 1.13.1 sitting
+// beside a Cargo.toml reading 1.14.0. It self-heals on the next build,
+// which is exactly what makes it easy to miss, and "a version written
+// down in a file that disagrees with the others" is the thing this
+// script exists to make impossible. Bumping it here means the tree is
+// consistent at commit time rather than at build time.
 //
 //   node scripts/bump-version.mjs 1.1.0             bump everything
 //   node scripts/bump-version.mjs 1.1.0 --dry-run   show what would change
@@ -75,29 +85,13 @@ const CHANGELOG = p("CHANGELOG.md");
 const DESKTOP_PKG = p("desktop", "package.json");
 const TAURI_CONF = p("desktop", "src-tauri", "tauri.conf.json");
 const CARGO_TOML = p("desktop", "src-tauri", "Cargo.toml");
+const CARGO_LOCK = p("desktop", "src-tauri", "Cargo.lock");
 
-/**
- * The [package] version of a Cargo.toml - the first `version = "x.y.z"`
- * in the file, which is the package's own. A dependency's version is
- * always inside a later table, so anchoring on the first occurrence is
- * enough and keeps this to one regex.
- *
- * Not in the shared machinery, because it is not shared: the Content
- * Manager leaves its crate pinned at 0.1.0 while shipping 0.4.49. That
- * works - Tauri takes the product version from tauri.conf.json - but a
- * crate version that disagrees with the product is a question someone
- * has to answer twice, and answering it once here is cheaper.
- */
-function setCargoVersion(text, next) {
-  const re = /^(version\s*=\s*")[0-9]+\.[0-9]+\.[0-9]+(")$/m;
-  if (!re.test(text)) throw new Error("no [package] version in Cargo.toml");
-  return text.replace(re, `$1${next}$2`);
-}
-
-/** The [package] version a Cargo.toml currently declares. */
-function cargoVersion(text) {
-  return /^version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"$/m.exec(text)?.[1];
-}
+// The Rust carriers live in their own module so they can be tested
+// without importing this file, which ends by running the CLI.
+const {
+  setCargoVersion, cargoVersion, setCargoLockVersion, cargoLockVersion,
+} = await import(pathToFileURL(p("scripts", "lib", "cargo-version.mjs")).href);
 
 /** The version each carrier currently claims. */
 function current() {
@@ -110,6 +104,7 @@ function current() {
     "desktop/package.json": JSON.parse(readText(DESKTOP_PKG).text).version,
     "desktop tauri.conf.json": JSON.parse(readText(TAURI_CONF).text).version,
     "desktop Cargo.toml": cargoVersion(readText(CARGO_TOML).text),
+    "desktop Cargo.lock": cargoLockVersion(readText(CARGO_LOCK).text),
   };
 }
 
@@ -157,6 +152,11 @@ function bump(next, dryRun) {
   {
     const { text, crlf } = readText(CARGO_TOML);
     stage(CARGO_TOML, text, setCargoVersion(text, next), crlf);
+  }
+
+  {
+    const { text, crlf } = readText(CARGO_LOCK);
+    stage(CARGO_LOCK, text, setCargoLockVersion(text, next), crlf);
   }
 
   if (!edits.length) {

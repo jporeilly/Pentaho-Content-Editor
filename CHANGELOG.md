@@ -15,6 +15,44 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.15.0] - 2026-09-17
+
+### Added
+
+- **Link to tab**, beside Go to → Outline. It lists the tabs in the lab
+  by name and writes `[Troubleshooting](#tab-troubleshooting)`. Both
+  menus answer "where in this guide", and both have to read the guide to
+  build their list, which is why this sits there rather than in the
+  Block menu with the plain Link. Offering the tabs by name is the whole
+  point: the anchor is derived from the title, and an author guessing
+  the slug finds out whether the guess was right at review time. The
+  Content Manager's `0.4.53` is the half that makes the links resolve,
+  including links to a tab nested inside another tab.
+- **🔍 Find** in the lab-action bar. Find & replace has been here since
+  1.2.0 on Ctrl/Cmd+F and nowhere else, so an author who did not already
+  know it existed had no way to find out — and asked for a feature the
+  editor had shipped weeks earlier. A binding is not a feature until
+  something on screen says so.
+
+### Changed
+
+- **Tracking is one menu at two scopes**, in the lab-action bar:
+  *this lab* (what ☑ Tracking always did) and *this heading* (which
+  arrived in 1.14.0 filed under the Heading insert menu, where a toggle
+  never belonged — that menu writes new markdown, this one changes what
+  is already there). It reports through the status line now rather than
+  an alert box.
+- **The insert menus are ordered and categorised deliberately**, and
+  three were not. Headings ran H2, H3, then H1 — now largest first.
+  **PDF** was declared after the entire Block group, so it surfaced last
+  in the Media menu behind three image-alignment variants; Media now
+  runs images, then videos, then the PDF, with the alignment three
+  reading left, centred, right as they do in the Text menu.
+  `toolbarOrder.test.ts` pins all of it, and asserts every group is
+  declared in ONE run — the structural rule that catches the next stray
+  before anyone reads a menu to find it.
+
+
 ## [1.14.0] - 2026-09-17
 
 ### Added
