@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { FileText, FlaskConical, Home } from "lucide-react";
 import { api, type Structure, type StructureLab, type StructureTopic, type Source } from "./api";
 import {
-  allTopics, indentBlocked, indentTopic, outdentTopic, popLab, topicAt,
+  allTopics, indentBlocked, indentTopic, outdentTopic, popLab, setTopicPage, topicAt,
 } from "./topicTree";
 import { LabModal, type LabDraft } from "./LabModal";
 
@@ -114,6 +114,15 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   function doOutdent(path: number[]) {
     const next = outdentTopic(structure, path);
     if (next) persist(next);
+  }
+
+  // Promote a guide to be its section's own page, or send it back to the
+  // list. The header then opens that guide while the chevron still
+  // expands the group, so a "Review Flat Files" page stops duplicating
+  // the "Flat Files" header above it.
+  function doSetPage(path: number[], slug: string | null) {
+    const next = setTopicPage(structure, path, slug);
+    if (next !== structure) persist(next);
   }
 
   function beginRename(lab: StructureLab) {
@@ -304,6 +313,35 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
             </span>
           </div>
         )}
+        {topic.page && (!filtering || labVisible(topic.title, topic.page)) && (
+          <div
+            className={
+              "author-lab-row author-page-row" +
+              (topic.page.slug === activeSlug && !welcomeActive ? " is-active" : "")
+            }
+          >
+            <span className="author-page-badge" title="This section's own page — the header opens it">§</span>
+            <button
+              type="button"
+              className="author-lab-label"
+              onClick={() => onSelect(topic.page!.slug)}
+              title={`${topic.page.slug} — opened by clicking "${topic.title}" in the learner sidebar`}
+            >
+              <FileText size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
+              {topic.page.title}
+            </button>
+            <button
+              type="button"
+              className="author-nest-btn"
+              disabled={busy || filtering}
+              onClick={() => doSetPage(path, null)}
+              title={`Demote — put "${topic.page.title}" back in the list as an ordinary entry`}
+              aria-label={`Demote ${topic.page.title}`}
+            >
+              ↓
+            </button>
+          </div>
+        )}
         {topic.labs.map((lab, li) => !labVisible(topic.title, lab) ? null : (
           <div
             key={lab.slug}
@@ -355,6 +393,22 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
                 click must not be enough - but typing a phrase per
                 lab (as the course delete demands) is too heavy for
                 something this routine. Arming clears on blur. */}
+            {editing !== lab.slug && (
+              <button
+                type="button"
+                className="author-nest-btn"
+                disabled={busy || filtering}
+                onClick={() => doSetPage(path, lab.slug)}
+                title={
+                  filtering
+                    ? "Clear the filter to restructure"
+                    : `Make "${lab.title}" the page for "${topic.title}" — the section header opens it`
+                }
+                aria-label={`Make ${lab.title} the section page`}
+              >
+                ↑
+              </button>
+            )}
             {editing !== lab.slug && (
               <button
                 type="button"

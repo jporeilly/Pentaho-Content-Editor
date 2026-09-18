@@ -3,8 +3,32 @@
 // in a form instead of raw JSON.
 
 import { useEffect, useState } from "react";
-import { api, type PublishDiff } from "./api";
+import { api, type PublishDiff, type ExamSettings } from "./api";
 import { Modal } from "./Modal";
+
+/** course.json `contact` — the learner app's Contact Us form, which is
+ *  always a mailto: handoff to `to`. `webhookUrl`/`webhookSecret` exist
+ *  in the schema and in some course.json files, but are not offered
+ *  here and are preserved rather than edited. */
+interface Contact {
+  to?: string;
+  heading?: string;
+  blurb?: string;
+  messagePlaceholder?: string;
+  sendLabel?: string;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  /** Anything course.json carries that this dialog doesn't name. */
+  [key: string]: unknown;
+}
+
+// Contact Us is always a mailto: handoff, so the relay URL and secret
+// are deliberately NOT edited here. They stay out of this list, which
+// means any values already in course.json ride along in `contactRest`
+// untouched rather than being wiped by a save.
+const CONTACT_FIELDS = [
+  "to", "heading", "blurb", "messagePlaceholder", "sendLabel",
+];
 
 interface CourseSettingsModalProps {
   course: string;
@@ -33,6 +57,11 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
   const [welcomeRest, setWelcomeRest] = useState<Record<string, unknown>>({});
   const [mode, setMode] = useState<"free" | "sequential">("free");
   const [assistant, setAssistant] = useState<Assistant>({});
+  const [contact, setContact] = useState<Contact>({});
+  // Same treatment as welcomeRest: contact keys this dialog doesn't show
+  // ride along untouched rather than being dropped on save.
+  const [contactRest, setContactRest] = useState<Record<string, unknown>>({});
+  const [exam, setExam] = useState<ExamSettings | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -142,12 +171,48 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
       setWelcomeRest(rest);
       setMode(c.mode === "sequential" ? "sequential" : "free");
       setAssistant(c.assistant ?? {});
+      const ct = (c.contact ?? {}) as Record<string, unknown>;
+      setContact(ct as Contact);
+      const ctRest: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(ct)) {
+        if (!CONTACT_FIELDS.includes(k)) ctRest[k] = v;
+      }
+      setContactRest(ctRest);
       setLoaded(true);
     }).catch((e) => setError((e as Error).message));
+    // Exam settings live in exam.json, not course.json, so they load and
+    // save independently. A course without one still opens this dialog.
+    api.getExam(course)
+      .then(setExam)
+      .catch(() => setExam({ exists: false, questionCount: 0 }));
   }, [course]);
 
   function setModel(profile: "cpu" | "gpu", v: string) {
     setAssistant((a) => ({ ...a, models: { ...(a.models ?? {}), [profile]: v } }));
+  }
+
+  function setContactField(key: keyof Contact, v: string) {
+    setContact((c) => ({ ...c, [key]: v }));
+  }
+
+  function setExamField<K extends keyof ExamSettings>(key: K, v: ExamSettings[K]) {
+    setExam((e) => (e ? { ...e, [key]: v } : e));
+  }
+
+  function setIntakeField(key: keyof NonNullable<ExamSettings["intake"]>, v: boolean | string) {
+    setExam((e) => (e ? { ...e, intake: { ...(e.intake ?? {}), [key]: v } } : e));
+  }
+
+  /** Trim every string, dropping the ones left empty so the API removes
+   *  an all-blank block rather than storing "". */
+  function trimmed(obj: Record<string, unknown>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v !== "string") { out[k] = v; continue; }
+      const t = v.trim();
+      if (t) out[k] = t;
+    }
+    return out;
   }
 
   async function save() {
@@ -171,7 +236,23 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
           eyebrow: welcomeEyebrow.trim() || undefined,
           analyticsNote: analyticsNote.trim() || undefined,
         },
+        contact: { ...contactRest, ...trimmed(contact) },
       });
+      // Two files, two writes. course.json first: if the exam PUT is
+      // rejected (a bad pass mark, an http:// webhook) the author sees
+      // the message with their exam edits still in the form.
+      if (exam?.exists) {
+        await api.putExam(course, {
+          title: exam.title,
+          description: exam.description,
+          passMark: exam.passMark,
+          questionsPerAttempt: exam.questionsPerAttempt,
+          shuffle: exam.shuffle,
+          webhookUrl: (exam.webhookUrl ?? "").trim(),
+          webhookSecret: (exam.webhookSecret ?? "").trim(),
+          intake: exam.intake ?? {},
+        });
+      }
       onSaved();
       onClose();
     } catch (e) {
@@ -292,6 +373,169 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                   </select>
                 </label>
                 <p className="author-hint">These are what the learner app uses on the VM — separate from the editor's own provider (Settings ⚙).</p>
+              </fieldset>
+              <fieldset className="author-fieldset">
+                <legend>Contact Us</legend>
+                <p className="author-hint">
+                  The learner app's Contact Us form. It always hands the message
+                  to the machine's mail client as a pre-filled email to the
+                  address below — nothing is POSTed anywhere.
+                </p>
+                <label className="author-field">
+                  <span>Send to</span>
+                  <input
+                    className="author-input" type="email" placeholder="academy@pentaho.com"
+                    value={contact.to ?? ""} onChange={(e) => setContactField("to", e.target.value)}
+                  />
+                </label>
+                <label className="author-field">
+                  <span>Heading</span>
+                  <input
+                    className="author-input" placeholder="Contact Us"
+                    value={contact.heading ?? ""} onChange={(e) => setContactField("heading", e.target.value)}
+                  />
+                </label>
+                <label className="author-field">
+                  <span>Blurb</span>
+                  <textarea
+                    className="author-input" rows={2}
+                    placeholder="Ask us anything about the course…"
+                    value={contact.blurb ?? ""} onChange={(e) => setContactField("blurb", e.target.value)}
+                  />
+                </label>
+                <label className="author-field">
+                  <span>Message placeholder</span>
+                  <input
+                    className="author-input" placeholder="What would you like to know?"
+                    value={contact.messagePlaceholder ?? ""}
+                    onChange={(e) => setContactField("messagePlaceholder", e.target.value)}
+                  />
+                </label>
+                <label className="author-field">
+                  <span>Send button label</span>
+                  <input
+                    className="author-input" placeholder="Send"
+                    value={contact.sendLabel ?? ""} onChange={(e) => setContactField("sendLabel", e.target.value)}
+                  />
+                </label>
+              </fieldset>
+              <fieldset className="author-fieldset">
+                <legend>Exam &amp; results</legend>
+                {!exam ? (
+                  <p className="author-hint">Loading…</p>
+                ) : !exam.exists ? (
+                  <p className="author-hint">
+                    This course has no <code>exam.json</code>, so there is nothing to
+                    configure. Add one to the course folder and reopen this dialog.
+                  </p>
+                ) : (
+                  <>
+                    <label className="author-field">
+                      <span>Exam title</span>
+                      <input
+                        className="author-input" placeholder="Practitioner Exam"
+                        value={exam.title ?? ""} onChange={(e) => setExamField("title", e.target.value)}
+                      />
+                    </label>
+                    <label className="author-field">
+                      <span>Description</span>
+                      <textarea
+                        className="author-input" rows={3}
+                        value={exam.description ?? ""}
+                        onChange={(e) => setExamField("description", e.target.value)}
+                      />
+                    </label>
+                    <label className="author-field">
+                      <span>Pass mark (%)</span>
+                      <input
+                        className="author-input" type="number" min={0} max={100}
+                        value={exam.passMark ?? ""}
+                        onChange={(e) => setExamField("passMark", e.target.value === "" ? undefined : Number(e.target.value))}
+                      />
+                    </label>
+                    <label className="author-field">
+                      <span>Questions per attempt</span>
+                      <input
+                        className="author-input" type="number" min={1} max={exam.questionCount || undefined}
+                        value={exam.questionsPerAttempt ?? ""}
+                        onChange={(e) => setExamField("questionsPerAttempt", e.target.value === "" ? undefined : Number(e.target.value))}
+                      />
+                    </label>
+                    <p className="author-hint">
+                      Drawn from a pool of {exam.questionCount} question
+                      {exam.questionCount === 1 ? "" : "s"}. The questions themselves are
+                      authored in <code>exam.json</code>.
+                    </p>
+                    <label className="author-check">
+                      <input
+                        type="checkbox" checked={exam.shuffle !== false}
+                        onChange={(e) => setExamField("shuffle", e.target.checked)}
+                      />
+                      <span>Shuffle the questions on each attempt</span>
+                    </label>
+
+                    <label className="author-field">
+                      <span>Results webhook</span>
+                      <input
+                        className="author-input" placeholder="https://script.google.com/macros/s/…/exec"
+                        value={exam.webhookUrl ?? ""}
+                        onChange={(e) => setExamField("webhookUrl", e.target.value)}
+                      />
+                    </label>
+                    <label className="author-field">
+                      <span>Shared secret</span>
+                      <input
+                        className="author-input" placeholder="pcm_…"
+                        value={exam.webhookSecret ?? ""}
+                        onChange={(e) => setExamField("webhookSecret", e.target.value)}
+                      />
+                    </label>
+                    <p className="author-hint">
+                      {exam.webhookUrl?.trim()
+                        ? "Attempts POST to this Apps Script, which writes the results sheet. Retries are safe — it upserts on attempt id."
+                        : "No webhook set — attempts are graded on the machine and nothing is sent anywhere."}
+                    </p>
+
+                    <label className="author-check">
+                      <input
+                        type="checkbox" checked={exam.intake?.collectCandidate !== false}
+                        onChange={(e) => setIntakeField("collectCandidate", e.target.checked)}
+                      />
+                      <span>Ask for the candidate's name and email before the exam</span>
+                    </label>
+                    <label className="author-check">
+                      <input
+                        type="checkbox" checked={exam.intake?.consent !== false}
+                        disabled={exam.intake?.collectCandidate === false}
+                        onChange={(e) => setIntakeField("consent", e.target.checked)}
+                      />
+                      <span>Show the consent line with those fields</span>
+                    </label>
+                    <label className="author-check">
+                      <input
+                        type="checkbox" checked={exam.intake?.optional === true}
+                        onChange={(e) => setIntakeField("optional", e.target.checked)}
+                      />
+                      <span>Let the learner skip the form and sit the exam anyway</span>
+                    </label>
+                    <label className="author-check">
+                      <input
+                        type="checkbox" checked={exam.intake?.trackResults !== false}
+                        onChange={(e) => setIntakeField("trackResults", e.target.checked)}
+                      />
+                      <span>Record the attempt (off = a practice recap, unlimited retries, nothing stored)</span>
+                    </label>
+                    <label className="author-field">
+                      <span>Intake lead-in</span>
+                      <textarea
+                        className="author-input" rows={2}
+                        placeholder="Shown above the name and email fields."
+                        value={exam.intake?.lead ?? ""}
+                        onChange={(e) => setIntakeField("lead", e.target.value)}
+                      />
+                    </label>
+                  </>
+                )}
               </fieldset>
               <fieldset className="author-fieldset">
                 <legend>Deploy</legend>

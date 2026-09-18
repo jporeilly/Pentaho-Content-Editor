@@ -46,6 +46,39 @@ export interface Structure {
   topics: StructureTopic[];
 }
 
+/** The pre-exam form that captures candidate details (exam.json
+ *  `intake`). Results POST to the course's webhook — a Google Apps
+ *  Script that writes the results sheet. */
+export interface ExamIntake {
+  /** Ask for name + email before the exam starts. Default true. */
+  collectCandidate?: boolean;
+  /** Show the consent line with the candidate fields. Default true. */
+  consent?: boolean;
+  /** Let the learner skip the form and sit the exam anyway. */
+  optional?: boolean;
+  /** false = a practice recap: nothing is stored or sent, unlimited attempts. */
+  trackResults?: boolean;
+  lead?: string;
+  startLabel?: string;
+}
+
+export interface ExamSettings {
+  /** False when the course has no exam.json — the dialog says so
+   *  rather than offering fields that cannot be saved. */
+  exists: boolean;
+  /** Size of the question pool. Read-only here; questions are authored
+   *  in exam.json, not in this dialog. */
+  questionCount: number;
+  title?: string;
+  description?: string;
+  passMark?: number;
+  questionsPerAttempt?: number;
+  shuffle?: boolean;
+  webhookUrl?: string;
+  webhookSecret?: string;
+  intake?: ExamIntake;
+}
+
 export interface PublishDiff {
   course: string;
   remoteCommit: string;
@@ -298,6 +331,22 @@ export const api = {
   async putCourse(course: string, patch: Record<string, unknown>): Promise<Record<string, unknown>> {
     return json(
       await fetch(`${API_BASE}/api/courses/${course}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      }),
+    );
+  },
+
+  async getExam(course: string): Promise<ExamSettings> {
+    return json(await fetch(`${API_BASE}/api/courses/${course}/exam`));
+  },
+
+  /** Partial update. `questions` is never sent — the server keeps the
+   *  pool and any key this editor doesn't know about. */
+  async putExam(course: string, patch: Record<string, unknown>): Promise<ExamSettings> {
+    return json(
+      await fetch(`${API_BASE}/api/courses/${course}/exam`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),

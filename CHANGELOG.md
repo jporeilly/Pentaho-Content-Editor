@@ -15,6 +15,39 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.21.0] - 2026-09-18
+
+### Added
+
+- **Section pages, from the sidebar.** Each entry has a ↑ that makes it
+  its section's own page (`<!-- topic-page: … -->`): the header then
+  opens that guide while the chevron still expands the group, and the
+  entry stops appearing as a duplicate row inside itself. The current
+  page shows under the header with a § badge and a ↓ to demote it. A
+  page that is replaced goes back into the list rather than dropping out
+  of the course.
+- **Contact Us settings** in the course dialog — recipient, heading,
+  blurb, message placeholder and button label. `contact` was missing
+  from `put_course`'s allowed keys, so before this the block could only
+  be hand-edited and a dialog would have dropped it silently. The form
+  is always a `mailto:` handoff, so no relay fields are offered; any
+  `webhookUrl`/`webhookSecret` already in a course.json is preserved
+  rather than edited.
+- **Exam & results settings** (`GET`/`PUT /api/courses/{course}/exam`) —
+  title, description, pass mark, questions per attempt, shuffle, the
+  results webhook and secret, and the intake form that captures
+  candidate details before the exam. `exam.json` had no editor surface
+  at all. `questions` is never sent, so a partial save cannot wipe the
+  pool; unknown keys are preserved. Rejects a pass mark outside 0–100,
+  a `questionsPerAttempt` larger than the pool, and a plaintext `http://`
+  webhook — results carry candidate details and the outbox retries.
+
+### Fixed
+
+- A structure save no longer churns the diff: a topic with sub-topics but
+  no labs of its own gained a blank line on every write. Saves are now
+  byte-stable.
+
 ## [1.20.0] - 2026-09-18
 
 ### Added

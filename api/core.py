@@ -634,10 +634,15 @@ def _write_structure(course_path: Path, topics: list[StructureTopic]) -> None:
             lines.append(f"<!-- topic-page: {topic.page.slug} -->")
             lines.append("")
             sync_manifest(topic.page)
-        for lab in topic.labs:
-            lines.append(f"* [{lab.title}]({lab.slug}/guide.md)")
-            sync_manifest(lab)
-        lines.append("")
+        # Only a topic that actually wrote bullets needs the separating
+        # blank line. Emitting it unconditionally left a double blank
+        # above the first sub-topic of every group-only topic, so a save
+        # always differed from a hand-written file.
+        if topic.labs:
+            for lab in topic.labs:
+                lines.append(f"* [{lab.title}]({lab.slug}/guide.md)")
+                sync_manifest(lab)
+            lines.append("")
         # Labs before children — the sidebar renders a topic's own labs
         # above its subtopics, so the flattened `order` has to match or
         # next/prev navigation disagrees with the tree.

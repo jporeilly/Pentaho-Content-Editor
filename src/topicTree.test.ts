@@ -8,6 +8,7 @@ import {
   indentTopic,
   outdentTopic,
   popLab,
+  setTopicPage,
   topicAt,
 } from "./topicTree";
 import type { Structure, StructureTopic } from "./api";
@@ -132,5 +133,42 @@ describe("popLab", () => {
 
   it("returns null for a slug that isn't there", () => {
     expect(popLab(nested(), "ghost")).toBeNull();
+  });
+});
+
+describe("setTopicPage", () => {
+  it("promotes a lab out of the list and onto the topic", () => {
+    const out = setTopicPage(nested(), [0, 0], "text-file-input");
+    expect(out.topics[0].children![0].page?.slug).toBe("text-file-input");
+    // The point of promoting: the duplicate row disappears.
+    expect(out.topics[0].children![0].labs).toEqual([]);
+  });
+
+  it("puts the previous page back in the list rather than losing it", () => {
+    const once = setTopicPage(nested(), [0], "overview");
+    expect(once.topics[0].page?.slug).toBe("overview");
+    expect(once.topics[0].labs).toEqual([]);
+    // Promoting a second guide must not drop the first off the course.
+    const twice = setTopicPage(once, [0], "text-file-input");
+    expect(twice.topics[0].page?.slug).toBe("text-file-input");
+    expect(twice.topics[0].labs.map((l) => l.slug)).toEqual(["overview"]);
+  });
+
+  it("demotes the page back into the lab list", () => {
+    const promoted = setTopicPage(nested(), [0], "overview");
+    const back = setTopicPage(promoted, [0], null);
+    expect(back.topics[0].page).toBeNull();
+    expect(back.topics[0].labs.map((l) => l.slug)).toEqual(["overview"]);
+  });
+
+  it("can promote a lab from a different topic", () => {
+    const out = setTopicPage(nested(), [1], "overview");
+    expect(out.topics[1].page?.slug).toBe("overview");
+    expect(out.topics[0].labs).toEqual([]);
+  });
+
+  it("leaves the tree untouched when the slug isn't there", () => {
+    const before = nested();
+    expect(setTopicPage(before, [0], "ghost")).toBe(before);
   });
 });

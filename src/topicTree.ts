@@ -87,6 +87,36 @@ export function outdentTopic(root: Structure, path: number[]): Structure | null 
   return next;
 }
 
+/**
+ * Promote a lab to be its topic's own page, or demote the current page
+ * back into the topic's lab list.
+ *
+ * A topic page is the `<!-- topic-page: … -->` comment the Engine reads:
+ * the sidebar header becomes clickable and opens that guide, while the
+ * chevron still expands the group. Promoting removes the lab's own row,
+ * which is the point — the "Review Flat Files" entry stops being a
+ * duplicate of the "Flat Files" header above it.
+ */
+export function setTopicPage(
+  root: Structure,
+  path: number[],
+  slug: string | null,
+): Structure {
+  const next: Structure = structuredClone(root);
+  const topic = topicAt(next, path);
+  // Whatever was the page goes back to the top of the lab list, so
+  // demoting never silently drops a guide out of the course.
+  if (topic.page) topic.labs.unshift(topic.page);
+  if (slug === null) {
+    topic.page = null;
+    return next;
+  }
+  const lab = popLab(next, slug);
+  if (!lab) return root;
+  topicAt(next, path).page = lab;
+  return next;
+}
+
 /** Remove a lab from wherever it sits in the tree and return it. */
 export function popLab(root: Structure, slug: string): StructureLab | null {
   for (const { topic } of allTopics(root.topics)) {

@@ -325,6 +325,20 @@ body {
   padding: 7px 10px;
   font-size: 13px;
 }
+/* A checkbox with its label on one line. `author-radio` needs an inline
+   grid-template override to do this, which is fine once and noise nine
+   times over in the exam intake block. */
+.author-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.author-check input { margin: 2px 0 0; flex: none; cursor: pointer; }
+.author-check input:disabled { cursor: default; }
+.author-check:has(input:disabled) { opacity: 0.5; cursor: default; }
 .author-hint { font-size: 12px; color: var(--author-muted); margin: 0; }
 .author-hint code, .author-field code { background: var(--author-bg); padding: 1px 5px; border-radius: 4px; }
 
@@ -1845,4 +1859,16 @@ textarea.author-input { min-height: 0; }
   /* Twelve gaps between thirteen children: 4px off each buys 48px, which
      is more than the pill costs and cheaper than removing anything. */
   .author-header { gap: 6px; }
+}
+
+/* A topic's own page (`<!-- topic-page: -->`): shown indented under the
+   section header it belongs to, with a § badge, so the author can see
+   at a glance that clicking the header opens this guide. */
+.author-page-row { padding-left: 6px; }
+.author-page-badge {
+  font-size: 11px;
+  color: var(--author-muted);
+  width: 12px;
+  text-align: center;
+  flex: none;
 }

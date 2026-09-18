@@ -144,6 +144,29 @@ def test_put_course(env, client):
     assert json.loads((env / "sample" / "course.json").read_text())["theme"]["accent"] == "#fff"
 
 
+def test_put_course_saves_contact_block(env, client):
+    # `contact` was missing from the allowed-key list, so a Contact Us
+    # dialog would have posted these and had them silently dropped.
+    contact = {
+        "to": "academy@pentaho.com",
+        "heading": "Contact Us",
+        "blurb": "Ask us anything.",
+        "webhookUrl": "https://script.google.com/macros/s/AAA/exec",
+        "webhookSecret": "pcm_secret",
+    }
+    r = client.put("/api/courses/sample", json={"contact": contact})
+    assert r.status_code == 200
+    saved = json.loads((env / "sample" / "course.json").read_text())["contact"]
+    assert saved["webhookUrl"].endswith("/exec")
+    assert saved["to"] == "academy@pentaho.com"
+
+
+def test_put_course_empty_contact_removes_the_key(env, client):
+    client.put("/api/courses/sample", json={"contact": {"to": "a@b.com"}})
+    client.put("/api/courses/sample", json={"contact": {}})
+    assert "contact" not in json.loads((env / "sample" / "course.json").read_text())
+
+
 def test_put_course_rejects_empty_title(env, client):
     assert client.put("/api/courses/sample", json={"title": "  "}).status_code == 400
 
@@ -228,6 +251,19 @@ def test_delete_lab_keeps_subtopics(env, client):
     summary = (env / "sample" / "SUMMARY.md").read_text()
     assert "### Advanced" in summary and "02-deep" in summary
     assert "01-intro" not in summary
+
+
+def test_structure_save_is_byte_stable(env, client):
+    """Saving twice must not keep changing the file. A group-only topic
+    used to gain a blank line on every write, so an author's diff churned
+    on saves that changed nothing."""
+    topics = _nest(env, client)
+    client.put("/api/courses/sample/structure", json={"topics": topics})
+    once = (env / "sample" / "SUMMARY.md").read_text()
+    again = client.get("/api/courses/sample/structure").json()["topics"]
+    client.put("/api/courses/sample/structure", json={"topics": again})
+    assert (env / "sample" / "SUMMARY.md").read_text() == once
+    assert "\n\n\n" not in once
 
 
 def test_put_structure_validates_nested_labs(env, client):
@@ -1066,3 +1102,83 @@ def test_a_hint_pointing_at_nothing_is_ignored(tmp_path, monkeypatch):
     monkeypatch.setattr(providers, "load_settings", lambda: {"pcmRepo": ""})
     monkeypatch.setattr(core, "installer_hint", lambda: tmp_path / "gone")
     assert core._resolve_repo_root() == core.DEFAULT_REPO.resolve()
+
+
+# ── exam settings ───────────────────────────────────────────────────
+
+def _exam(env, **over):
+    """Give the sample course an exam.json with a two-question pool."""
+    exam = {
+        "title": "Practitioner Exam",
+        "passMark": 80,
+        "questionsPerAttempt": 2,
+        "shuffle": True,
+        "webhookUrl": "https://script.google.com/macros/s/AAA/exec",
+        "webhookSecret": "pcm_secret",
+        "intake": {"collectCandidate": True, "consent": True},
+        "questions": [{"id": "q1"}, {"id": "q2"}],
+    }
+    exam.update(over)
+    (env / "sample" / "exam.json").write_text(json.dumps(exam), encoding="utf-8")
+    return exam
+
+
+def test_get_exam_omits_questions_but_counts_them(env, client):
+    _exam(env)
+    body = client.get("/api/courses/sample/exam").json()
+    assert body["exists"] is True
+    assert body["questionCount"] == 2
+    assert "questions" not in body
+    assert body["webhookUrl"].endswith("/exec")
+    assert body["intake"]["collectCandidate"] is True
+
+
+def test_get_exam_reports_a_course_without_one(env, client):
+    body = client.get("/api/courses/sample/exam").json()
+    assert body == {"exists": False, "questionCount": 0}
+
+
+def test_put_exam_keeps_the_question_pool(env, client):
+    # The dialog never sends `questions`; a partial PUT must not wipe it.
+    _exam(env)
+    r = client.put("/api/courses/sample/exam", json={"passMark": 70})
+    assert r.status_code == 200 and r.json()["passMark"] == 70
+    saved = json.loads((env / "sample" / "exam.json").read_text())
+    assert len(saved["questions"]) == 2
+
+
+def test_put_exam_preserves_unknown_keys(env, client):
+    _exam(env, somethingNew={"keep": "me"})
+    client.put("/api/courses/sample/exam", json={"title": "Renamed"})
+    saved = json.loads((env / "sample" / "exam.json").read_text())
+    assert saved["somethingNew"] == {"keep": "me"}
+
+
+def test_put_exam_rejects_a_pass_mark_out_of_range(env, client):
+    _exam(env)
+    assert client.put("/api/courses/sample/exam", json={"passMark": 140}).status_code == 400
+    assert client.put("/api/courses/sample/exam", json={"passMark": -1}).status_code == 400
+
+
+def test_put_exam_rejects_more_questions_than_the_pool_holds(env, client):
+    # An exam that draws 40 from a pool of 2 cannot be sat.
+    _exam(env)
+    r = client.put("/api/courses/sample/exam", json={"questionsPerAttempt": 40})
+    assert r.status_code == 400 and "pool" in r.json()["detail"]
+
+
+def test_put_exam_rejects_a_plaintext_webhook(env, client):
+    # Results carry candidate details and the outbox retries on failure.
+    _exam(env)
+    r = client.put("/api/courses/sample/exam", json={"webhookUrl": "http://example.com/x"})
+    assert r.status_code == 400
+
+
+def test_put_exam_allows_clearing_the_webhook(env, client):
+    _exam(env)
+    r = client.put("/api/courses/sample/exam", json={"webhookUrl": ""})
+    assert r.status_code == 200 and r.json()["webhookUrl"] == ""
+
+
+def test_put_exam_404s_without_an_exam_file(env, client):
+    assert client.put("/api/courses/sample/exam", json={"passMark": 50}).status_code == 404

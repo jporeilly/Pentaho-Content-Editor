@@ -103,19 +103,92 @@ def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
     cj = _read_json(cj_path)
     if "mode" in body and body["mode"] not in ("free", "sequential"):
         raise HTTPException(400, "mode must be 'free' or 'sequential'")
-    for key in ("title", "description", "version", "theme", "launchers", "assistant", "mode", "welcome"):
+    # `contact` is editable: without it the Contact Us block could only be
+    # hand-edited, and a dialog that showed the fields would silently drop
+    # them on save.
+    for key in ("title", "description", "version", "theme", "launchers",
+                "assistant", "mode", "welcome", "contact"):
         if key in body:
             cj[key] = body[key]
-    # An emptied welcome block (or null) removes the key rather than
-    # leaving "welcome": {} behind in course.json.
-    if "welcome" in body and not body["welcome"]:
-        cj.pop("welcome", None)
+    # An emptied welcome/contact block (or null) removes the key rather
+    # than leaving "welcome": {} behind in course.json.
+    for key in ("welcome", "contact"):
+        if key in body and not body[key]:
+            cj.pop(key, None)
     if isinstance(cj.get("title"), str):
         cj["title"] = cj["title"].strip()
     if not cj.get("title"):
         raise HTTPException(400, "Course title can't be empty")
     _write_json(cj_path, cj)
     return cj
+
+
+# Settings the exam dialog owns. `questions` is deliberately absent:
+# the dialog never sends it, and a PUT that carried a partial body
+# would otherwise wipe the question pool.
+_EXAM_SETTINGS = (
+    "title", "description", "passMark", "questionsPerAttempt", "shuffle",
+    "webhookUrl", "webhookSecret", "intake",
+)
+
+
+@router.get("/api/courses/{course}/exam")
+def get_exam(course: str) -> dict[str, Any]:
+    """Exam settings plus the question count. The questions themselves
+    stay out of the payload — the dialog edits delivery and grading,
+    and a 50-question pool is a lot of JSON to ship for nothing."""
+    path = _course_dir(course) / "exam.json"
+    if not path.exists():
+        return {"exists": False, "questionCount": 0}
+    exam = _read_json(path)
+    out: dict[str, Any] = {k: exam[k] for k in _EXAM_SETTINGS if k in exam}
+    out["exists"] = True
+    questions = exam.get("questions")
+    out["questionCount"] = len(questions) if isinstance(questions, list) else 0
+    return out
+
+
+@router.put("/api/courses/{course}/exam")
+def put_exam(course: str, body: dict[str, Any]) -> dict[str, Any]:
+    """Update exam settings in place, preserving `questions` and any key
+    this editor doesn't know about."""
+    course_path = _course_dir(course)
+    path = course_path / "exam.json"
+    if not path.exists():
+        raise HTTPException(404, f"{course} has no exam.json")
+    exam = _read_json(path)
+
+    pass_mark = body.get("passMark", exam.get("passMark"))
+    if pass_mark is not None and not (isinstance(pass_mark, int) and 0 <= pass_mark <= 100):
+        raise HTTPException(400, "passMark must be a whole number between 0 and 100")
+    per_attempt = body.get("questionsPerAttempt", exam.get("questionsPerAttempt"))
+    pool = exam.get("questions")
+    if (
+        isinstance(per_attempt, int)
+        and isinstance(pool, list)
+        and per_attempt > len(pool)
+    ):
+        # The learner app draws `questionsPerAttempt` from the pool; asking
+        # for more than exist is an exam that cannot be sat.
+        raise HTTPException(
+            400,
+            f"questionsPerAttempt ({per_attempt}) is more than the "
+            f"{len(pool)} questions in the pool",
+        )
+    url = body.get("webhookUrl")
+    if isinstance(url, str) and url.strip() and not url.strip().startswith("https://"):
+        # Results carry candidate details, and the outbox retries — an
+        # http:// endpoint would resend them in clear on every attempt.
+        raise HTTPException(400, "webhookUrl must be an https:// URL")
+
+    for key in _EXAM_SETTINGS:
+        if key in body:
+            exam[key] = body[key]
+    for key in ("intake",):
+        if key in body and not body[key]:
+            exam.pop(key, None)
+    _write_json(path, exam)
+    return get_exam(course)
 
 
 @router.post("/api/courses/{course}/verify")
