@@ -65,6 +65,30 @@ interface Block {
 // single line with no markdown link/image syntax. Selecting a whole block
 // and choosing Image used to wrap that block as the alt text.
 const altFrom = (s: string) => (s && !/[\n\[\]()]/.test(s) ? s : "alt text");
+
+/**
+ * Does the selection look like a path to an image rather than a caption?
+ *
+ * Because the obvious way to use these blocks is the one that did not
+ * work: paste the path, select it, choose Image. That put the PATH in
+ * the alt slot and left the placeholder as the src, so the author then
+ * moved the filename across by hand - which is the copy-paste the menu
+ * was supposed to save.
+ *
+ * Deliberately narrow. One token, no whitespace, ending in an image
+ * extension: a caption almost never looks like that, and guessing wrong
+ * in the other direction - treating a sentence as a path - produces a
+ * broken image instead of a slightly wrong caption.
+ */
+const IMAGE_PATH = /^\S+\.(png|jpe?g|gif|webp|svg|bmp|avif)(#[^\s]*)?$/i;
+const looksLikePath = (s: string) => IMAGE_PATH.test(s.trim());
+
+/** The src for an image block: the selection when it is a path. */
+const srcFrom = (s: string, fallback: string) =>
+  looksLikePath(s) ? s.trim() : fallback;
+
+/** The alt for an image block: never the path the author just pasted. */
+const altForImage = (s: string) => (looksLikePath(s) ? "alt text" : altFrom(s));
 // Exported for the coverage test: the Callout menu and the Engine's
 // tag parser are two lists in two files, and nothing tied them together
 // until a kind (Success) turned out to render fine but have no button.
@@ -125,18 +149,18 @@ export const BLOCKS: Block[] = [
   // every caption gets the theme's 12.5px italic caption style rather
   // than body-text size.
   { group: "Media", label: "Image", title: "Shared course image with a centred caption (../_assets/images/…)",
-    build: (s) => ({ text: `<figure>\n\n![${altFrom(s)}](../_assets/images/example.png)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+    build: (s) => ({ text: `<figure>\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png")})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
   // The image variants follow the plain one rather than being split by
   // the videos, and the alignment three run left, centred, right the way
   // the Text menu's do. Blank lines INSIDE each wrapper are
   // load-bearing: without them CommonMark keeps the ![…] line inside the
   // HTML block and renders it as literal text instead of an image.
   { group: "Media", label: "Image — centred", title: "Centred image with an optional caption (house pattern for dialog screenshots)",
-    build: (s) => ({ text: `<div align="center">\n<figure>\n\n![${altFrom(s)}](../_assets/images/example.png#w=420)\n\n<figcaption><em>Caption</em></figcaption>\n</figure>\n</div>\n\n` }) },
+    build: (s) => ({ text: `<div align="center">\n<figure>\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png#w=420")})\n\n<figcaption><em>Caption</em></figcaption>\n</figure>\n</div>\n\n` }) },
   { group: "Media", label: "Image — float left", title: "Image on the left with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+    build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png#w=320")})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
   { group: "Media", label: "Image — float right", title: "Image on the right with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-right">\n\n![${altFrom(s)}](../_assets/images/example.png#w=320)\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+    build: (s) => ({ text: `<figure class="pcm-float-right">\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png#w=320")})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
   // Course videos live on Vimeo, so that is the default the button
   // writes. An Unlisted video's link carries an access hash as a second
   // path segment and the player refuses the bare id without it, so the
@@ -152,7 +176,7 @@ export const BLOCKS: Block[] = [
   // it used to sit after the whole Block group - so it arrived at the
   // end of the menu by accident rather than by intent.
   { group: "Media", label: "PDF", title: "Embed a PDF from the lab's files/ folder",
-    build: (s) => ({ text: `![${s || "Reference sheet"}](files/example.pdf)\n\n` }) },
+    build: (s) => ({ text: `![${/^\S+\.pdf$/i.test(s.trim()) ? "Reference sheet" : (s || "Reference sheet")}](${/^\S+\.pdf$/i.test(s.trim()) ? s.trim() : "files/example.pdf"})\n\n` }) },
 
   // ── Code ──
   // One entry per language in the shared registry, so the menu can only

@@ -15,6 +15,25 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.19.0] - 2026-09-18
+
+### Changed
+
+- **Select a path, choose an image block, and the path becomes the
+  image.** The obvious way to use those blocks was the one that did not
+  work: paste the path into the guide, select it, pick Media → Image,
+  and the selection went into the ALT slot while the src stayed a
+  placeholder — so the filename had to be moved across by hand, which is
+  the copy-paste the menu exists to save. A selection that looks like a
+  path (one token, no spaces, an image extension) is now the source; a
+  selection that reads like a caption still becomes the alt text.
+  The test pins the direction of the guess: mistaking a sentence for a
+  path gives a broken image, mistaking a path for a caption gives a
+  slightly odd one, so the detection is deliberately narrow. A `#w=`
+  size hint you paste is kept, and one you don't get the block's own.
+  The same applies to **PDF** with a `.pdf` selection.
+
+
 ## [1.18.0] - 2026-09-18
 
 ### Fixed
