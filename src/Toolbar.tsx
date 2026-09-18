@@ -404,6 +404,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
   }, []);
 
   return (
+    <>
     <div className="author-toolbar">
       <span className="author-toolbar-label">Go to</span>
       <Menu
@@ -457,7 +458,15 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           onSelect: () => insertText(navButton(t.label, t.anchor)),
         }))}
       />
-      <span className="author-toolbar-sep" aria-hidden />
+      </div>
+
+      {/* Three rows, one question each: GO TO is navigation, FORMAT
+          acts on the selection, INSERT adds something new. They were
+          one scrolling row, so whichever you wanted was often past the
+          right-hand edge. Each row still refuses to WRAP - free
+          wrapping is what once stacked these into six rows and ate
+          249px above the textarea. */}
+      <div className="author-toolbar">
       <span className="author-toolbar-label">Format</span>
       {FORMATS.map((f) => (
         <button
@@ -504,7 +513,16 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           },
         ]}
       />
-      <span className="author-toolbar-sep" aria-hidden />
+      </div>
+
+      {/* INSERT gets its own row. The first row is about the text you
+          already have - where to go, and how to format the selection -
+          and this one is about adding something new. They were one
+          scrolling row, which meant the insert menus were often off the
+          right-hand edge until you scrolled the toolbar to find them.
+          Still one non-wrapping row EACH: wrapping freely is what once
+          stacked these into six rows and ate 249px above the textarea. */}
+      <div className="author-toolbar">
       <span className="author-toolbar-label">Insert</span>
       {GROUP_ORDER.map((group) => (
         <Menu
@@ -547,5 +565,6 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
         />
       )}
     </div>
+    </>
   );
 }

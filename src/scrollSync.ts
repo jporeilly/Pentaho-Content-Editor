@@ -51,7 +51,27 @@ export function closeEnough(current: number, target: number, tolerance = 2): boo
  * emits a burst of events, and releasing too eagerly lets the far pane
  * grab the lock mid-gesture and start driving back.
  */
-export function linkScrollers(a: HTMLElement, b: HTMLElement, releaseMs = 120): () => void {
+export function linkScrollers(
+  a: HTMLElement,
+  b: HTMLElement,
+  releaseMs = 120,
+  /**
+   * Veto a pane's right to drive, consulted on each scroll event.
+   *
+   * There is one scroll a pane makes that is not a gesture: the preview
+   * RE-RENDERS on every keystroke, and a re-render that changes its
+   * height moves its own scrollTop. That counted as driving, so typing
+   * in the editor made the preview push the editor - by roughly four
+   * times the distance, since the source is that much taller than the
+   * render. The view slid off the caret while the author typed, and the
+   * next keystroke snapped it back: measured at 1341px from one
+   * character.
+   *
+   * The author's caret is the authority for where the editor looks
+   * while they are editing. This is how the caller says so.
+   */
+  blocked?: (from: HTMLElement) => boolean,
+): () => void {
   let driver: HTMLElement | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -61,6 +81,7 @@ export function linkScrollers(a: HTMLElement, b: HTMLElement, releaseMs = 120): 
   };
 
   const sync = (from: HTMLElement, to: HTMLElement) => () => {
+    if (blocked?.(from)) return;
     if (driver && driver !== from) return;
     driver = from;
     const target = mappedScrollTop(from, to);

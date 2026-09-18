@@ -15,6 +15,42 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.18.0] - 2026-09-18
+
+### Fixed
+
+- **The editor pane jumped while you typed.** The preview re-renders on
+  every keystroke, and a re-render that changes its height moves its own
+  `scrollTop`. The scroll link counted that as a gesture and mapped it
+  back onto the editor — magnified roughly fourfold, because the markdown
+  source is that much taller than the render. The view slid off the
+  caret as the author typed and the next keystroke snapped it back:
+  measured at **1341px from a single character**.
+  The author's caret is the authority while they are editing, so the
+  preview may no longer drive the editor within 400ms of a change. It
+  still drives when the author scrolls it deliberately.
+  This is the third attempt at this bug and the first with the mechanism
+  actually in hand. The 1.17.0 fix was real but addressed a different
+  path (a mouse click on a toolbar menu resetting both panes to the
+  top), and pinning the view there made THIS one worse by widening the
+  gap between view and caret.
+
+### Changed
+
+- **The 🖼 Image button is gone from the lab-action bar.** The Media menu
+  already carries the image blocks, and two doors marked "image" a few
+  centimetres apart is one too many. Nothing is lost: **paste or
+  drag-drop still uploads**, which is how an image actually arrives from
+  a screenshot tool, and that path writes the same `<figure>` the button
+  did.
+- **The toolbar is three rows, one question each**: GO TO (where to go),
+  FORMAT (act on the selection), INSERT (add something new). It was one
+  scrolling row, so whichever control you wanted was often past the
+  right-hand edge. Each row still refuses to wrap — free wrapping is
+  what once stacked these into six rows and put 249px of chrome above
+  the textarea; three deliberate rows come to 158px.
+
+
 ## [1.17.0] - 2026-09-17
 
 ### Added

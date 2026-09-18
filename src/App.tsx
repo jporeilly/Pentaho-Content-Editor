@@ -560,13 +560,30 @@ export function App() {
   // — the panes simply never linked. `detail` landing is what puts both
   // elements on the page.
   //
+  // When the guide last changed, typed or programmatic. The scroll
+  // link reads it to tell an author's gesture apart from the
+  // preview's own reflow.
+  const lastEditAt = useRef(0);
+  useEffect(() => { lastEditAt.current = Date.now(); }, [body]);
+
   // NOT on `body`: that changes on every keystroke, and tearing the
   // listeners down and back up mid-gesture loses the scroll in progress.
   useEffect(() => {
     const ta = textareaRef.current;
     const pv = previewRef.current;
     if (!ta || !pv) return;
-    return linkScrollers(ta, pv);
+    // While the author is typing, the preview may not drive.
+    //
+    // It re-renders on every keystroke, and a re-render that changes its
+    // height moves its own scrollTop - which the link counted as a
+    // gesture and mapped back onto the editor, about four times
+    // magnified because the source is that much taller than the render.
+    // The view slid off the caret as the author typed and the next
+    // keystroke snapped it back: one character moved the editor 1341px.
+    // The caret is the authority while editing; the preview follows.
+    return linkScrollers(ta, pv, 120, (from) =>
+      from === pv && Date.now() - lastEditAt.current < 400,
+    );
   }, [lab, welcomeMode, detail, textareaRef]);
 
   // No courses to edit yet — the installed editor's first launch, or a
@@ -879,9 +896,12 @@ export function App() {
                 >
                   🔍 Find
                 </button>
-                <button type="button" className="author-toolbar-btn" onClick={() => imageInputRef.current?.click()} disabled={working} title="Upload an image (or paste / drop one into the editor)">
-                  🖼 Image
-                </button>
+                {/* The 🖼 Image button is gone from this bar: the Media
+                    menu carries the image blocks, and two doors to
+                    "image" a few centimetres apart is one too many.
+                    The file input it opened is KEPT below and still
+                    fed by paste and drag-drop, which is how an image
+                    actually arrives from a screenshot tool. */}
                 <button type="button" className="author-toolbar-btn" onClick={() => setShowLabFiles(true)} disabled={working} title="Manage this lab's downloadable files (.ktr / .kjb / data)">
                   📎 Files
                 </button>
