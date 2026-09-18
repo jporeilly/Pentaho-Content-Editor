@@ -15,6 +15,40 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.20.0] - 2026-09-18
+
+### Added
+
+- **Sub-topics in the structure panel.** Each section header now carries
+  indent (→) and outdent (←) buttons, so a topic can be nested under the
+  one above it without hand-editing SUMMARY.md. Indenting rewrites
+  `## Title` as `### Title`; the topic's labs and any sub-topics travel
+  with it. Nesting is capped at one level (`MAX_TOPIC_DEPTH` in
+  `src/topicTree.ts`) — the Engine parses `####` too, so raising it is a
+  one-line change.
+- Sub-topics are offered as placement targets when creating a lab, and
+  the structure filter keeps a parent visible when only a nested row
+  matches.
+
+### Fixed
+
+- **A structure save no longer destroys sub-topics.** `_parse_structure`
+  matched `^##` only, so a `###` header parsed as nothing and
+  `_write_structure` — which rewrites SUMMARY.md wholesale on every
+  reorder, rename, delete and lab-create — silently dropped it, pulling
+  its labs into the parent topic. Nothing in the app could produce a
+  `###` before, so no existing course was affected, but any hand-authored
+  nesting was lost on the author's next click.
+- `<!-- topic-page: … -->` comments are preserved through a save rather
+  than dropped, so a topic keeps its own page.
+- Deleting a lab no longer flattens the tree: the prune rebuilt each
+  topic without its `children`.
+- `PUT /structure` validates labs nested under a sub-topic; they
+  previously skipped the "lab exists on disk" guard.
+- Reorder, rename and drag-drop address a topic by its path in the tree
+  rather than a bare `[topicIndex, labIndex]`, which assumed exactly two
+  levels.
+
 ## [1.19.1] - 2026-09-18
 
 ### Fixed

@@ -34,6 +34,12 @@ export interface StructureLab {
 export interface StructureTopic {
   title: string;
   labs: StructureLab[];
+  /** Nested sub-topics — `###` under a `##` in SUMMARY.md. Always an
+   *  array from the API; may be absent on a locally-built topic. */
+  children?: StructureTopic[];
+  /** The topic's own guide, if it has one (`<!-- topic-page: … -->`).
+   *  Clicking the header in the learner sidebar opens this. */
+  page?: StructureLab | null;
 }
 
 export interface Structure {

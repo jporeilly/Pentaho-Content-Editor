@@ -475,8 +475,19 @@ class StructureLab(BaseModel):
 
 
 class StructureTopic(BaseModel):
+    """One ``##``/``###``/``####`` section of SUMMARY.md.
+
+    Topics nest via ``children`` to mirror the Engine's ``TopicNode``
+    (localFolderSource.ts): ``##`` is top level, ``###`` nests under the
+    preceding ``##``, ``####`` under the preceding ``###``. ``page`` is
+    the topic's own guide, written back as the ``<!-- topic-page: … -->``
+    comment the Engine reads — a topic that is both a page and a group.
+    """
+
     title: str
     labs: list[StructureLab]
+    children: list["StructureTopic"] = []
+    page: StructureLab | None = None
 
 
 class Structure(BaseModel):
@@ -486,38 +497,99 @@ class Structure(BaseModel):
 # ── Structure (SUMMARY.md) parse / write ────────────────────────────
 
 _SUMMARY_LINK = re.compile(r"^\s*[-*]\s+\[([^\]]+)\]\(([^)]+)\)\s*$")
-_SUMMARY_H2 = re.compile(r"^##\s+(.+)$")
+# Any heading from ## down. Capturing the hashes gives the nesting depth
+# (## -> 0, ### -> 1), exactly as the Engine's parser computes it. The
+# old ``^##\s+`` form did not match ``###`` at all, so sub-topics parsed
+# as nothing and _write_structure then erased them on the next save.
+_SUMMARY_HEAD = re.compile(r"^(#{2,})\s+(.+)$")
+_SUMMARY_TOPIC_PAGE = re.compile(r"^<!--\s*topic-page:\s*([^\s>]+)\s*-->$")
+
+
+def _lab_entry(course_path: Path, slug: str, fallback_title: str) -> StructureLab | None:
+    """Build a StructureLab from a slug, or None if it has no manifest."""
+    man_path = course_path / slug / "manifest.json"
+    if not man_path.exists():
+        return None
+    man = _read_json(man_path)
+    return StructureLab(
+        slug=slug,
+        title=man.get("title", fallback_title),
+        kind="page" if man.get("kind") == "page" else "workshop",
+    )
+
+
+def walk_topics(topics: list[StructureTopic]):
+    """Yield every topic in the tree, parents before children.
+
+    Anything that used to loop ``for t in structure.topics`` needs this
+    now that topics nest — a flat loop silently skips every sub-topic,
+    which is how a lab under ``### Flat Files`` escapes validation.
+    """
+    for topic in topics:
+        yield topic
+        yield from walk_topics(topic.children)
+
+
+def walk_labs(topics: list[StructureTopic]):
+    """Yield every lab in the tree, including each topic's own page."""
+    for topic in walk_topics(topics):
+        if topic.page is not None:
+            yield topic.page
+        yield from topic.labs
+
+
+def prune_lab(topics: list[StructureTopic], slug: str) -> list[StructureTopic]:
+    """Copy of the tree with ``slug`` removed wherever it appears —
+    as a lab or as a topic's own page — keeping nesting intact."""
+    return [
+        StructureTopic(
+            title=t.title,
+            labs=[l for l in t.labs if l.slug != slug],
+            children=prune_lab(t.children, slug),
+            page=None if (t.page is not None and t.page.slug == slug) else t.page,
+        )
+        for t in topics
+    ]
 
 
 def _parse_structure(course_path: Path) -> list[StructureTopic]:
-    """Parse SUMMARY.md into ordered topics, each with its labs (in
-    SUMMARY order). Lab titles come from the manifest so a rename in one
-    place stays authoritative."""
+    """Parse SUMMARY.md into an ordered topic tree, each topic with its
+    labs (in SUMMARY order) and nested sub-topics. Lab titles come from
+    the manifest so a rename in one place stays authoritative."""
     summary = course_path / "SUMMARY.md"
     topics: list[StructureTopic] = []
     if not summary.exists():
         return topics
-    current: StructureTopic | None = None
+    # (depth, topic) stack — a heading pops every entry at or below its
+    # own depth, so a new ## resets to the root.
+    stack: list[tuple[int, StructureTopic]] = []
     for raw in summary.read_text(encoding="utf-8").splitlines():
-        h2 = _SUMMARY_H2.match(raw)
-        if h2:
-            current = StructureTopic(title=h2.group(1).strip(), labs=[])
-            topics.append(current)
+        page = _SUMMARY_TOPIC_PAGE.match(raw.strip())
+        if page and stack:
+            entry = _lab_entry(course_path, page.group(1).strip(), "")
+            if entry is not None:
+                stack[-1][1].page = entry
             continue
+
+        head = _SUMMARY_HEAD.match(raw)
+        if head:
+            depth = len(head.group(1)) - 2
+            topic = StructureTopic(title=head.group(2).strip(), labs=[], children=[])
+            while stack and stack[-1][0] >= depth:
+                stack.pop()
+            if stack:
+                stack[-1][1].children.append(topic)
+            else:
+                topics.append(topic)
+            stack.append((depth, topic))
+            continue
+
         link = _SUMMARY_LINK.match(raw)
-        if link and current is not None:
+        if link and stack:
             slug = link.group(2).replace("\\", "/").lstrip("./").split("/")[0]
-            man_path = course_path / slug / "manifest.json"
-            if not man_path.exists():
-                continue
-            man = _read_json(man_path)
-            current.labs.append(
-                StructureLab(
-                    slug=slug,
-                    title=man.get("title", link.group(1).strip()),
-                    kind="page" if man.get("kind") == "page" else "workshop",
-                )
-            )
+            entry = _lab_entry(course_path, slug, link.group(1).strip())
+            if entry is not None:
+                stack[-1][1].labs.append(entry)
     return topics
 
 
@@ -539,19 +611,41 @@ def _write_structure(course_path: Path, topics: list[StructureTopic]) -> None:
 
     lines = [heading, ""]
     seq = 0
-    for topic in topics:
-        lines.append(f"## {topic.title}")
+
+    def sync_manifest(lab: StructureLab) -> None:
+        nonlocal seq
+        seq += 1
+        man_path = course_path / lab.slug / "manifest.json"
+        if man_path.exists():
+            man = _read_json(man_path)
+            man["order"] = seq
+            man["title"] = lab.title
+            _write_json(man_path, man)
+
+    def emit(topic: StructureTopic, depth: int) -> None:
+        # Depth caps at #### — the Engine's own parser stops nesting
+        # deeper, so a runaway indent flattens rather than writing a
+        # heading nothing can read back.
+        lines.append(f"{'#' * min(depth + 2, 4)} {topic.title}")
         lines.append("")
+        if topic.page is not None:
+            # The Engine attaches this to the topic on the stack, so it
+            # has to sit directly under the heading.
+            lines.append(f"<!-- topic-page: {topic.page.slug} -->")
+            lines.append("")
+            sync_manifest(topic.page)
         for lab in topic.labs:
             lines.append(f"* [{lab.title}]({lab.slug}/guide.md)")
-            seq += 1
-            man_path = course_path / lab.slug / "manifest.json"
-            if man_path.exists():
-                man = _read_json(man_path)
-                man["order"] = seq
-                man["title"] = lab.title
-                _write_json(man_path, man)
+            sync_manifest(lab)
         lines.append("")
+        # Labs before children — the sidebar renders a topic's own labs
+        # above its subtopics, so the flattened `order` has to match or
+        # next/prev navigation disagrees with the tree.
+        for child in topic.children:
+            emit(child, depth + 1)
+
+    for topic in topics:
+        emit(topic, 0)
     summary_path.write_text(
         "\n".join(lines).rstrip("\n") + "\n", encoding="utf-8"
     )

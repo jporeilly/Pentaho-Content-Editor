@@ -18,7 +18,7 @@ from core import (
     _is_lab_dir, _lab_number, _parse_structure, _write_structure,
     _ground, _clean_generated, _lab_prompt, stamp_metrics, body_hash,
     LabSummary, LabDetail, SaveLabRequest, Source,
-    Structure, StructureTopic,
+    Structure, walk_labs, prune_lab,
 )
 
 router = APIRouter()
@@ -129,11 +129,11 @@ def get_structure(course: str) -> Structure:
 @router.put("/api/courses/{course}/structure", response_model=Structure)
 def put_structure(course: str, body: Structure) -> Structure:
     course_path = _course_dir(course)
-    # Guard: every referenced lab must exist on disk.
-    for topic in body.topics:
-        for lab in topic.labs:
-            if not (course_path / lab.slug / "manifest.json").exists():
-                raise HTTPException(400, f"Unknown lab: {lab.slug}")
+    # Guard: every referenced lab must exist on disk — walked over the
+    # whole tree, so a lab nested under a sub-topic is checked too.
+    for lab in walk_labs(body.topics):
+        if not (course_path / lab.slug / "manifest.json").exists():
+            raise HTTPException(400, f"Unknown lab: {lab.slug}")
     _write_structure(course_path, body.topics)
     return Structure(topics=_parse_structure(course_path))
 
@@ -203,10 +203,7 @@ def delete_lab(course: str, lab: str) -> Structure:
     # Drop it from every topic. Rebuilt from SUMMARY.md, so a lab that
     # was never listed there simply leaves the file untouched.
     topics = _parse_structure(course_path)
-    pruned = [
-        StructureTopic(title=t.title, labs=[l for l in t.labs if l.slug != lab])
-        for t in topics
-    ]
+    pruned = prune_lab(topics, lab)
     try:
         _write_structure(course_path, pruned)
     except OSError as e:

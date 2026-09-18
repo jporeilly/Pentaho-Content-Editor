@@ -551,6 +551,54 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.4px;
   color: var(--author-muted);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Topic header + its indent/outdent pair. The buttons only appear on
+   hover or keyboard focus: they sit on every section header, and shown
+   always they compete with the lab titles for a narrow sidebar. */
+.author-topic-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+}
+.author-topic-nest {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.author-topic-row:hover .author-topic-nest,
+.author-topic-nest:focus-within { opacity: 1; }
+.author-nest-btn {
+  background: none;
+  border: none;
+  color: var(--author-muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 4px;
+}
+.author-nest-btn:hover:not(:disabled) {
+  background: var(--author-border);
+  color: var(--author-text);
+}
+.author-nest-btn:disabled { opacity: 0.3; cursor: default; }
+/* Sub-topics indent with a guide line, matching how the learner
+   sidebar draws its nesting (app.css .pcm-topic__body). Depth is a
+   class, not nested padding, so labels stay aligned per level. */
+.author-topic--depth-1 { margin-left: 10px; border-left: 1px solid var(--author-border); }
+.author-topic--depth-2 { margin-left: 20px; border-left: 1px solid var(--author-border); }
+.author-topic--depth-3 { margin-left: 30px; border-left: 1px solid var(--author-border); }
+.author-topic--depth-1 > .author-topic-row .author-topic-title,
+.author-topic--depth-2 > .author-topic-row .author-topic-title,
+.author-topic--depth-3 > .author-topic-row .author-topic-title {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 .author-lab-row {
   display: flex;

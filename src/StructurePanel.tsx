@@ -9,7 +9,10 @@ import { useCallback, useEffect, useState } from "react";
 // author's tree reads exactly like the tree learners navigate:
 // Home for Welcome, FileText for a page, FlaskConical for a workshop.
 import { FileText, FlaskConical, Home } from "lucide-react";
-import { api, type Structure, type StructureLab, type Source } from "./api";
+import { api, type Structure, type StructureLab, type StructureTopic, type Source } from "./api";
+import {
+  allTopics, indentBlocked, indentTopic, outdentTopic, popLab, topicAt,
+} from "./topicTree";
 import { LabModal, type LabDraft } from "./LabModal";
 
 interface StructurePanelProps {
@@ -30,8 +33,6 @@ interface StructurePanelProps {
   onSelectWelcome?: () => void;
 }
 
-/** Flattened [topicIndex, labIndex] address of a lab, for reordering. */
-
 export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources, onCollapse, welcomeActive, onSelectWelcome }: StructurePanelProps) {
   const [structure, setStructure] = useState<Structure>({ topics: [] });
   // Free-text filter over the tree. Courses run to eighteen entries and
@@ -41,7 +42,9 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   const [generating, setGenerating] = useState(false);
   const [aiReady, setAiReady] = useState<boolean | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
-  const [editingTopic, setEditingTopic] = useState<number | null>(null);
+  // Topic address is a PATH ("0", "0.2") rather than an index, because a
+  // sub-topic's position is only meaningful relative to its parent.
+  const [editingTopic, setEditingTopic] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [dragSlug, setDragSlug] = useState<string | null>(null);
   const [dropSlug, setDropSlug] = useState<string | null>(null);
@@ -76,60 +79,69 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
     }
   }, [course, load]);
 
-  // ── Drag-and-drop reordering (across topics) ──────────────────────
-  function popLab(next: Structure, slug: string): StructureLab | null {
-    for (const t of next.topics) {
-      const i = t.labs.findIndex((l) => l.slug === slug);
-      if (i >= 0) return t.labs.splice(i, 1)[0];
-    }
-    return null;
-  }
-
+  // ── Drag-and-drop reordering (across topics, at any depth) ────────
+  // The tree walkers live in topicTree.ts so they can be tested without
+  // a DOM. They all recurse: with sub-topics in play, a flat pass over
+  // `structure.topics` silently misses anything under a `###`.
   function dropOnLab(sourceSlug: string, targetSlug: string) {
     if (sourceSlug === targetSlug) return;
     const next: Structure = structuredClone(structure);
     const lab = popLab(next, sourceSlug);
     if (!lab) return;
-    for (const t of next.topics) {
-      const i = t.labs.findIndex((l) => l.slug === targetSlug);
-      if (i >= 0) { t.labs.splice(i, 0, lab); persist(next); return; }
+    for (const { topic } of allTopics(next.topics)) {
+      const i = topic.labs.findIndex((l) => l.slug === targetSlug);
+      if (i >= 0) { topic.labs.splice(i, 0, lab); persist(next); return; }
     }
   }
 
-  function dropOnTopic(sourceSlug: string, topicTitle: string) {
+  function dropOnTopic(sourceSlug: string, path: number[]) {
     const next: Structure = structuredClone(structure);
     const lab = popLab(next, sourceSlug);
     if (!lab) return;
-    const t = next.topics.find((x) => x.title === topicTitle);
-    if (t) { t.labs.push(lab); persist(next); }
+    topicAt(next, path).labs.push(lab);
+    persist(next);
+  }
+
+  // ── Indent / outdent a topic ──────────────────────────────────────
+  // Outline semantics: indenting makes a topic the last child of the
+  // sibling above it (`##` becomes `###`); outdenting makes it the next
+  // sibling of its parent. Its own labs and children travel with it.
+  function doIndent(path: number[]) {
+    const next = indentTopic(structure, path);
+    if (next) persist(next);
+  }
+
+  function doOutdent(path: number[]) {
+    const next = outdentTopic(structure, path);
+    if (next) persist(next);
   }
 
   function beginRename(lab: StructureLab) {
     setEditing(lab.slug);
     setDraftTitle(lab.title);
   }
-  function commitRename(ti: number, li: number) {
+  function commitRename(path: number[], li: number) {
     const title = draftTitle.trim();
     setEditing(null);
-    if (!title || title === structure.topics[ti].labs[li].title) return;
+    if (!title || title === topicAt(structure, path).labs[li].title) return;
     const next: Structure = structuredClone(structure);
-    next.topics[ti].labs[li].title = title;
+    topicAt(next, path).labs[li].title = title;
     persist(next);
   }
 
   // Topic (section header) rename — same double-click flow as labs.
-  // Topic titles are the `## …` headers in SUMMARY.md; put_structure
+  // Topic titles are the `##`/`###` headers in SUMMARY.md; put_structure
   // rewrites them, and lab links inside the section are untouched.
-  function beginTopicRename(ti: number) {
-    setEditingTopic(ti);
-    setDraftTitle(structure.topics[ti].title);
+  function beginTopicRename(path: number[]) {
+    setEditingTopic(path.join("."));
+    setDraftTitle(topicAt(structure, path).title);
   }
-  function commitTopicRename(ti: number) {
+  function commitTopicRename(path: number[]) {
     const title = draftTitle.trim();
     setEditingTopic(null);
-    if (!title || title === structure.topics[ti].title) return;
+    if (!title || title === topicAt(structure, path).title) return;
     const next: Structure = structuredClone(structure);
-    next.topics[ti].title = title;
+    topicAt(next, path).title = title;
     persist(next);
   }
 
@@ -196,14 +208,179 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
   // A topic that matches by name shows all of its labs - you searched
   // for the topic, so you want what is in it.
   const topicHit = (title: string) => title.toLowerCase().includes(needle);
-  const topicVisible = (title: string, labs: StructureLab[]) =>
-    !filtering || topicHit(title) || labs.some(labHit);
+  // A topic stays visible if it matches, if one of its labs matches, or
+  // if anything in its subtree does — otherwise filtering would hide the
+  // parent and orphan a matching sub-topic.
+  const topicVisible = (topic: StructureTopic): boolean =>
+    !filtering ||
+    topicHit(topic.title) ||
+    topic.labs.some(labHit) ||
+    (topic.children ?? []).some(topicVisible);
   const labVisible = (topicTitle: string, lab: StructureLab) =>
     !filtering || topicHit(topicTitle) || labHit(lab);
 
   const hitCount = filtering
-    ? structure.topics.reduce((n, t) => n + t.labs.filter((l) => labVisible(t.title, l)).length, 0)
+    ? allTopics(structure.topics).reduce(
+        (n, { topic }) => n + topic.labs.filter((l) => labVisible(topic.title, l)).length,
+        0,
+      )
     : 0;
+
+  // One topic and everything under it. Recursive, so a sub-topic gets
+  // the same header, drag target, rename and delete affordances as a
+  // top-level one — `path` is its address in the tree (see the note on
+  // `editingTopic`). Indentation is driven by depth, not by nesting the
+  // markup, so a deep row still lines up with the panel's grid.
+  function renderTopic(topic: StructureTopic, path: number[]) {
+    if (!topicVisible(topic)) return null;
+    const depth = path.length - 1;
+    const key = path.join(".");
+    const blocked = indentBlocked(structure, path);
+    const canOutdent = path.length > 1;
+    return (
+      <div
+        key={key + topic.title}
+        className={`author-topic author-topic--depth-${Math.min(depth, 3)}`}
+        onDragOver={(e) => { if (dragSlug) e.preventDefault(); }}
+        onDrop={(e) => { if (dragSlug) { e.preventDefault(); dropOnTopic(dragSlug, path); setDragSlug(null); setDropSlug(null); } }}
+      >
+        {editingTopic === key ? (
+          <input
+            className="author-lab-rename"
+            value={draftTitle}
+            autoFocus
+            onChange={(e) => setDraftTitle(e.target.value)}
+            onBlur={() => commitTopicRename(path)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitTopicRename(path);
+              if (e.key === "Escape") setEditingTopic(null);
+            }}
+          />
+        ) : (
+          <div className="author-topic-row">
+            <div
+              className="author-topic-title"
+              onDoubleClick={() => beginTopicRename(path)}
+              title="Double-click to rename this section"
+            >
+              {topic.title}
+            </div>
+            {/* Indent / outdent. An explicit pair of controls rather
+                than a drag-right gesture: dragging already means "move
+                this lab", and overloading it with a second meaning
+                that depends on horizontal distance is guesswork for
+                the author and ambiguous for the drop handler. */}
+            <span className="author-topic-nest">
+              <button
+                type="button"
+                className="author-nest-btn"
+                disabled={busy || !!blocked || filtering}
+                onClick={() => doIndent(path)}
+                title={
+                  filtering
+                    ? "Clear the filter to restructure — positions shift while rows are hidden"
+                    : blocked ?? `Indent — make "${topic.title}" a sub-topic of the section above`
+                }
+                aria-label={`Indent ${topic.title}`}
+              >
+                →
+              </button>
+              <button
+                type="button"
+                className="author-nest-btn"
+                disabled={busy || !canOutdent || filtering}
+                onClick={() => doOutdent(path)}
+                title={
+                  filtering
+                    ? "Clear the filter to restructure — positions shift while rows are hidden"
+                    : canOutdent
+                      ? `Outdent — move "${topic.title}" back up a level`
+                      : "Already a top-level topic"
+                }
+                aria-label={`Outdent ${topic.title}`}
+              >
+                ←
+              </button>
+            </span>
+          </div>
+        )}
+        {topic.labs.map((lab, li) => !labVisible(topic.title, lab) ? null : (
+          <div
+            key={lab.slug}
+            /* Dragging is off while filtering: a drop lands relative
+               to the labs you can SEE, and with rows hidden that is
+               not where the author thinks it is. */
+            draggable={editing !== lab.slug && !busy && !filtering}
+            onDragStart={(e) => { setDragSlug(lab.slug); e.dataTransfer.effectAllowed = "move"; }}
+            onDragEnd={() => { setDragSlug(null); setDropSlug(null); }}
+            onDragOver={(e) => { if (dragSlug && dragSlug !== lab.slug) { e.preventDefault(); e.stopPropagation(); setDropSlug(lab.slug); } }}
+            onDragLeave={() => setDropSlug((s) => (s === lab.slug ? null : s))}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (dragSlug) dropOnLab(dragSlug, lab.slug); setDragSlug(null); setDropSlug(null); }}
+            className={
+              `author-lab-row${lab.slug === activeSlug && !welcomeActive ? " is-active" : ""}` +
+              `${dropSlug === lab.slug ? " is-drop" : ""}${dragSlug === lab.slug ? " is-dragging" : ""}`
+            }
+          >
+            <span className="author-lab-grip" title="Drag to reorder">⋮⋮</span>
+            {editing === lab.slug ? (
+              <input
+                className="author-lab-rename"
+                value={draftTitle}
+                autoFocus
+                onChange={(e) => setDraftTitle(e.target.value)}
+                onBlur={() => commitRename(path, li)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitRename(path, li);
+                  if (e.key === "Escape") setEditing(null);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="author-lab-label"
+                onClick={() => onSelect(lab.slug)}
+                onDoubleClick={() => beginRename(lab)}
+                title={`${lab.slug} — drag to reorder, double-click to rename`}
+              >
+                {lab.kind === "page" ? (
+                  <FileText size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
+                ) : (
+                  <FlaskConical size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
+                )}
+                {lab.title}
+              </button>
+            )}
+            {/* Click to arm, click again to delete. A folder and a
+                SUMMARY bullet do not come back, so a single stray
+                click must not be enough - but typing a phrase per
+                lab (as the course delete demands) is too heavy for
+                something this routine. Arming clears on blur. */}
+            {editing !== lab.slug && (
+              <button
+                type="button"
+                className={`author-lab-delete${deleteArmed === lab.slug ? " is-armed" : ""}`}
+                disabled={busy}
+                onClick={() => {
+                  if (deleteArmed === lab.slug) void deleteLab(lab.slug);
+                  else setDeleteArmed(lab.slug);
+                }}
+                onBlur={() => setDeleteArmed((s) => (s === lab.slug ? null : s))}
+                title={
+                  deleteArmed === lab.slug
+                    ? `Delete ${lab.slug} and its SUMMARY entry — this cannot be undone`
+                    : `Delete ${lab.kind === "page" ? "page" : "lab"}…`
+                }
+                aria-label={deleteArmed === lab.slug ? `Confirm delete ${lab.title}` : `Delete ${lab.title}`}
+              >
+                {deleteArmed === lab.slug ? "Delete?" : "🗑"}
+              </button>
+            )}
+          </div>
+        ))}
+        {(topic.children ?? []).map((child, ci) => renderTopic(child, [...path, ci]))}
+      </div>
+    );
+  }
 
   return (
     <aside className="author-structure">
@@ -271,116 +448,16 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
             </button>
           </div>
         )}
-        {structure.topics.map((topic, ti) => !topicVisible(topic.title, topic.labs) ? null : (
-          <div
-            key={topic.title + ti}
-            className="author-topic"
-            onDragOver={(e) => { if (dragSlug) e.preventDefault(); }}
-            onDrop={(e) => { if (dragSlug) { e.preventDefault(); dropOnTopic(dragSlug, topic.title); setDragSlug(null); setDropSlug(null); } }}
-          >
-            {editingTopic === ti ? (
-              <input
-                className="author-lab-rename"
-                value={draftTitle}
-                autoFocus
-                onChange={(e) => setDraftTitle(e.target.value)}
-                onBlur={() => commitTopicRename(ti)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") commitTopicRename(ti);
-                  if (e.key === "Escape") setEditingTopic(null);
-                }}
-              />
-            ) : (
-              <div
-                className="author-topic-title"
-                onDoubleClick={() => beginTopicRename(ti)}
-                title="Double-click to rename this section"
-              >
-                {topic.title}
-              </div>
-            )}
-            {topic.labs.map((lab, li) => !labVisible(topic.title, lab) ? null : (
-              <div
-                key={lab.slug}
-                /* Dragging is off while filtering: a drop lands relative
-                   to the labs you can SEE, and with rows hidden that is
-                   not where the author thinks it is. */
-                draggable={editing !== lab.slug && !busy && !filtering}
-                onDragStart={(e) => { setDragSlug(lab.slug); e.dataTransfer.effectAllowed = "move"; }}
-                onDragEnd={() => { setDragSlug(null); setDropSlug(null); }}
-                onDragOver={(e) => { if (dragSlug && dragSlug !== lab.slug) { e.preventDefault(); e.stopPropagation(); setDropSlug(lab.slug); } }}
-                onDragLeave={() => setDropSlug((s) => (s === lab.slug ? null : s))}
-                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (dragSlug) dropOnLab(dragSlug, lab.slug); setDragSlug(null); setDropSlug(null); }}
-                className={
-                  `author-lab-row${lab.slug === activeSlug && !welcomeActive ? " is-active" : ""}` +
-                  `${dropSlug === lab.slug ? " is-drop" : ""}${dragSlug === lab.slug ? " is-dragging" : ""}`
-                }
-              >
-                <span className="author-lab-grip" title="Drag to reorder">⋮⋮</span>
-                {editing === lab.slug ? (
-                  <input
-                    className="author-lab-rename"
-                    value={draftTitle}
-                    autoFocus
-                    onChange={(e) => setDraftTitle(e.target.value)}
-                    onBlur={() => commitRename(ti, li)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRename(ti, li);
-                      if (e.key === "Escape") setEditing(null);
-                    }}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    className="author-lab-label"
-                    onClick={() => onSelect(lab.slug)}
-                    onDoubleClick={() => beginRename(lab)}
-                    title={`${lab.slug} — drag to reorder, double-click to rename`}
-                  >
-                    {lab.kind === "page" ? (
-                      <FileText size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
-                    ) : (
-                      <FlaskConical size={12} strokeWidth={2} className="author-lab-icon" aria-hidden />
-                    )}
-                    {lab.title}
-                  </button>
-                )}
-                {/* Click to arm, click again to delete. A folder and a
-                    SUMMARY bullet do not come back, so a single stray
-                    click must not be enough - but typing a phrase per
-                    lab (as the course delete demands) is too heavy for
-                    something this routine. Arming clears on blur. */}
-                {editing !== lab.slug && (
-                  <button
-                    type="button"
-                    className={`author-lab-delete${deleteArmed === lab.slug ? " is-armed" : ""}`}
-                    disabled={busy}
-                    onClick={() => {
-                      if (deleteArmed === lab.slug) void deleteLab(lab.slug);
-                      else setDeleteArmed(lab.slug);
-                    }}
-                    onBlur={() => setDeleteArmed((s) => (s === lab.slug ? null : s))}
-                    title={
-                      deleteArmed === lab.slug
-                        ? `Delete ${lab.slug} and its SUMMARY entry — this cannot be undone`
-                        : `Delete ${lab.kind === "page" ? "page" : "lab"}…`
-                    }
-                    aria-label={deleteArmed === lab.slug ? `Confirm delete ${lab.title}` : `Delete ${lab.title}`}
-                  >
-                    {deleteArmed === lab.slug ? "Delete?" : "🗑"}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
+        {structure.topics.map((topic, i) => renderTopic(topic, [i]))}
         {structure.topics.length === 0 && <div className="author-structure-empty">No labs yet.</div>}
       </div>
 
       {labModal && (
         <LabModal
           mode={labModal}
-          topics={structure.topics.map((t) => t.title)}
+          /* Sub-topics are offered too — a new lab belongs under
+             "Flat Files" as readily as under "Data Sources". */
+          topics={allTopics(structure.topics).map(({ topic }) => topic.title)}
           busy={busy || generating}
           error={labModalError}
           onClose={() => setLabModal(null)}

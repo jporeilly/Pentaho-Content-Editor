@@ -166,6 +166,77 @@ def test_structure_rename_syncs_manifest(env, client):
     assert json.loads((env / "sample" / "01-intro" / "manifest.json").read_text())["title"] == "Intro 2"
 
 
+def _nest(env, client):
+    """Give the sample course a `### Advanced` sub-topic holding a second
+    lab, and return the parsed topic tree."""
+    c = env / "sample"
+    (c / "02-deep").mkdir()
+    (c / "02-deep" / "manifest.json").write_text(json.dumps({"title": "Deep", "order": 2, "kind": "workshop"}))
+    (c / "02-deep" / "guide.md").write_text("# Deep\n")
+    (c / "SUMMARY.md").write_text(
+        "# Table of contents\n\n## Basics\n\n* [Intro](01-intro/guide.md)\n"
+        "\n### Advanced\n\n* [Deep](02-deep/guide.md)\n"
+    )
+    return client.get("/api/courses/sample/structure").json()["topics"]
+
+
+def test_structure_parses_subtopics(env, client):
+    topics = _nest(env, client)
+    assert [t["title"] for t in topics] == ["Basics"]
+    assert [l["slug"] for l in topics[0]["labs"]] == ["01-intro"]
+    assert [c["title"] for c in topics[0]["children"]] == ["Advanced"]
+    assert [l["slug"] for l in topics[0]["children"][0]["labs"]] == ["02-deep"]
+
+
+def test_structure_roundtrip_keeps_subtopics(env, client):
+    """A no-op save must not flatten the tree. It used to: the parser
+    only matched `##`, so `###` vanished on the next reorder."""
+    topics = _nest(env, client)
+    r = client.put("/api/courses/sample/structure", json={"topics": topics})
+    assert r.status_code == 200
+    summary = (env / "sample" / "SUMMARY.md").read_text()
+    assert "### Advanced" in summary
+    assert "* [Deep](02-deep/guide.md)" in summary
+    assert r.json()["topics"][0]["children"][0]["title"] == "Advanced"
+
+
+def test_structure_order_walks_labs_before_children(env, client):
+    """Flattened `order` must match sidebar order — a topic's own labs
+    come above its subtopics."""
+    topics = _nest(env, client)
+    client.put("/api/courses/sample/structure", json={"topics": topics})
+    read = lambda s: json.loads((env / "sample" / s / "manifest.json").read_text())["order"]
+    assert read("01-intro") == 1 and read("02-deep") == 2
+
+
+def test_structure_preserves_topic_page(env, client):
+    topics = _nest(env, client)
+    topics[0]["children"][0]["page"] = {"slug": "01-intro", "title": "Intro", "kind": "page"}
+    client.put("/api/courses/sample/structure", json={"topics": topics})
+    summary = (env / "sample" / "SUMMARY.md").read_text()
+    assert "<!-- topic-page: 01-intro -->" in summary
+    back = client.get("/api/courses/sample/structure").json()["topics"]
+    assert back[0]["children"][0]["page"]["slug"] == "01-intro"
+
+
+def test_delete_lab_keeps_subtopics(env, client):
+    """Deleting a lab rebuilds SUMMARY.md wholesale — it must not take
+    the sub-topics with it."""
+    _nest(env, client)
+    r = client.request("DELETE", "/api/courses/sample/labs/01-intro", json={"confirm": "delete"})
+    assert r.status_code == 200
+    summary = (env / "sample" / "SUMMARY.md").read_text()
+    assert "### Advanced" in summary and "02-deep" in summary
+    assert "01-intro" not in summary
+
+
+def test_put_structure_validates_nested_labs(env, client):
+    topics = _nest(env, client)
+    topics[0]["children"][0]["labs"][0]["slug"] = "ghost"
+    r = client.put("/api/courses/sample/structure", json={"topics": topics})
+    assert r.status_code == 400 and "ghost" in r.json()["detail"]
+
+
 def test_get_lab_and_save(env, client):
     d = client.get("/api/courses/sample/labs/01-intro").json()
     assert d["slug"] == "01-intro" and "# Intro" in d["body"]

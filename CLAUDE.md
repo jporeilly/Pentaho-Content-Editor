@@ -263,10 +263,24 @@ contains the needle (`lab` to `lab guide`), and a left-to-right splice
 shifts every later offset into the middle of a word.
 
 **The structure filter hides rows, it never rebuilds the list.** Reorder
-and inline rename address a lab by its `[topicIndex, labIndex]` position,
-so a filtered array renumbers every lab after the first hidden one and
-moves the wrong file. Dragging is off while filtering for the same
-reason. Both maps still run over everything; only the output is dropped.
+and inline rename address a row by its PATH in the topic tree (`[0]`,
+`[0, 2]` — see `src/topicTree.ts`), so a filtered array renumbers every
+row after the first hidden one and moves the wrong file. Dragging and
+indent/outdent are off while filtering for the same reason. Both maps
+still run over everything; only the output is dropped. The address used
+to be a flat `[topicIndex, labIndex]`, which could not describe a row
+under a sub-topic at all.
+
+**Topics nest, and every walk over them has to recurse.** SUMMARY.md
+`###` is a sub-topic of the preceding `##` (`StructureTopic.children`),
+matching the Engine's `TopicNode`. `_write_structure` rewrites the file
+WHOLESALE on every reorder, rename, delete and lab-create, so anything
+the parser fails to see is destroyed rather than left alone — that is
+exactly how `^##`-only matching used to erase sub-topics on the author's
+next click. Walk with `walk_topics` / `walk_labs` (Python) or
+`allTopics` (TS); a flat `for t in topics` silently skips every nested
+row. The same applies to the Manager's `addLabToSummary`, whose
+block-end scan must stop at a heading of ANY level.
 
 **Eight editor palettes, two preview themes** (`theme.ts`). The *editor*
 theme is comfort; the *preview* theme is correctness — learners run the app in
