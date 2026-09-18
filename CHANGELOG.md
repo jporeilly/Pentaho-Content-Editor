@@ -15,6 +15,27 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.19.1] - 2026-09-18
+
+### Fixed
+
+- **Inserting a block no longer throws the editor back to the top of the
+  guide.** Insert a note half way down a lab and both panes jumped to
+  line 1, losing the author's place - reported three times, and twice
+  fixed somewhere that was not the cause. The frames say it plainly:
+  clicking a menu takes focus off the textarea, and replacing the value
+  of an unfocused textarea resets its selection to offset 0, so the
+  `focus()` that puts the caret back scrolls offset 0 into view - the top
+  of the guide - and the `setSelectionRange()` a line later moves the
+  caret without moving the view back. Colour was mended in 1.19.0 because
+  that one path happened to restore the scroll; the other eight did not.
+  All of them now go through one `restoreCaret()`, which captures the
+  position when the edit is made and re-asserts it *after* the focus:
+  every insert block, both dialogs, the four inline format buttons, the
+  colour palette, the per-heading tracking toggle, an AI rewrite and its
+  reset.
+
+
 ## [1.19.0] - 2026-09-18
 
 ### Changed

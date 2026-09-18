@@ -20,6 +20,7 @@ import { tabsInBody, tabLink, navButton } from "./tabLinks";
 import { headingAnchorId } from "@app/components/MarkdownBody";
 import { TEXT_COLOURS } from "@app/components/textColours";
 import { applyColour } from "./textColour";
+import { restoreCaret } from "./caret";
 
 // Inline formatting. These share `toggleWrap` with the keyboard
 // shortcuts rather than re-implementing the wrap, so a button and its
@@ -286,16 +287,8 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
       return;
     }
     const out = applyColour(value, s, e, name);
-    // Where the author was reading, restored after the focus round trip
-    // that a mouse click on this menu forces. Without it the pane comes
-    // back at the top of the guide.
-    const keepScroll = textarea.scrollTop;
     onChange(out.text);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(out.start, out.end);
-      textarea.scrollTop = keepScroll;
-    });
+    restoreCaret(textarea, out.start, out.end);
   }
 
 
@@ -327,12 +320,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
     const next = value.slice(0, start) + text + value.slice(end);
     const caret = start + text.length;
     onChange(next);
-    requestAnimationFrame(() => {
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(caret, caret);
-      }
-    });
+    restoreCaret(textarea, caret);
   }
 
   /** Re-pad the table the caret sits in. Does nothing, loudly enough to
@@ -345,12 +333,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
       return;
     }
     onChange(out.text);
-    requestAnimationFrame(() => {
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(out.start, out.end);
-      }
-    });
+    restoreCaret(textarea, out.start, out.end);
   }
   function insert(block: Block) {
     if (block.dialog === "tidy") { tidyTable(); return; }
@@ -367,12 +350,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
     const selStart = range ? start + range[0] : start + text.length;
     const selEnd = range ? start + range[1] : selStart;
     onChange(next);
-    requestAnimationFrame(() => {
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(selStart, selEnd);
-      }
-    });
+    restoreCaret(textarea, selStart, selEnd);
   }
 
   // Inline formatting wraps the SELECTION, so it goes through
@@ -382,12 +360,7 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
     const end = textarea?.selectionEnd ?? value.length;
     const next = toggleWrap({ text: value, start, end }, marker);
     onChange(next.text, next.end);
-    requestAnimationFrame(() => {
-      if (textarea) {
-        textarea.focus();
-        textarea.setSelectionRange(next.start, next.end);
-      }
-    });
+    restoreCaret(textarea, next.start, next.end);
   }
 
   const byGroup = (g: string) => BLOCKS.filter((b) => b.group === g);

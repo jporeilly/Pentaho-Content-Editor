@@ -22,6 +22,7 @@ import {
   type SetupStatus, type Source,
 } from "./api";
 import { parseFindings, tagLocated, type Finding } from "./reviewFindings";
+import { restoreCaret } from "./caret";
 
 /** A completed AI review: the findings to mark with, and the raw answer
  *  behind them for the case where nothing could be parsed out of it. */
@@ -285,8 +286,20 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
   const undoing = useRef(false);
   const bodyRef = useRef(body);
   bodyRef.current = body;
+  /** When the guide last changed. The scroll link reads it to tell an
+   *  author's gesture apart from the preview's own reflow. */
+  const lastEditAt = useRef(0);
 
   const onBodyChange = useCallback((next: string, caret?: number, programmatic = false) => {
+    // Stamped HERE, synchronously, not in an effect watching `body`.
+    //
+    // The scroll link reads this to tell an author's gesture apart from
+    // the preview's own reflow. An effect runs after the commit, and the
+    // preview's reflow scroll fires DURING it - so the link read a stale
+    // timestamp, decided the preview was being scrolled deliberately,
+    // and drove the editor from it. Inserting a callout half way down a
+    // guide sent both panes to the top: 2170 -> 0.
+    lastEditAt.current = Date.now();
     const prev = bodyRef.current;
     if (!undoing.current && next !== prev) {
       const now = Date.now();
@@ -417,7 +430,7 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
 
   return {
     detail, setDetail, body, setBody, dirty, setDirty, saving, save,
-    onBodyChange, undoEdit, insertAtCaret, textareaRef, baseUrl,
+    onBodyChange, undoEdit, lastEditAt, insertAtCaret, textareaRef, baseUrl,
     structureKey, bumpStructure, lastRewrite, setLastRewrite,
   };
 }
@@ -486,10 +499,7 @@ export function useAi(args: UseAiArgs) {
       );
       // Selected, not just inserted: the author should see exactly what
       // changed, and the next keystroke replaces it if it is wrong.
-      requestAnimationFrame(() => {
-        ta.focus();
-        ta.setSelectionRange(start, start + text.length);
-      });
+      restoreCaret(ta, start, start + text.length);
     } catch (e) {
       setStatus(`Rewrite failed: ${(e as Error).message}`);
     } finally {
@@ -515,10 +525,7 @@ export function useAi(args: UseAiArgs) {
     setDirty(true);
     setLastRewrite(null);
     setStatus("Reverted the rewrite.");
-    requestAnimationFrame(() => {
-      const ta = textareaRef.current;
-      if (ta) { ta.focus(); ta.setSelectionRange(start, start + original.length); }
-    });
+    restoreCaret(textareaRef.current, start, start + original.length);
   }, [body, lastRewrite, setBody, setDirty, setLastRewrite, setStatus, textareaRef]);
 
   const uploadAndInsertImage = useCallback(async (file: File | Blob, filename?: string) => {

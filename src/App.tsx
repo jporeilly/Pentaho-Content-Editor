@@ -32,6 +32,7 @@ import { ChatPanel } from "./ChatPanel";
 import { Splitter, useSplit } from "./Splitter";
 import { Menu } from "./Menu";
 import { toggleHeadingAt } from "./headingTracking";
+import { restoreCaret } from "./caret";
 import { useEditorTheme, EDITOR_THEMES } from "./theme";
 import { handleMarkdownKey } from "./markdownKeys";
 import { WelcomePane } from "./WelcomePane";
@@ -194,7 +195,7 @@ export function App() {
     useCourses(setStatus);
   const {
     detail, setDetail, body, setBody, setDirty, dirty, saving, save,
-    onBodyChange, undoEdit, insertAtCaret, textareaRef, baseUrl,
+    onBodyChange, undoEdit, lastEditAt, insertAtCaret, textareaRef, baseUrl,
     structureKey, bumpStructure, lastRewrite, setLastRewrite,
   } = useLab(course, lab, setStatus);
   const {
@@ -265,12 +266,7 @@ export function App() {
         ? `“${out.ok.title}” is a tracked step again.`
         : `“${out.ok.title}” no longer tracks — no checkbox, and it does not count toward the steps.`,
     );
-    requestAnimationFrame(() => {
-      if (ta) {
-        ta.focus();
-        ta.setSelectionRange(out.ok.start, out.ok.end);
-      }
-    });
+    restoreCaret(ta, out.ok.start, out.ok.end);
   }
 
   async function toggleTracking() {
@@ -560,12 +556,6 @@ export function App() {
   // — the panes simply never linked. `detail` landing is what puts both
   // elements on the page.
   //
-  // When the guide last changed, typed or programmatic. The scroll
-  // link reads it to tell an author's gesture apart from the
-  // preview's own reflow.
-  const lastEditAt = useRef(0);
-  useEffect(() => { lastEditAt.current = Date.now(); }, [body]);
-
   // NOT on `body`: that changes on every keystroke, and tearing the
   // listeners down and back up mid-gesture loses the scroll in progress.
   useEffect(() => {
