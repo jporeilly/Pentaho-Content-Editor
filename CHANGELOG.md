@@ -15,6 +15,23 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.22.0] - 2026-09-19
+
+### Added
+
+- **Completion certificate settings** in the course dialog — the printed
+  credential name, the topic list, the capstone line, the watermark, how
+  many years it stays valid, and who signs it. The block was previously
+  hand-edited JSON. A checkbox is the off switch: clearing it removes
+  `completionCertificate` from course.json, and a course without the
+  block offers no certificate.
+- The section **withdraws itself for a course whose check is anonymous**.
+  A certificate names its holder, so a course whose exam doesn't ask for
+  one has nobody to certify — the try-it lab. Rather than offer a toggle
+  that would silently produce nothing, it explains why and points at the
+  intake setting that would change it. Keyed off the exam's
+  `intake.collectCandidate`, not off a course id.
+
 ## [1.21.0] - 2026-09-18
 
 ### Added

@@ -167,6 +167,41 @@ def test_put_course_empty_contact_removes_the_key(env, client):
     assert "contact" not in json.loads((env / "sample" / "course.json").read_text())
 
 
+def test_put_course_saves_the_certificate_block(env, client):
+    cert = {
+        "title": "Pentaho Data Integration Developer - Practitioner Level",
+        "topics": ["Components and key concepts", "Flat files and databases"],
+        "capstone": "Completed a capstone project.",
+        "watermark": "PENTAHO",
+        "validYears": 2,
+        "signatory": {"name": "Jason Allaway", "title": "President Pentaho"},
+    }
+    r = client.put("/api/courses/sample", json={"completionCertificate": cert})
+    assert r.status_code == 200
+    saved = json.loads((env / "sample" / "course.json").read_text())["completionCertificate"]
+    assert saved["title"].endswith("Practitioner Level")
+    assert saved["topics"] == ["Components and key concepts", "Flat files and databases"]
+    assert saved["signatory"]["name"] == "Jason Allaway"
+
+
+def test_put_course_empty_certificate_removes_it(env, client):
+    """The dialog's off switch. A course with no block offers no
+    certificate, which is the right answer for a try-it lab whose check
+    is anonymous — there is nobody to name on it."""
+    client.put("/api/courses/sample", json={"completionCertificate": {"title": "T"}})
+    client.put("/api/courses/sample", json={"completionCertificate": {}})
+    assert "completionCertificate" not in json.loads(
+        (env / "sample" / "course.json").read_text())
+
+
+def test_put_course_keeps_validYears_zero(env, client):
+    # 0 means "never expires" and must survive a truthiness check.
+    client.put("/api/courses/sample", json={
+        "completionCertificate": {"title": "T", "validYears": 0}})
+    saved = json.loads((env / "sample" / "course.json").read_text())
+    assert saved["completionCertificate"]["validYears"] == 0
+
+
 def test_put_course_rejects_empty_title(env, client):
     assert client.put("/api/courses/sample", json={"title": "  "}).status_code == 400
 

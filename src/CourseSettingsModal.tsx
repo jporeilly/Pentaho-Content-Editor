@@ -30,6 +30,23 @@ const CONTACT_FIELDS = [
   "to", "heading", "blurb", "messagePlaceholder", "sendLabel",
 ];
 
+/** course.json `completionCertificate` — the downloadable PDF a learner
+ *  gets for passing. Absent means the course offers none, which is the
+ *  right answer for a try-it lab whose check is anonymous. */
+interface Certificate {
+  title?: string;
+  topics?: string[];
+  capstone?: string;
+  watermark?: string;
+  validYears?: number;
+  signatory?: { name?: string; title?: string };
+  [key: string]: unknown;
+}
+
+const CERT_FIELDS = [
+  "title", "topics", "capstone", "watermark", "validYears", "signatory",
+];
+
 interface CourseSettingsModalProps {
   course: string;
   onClose: () => void;
@@ -62,6 +79,10 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
   // ride along untouched rather than being dropped on save.
   const [contactRest, setContactRest] = useState<Record<string, unknown>>({});
   const [exam, setExam] = useState<ExamSettings | null>(null);
+  const [cert, setCert] = useState<Certificate | null>(null);
+  // Keys this dialog doesn't show ride along untouched, same as welcome
+  // and contact.
+  const [certRest, setCertRest] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -178,6 +199,13 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
         if (!CONTACT_FIELDS.includes(k)) ctRest[k] = v;
       }
       setContactRest(ctRest);
+      const cc = c.completionCertificate as Record<string, unknown> | undefined;
+      setCert(cc ? (cc as Certificate) : null);
+      const ccRest: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(cc ?? {})) {
+        if (!CERT_FIELDS.includes(k)) ccRest[k] = v;
+      }
+      setCertRest(ccRest);
       setLoaded(true);
     }).catch((e) => setError((e as Error).message));
     // Exam settings live in exam.json, not course.json, so they load and
@@ -193,6 +221,14 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
 
   function setContactField(key: keyof Contact, v: string) {
     setContact((c) => ({ ...c, [key]: v }));
+  }
+
+  function setCertField(key: keyof Certificate, v: unknown) {
+    setCert((c) => ({ ...(c ?? {}), [key]: v }));
+  }
+
+  function setSignatory(key: "name" | "title", v: string) {
+    setCert((c) => ({ ...(c ?? {}), signatory: { ...(c?.signatory ?? {}), [key]: v } }));
   }
 
   function setExamField<K extends keyof ExamSettings>(key: K, v: ExamSettings[K]) {
@@ -237,6 +273,18 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
           analyticsNote: analyticsNote.trim() || undefined,
         },
         contact: { ...contactRest, ...trimmed(contact) },
+        // null (the toggle off) sends an empty block, which the API
+        // treats as "remove the key" — a course with no block offers no
+        // certificate.
+        completionCertificate: cert
+          ? {
+              ...certRest,
+              ...trimmed({ ...cert, signatory: undefined, topics: undefined, validYears: undefined }),
+              topics: (cert.topics ?? []).map((t) => t.trim()).filter(Boolean),
+              validYears: cert.validYears ?? 2,
+              signatory: trimmed(cert.signatory ?? {}),
+            }
+          : {},
       });
       // Two files, two writes. course.json first: if the exam PUT is
       // rejected (a bad pass mark, an http:// webhook) the author sees
@@ -534,6 +582,112 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                         onChange={(e) => setIntakeField("lead", e.target.value)}
                       />
                     </label>
+                  </>
+                )}
+              </fieldset>
+              <fieldset className="author-fieldset">
+                <legend>Completion certificate</legend>
+                {/* A certificate names its holder, so a course whose exam
+                    doesn't identify the candidate cannot issue one. That
+                    is the try-it lab: its check is anonymous by design,
+                    and the option is withdrawn rather than left to be
+                    switched on and silently produce nothing. */}
+                {exam?.exists && exam.intake?.collectCandidate === false ? (
+                  <p className="author-hint">
+                    This course's check is <strong>anonymous</strong> — the exam
+                    doesn't ask for a name, so there is nobody to certify and no
+                    certificate is offered. Turn on{" "}
+                    <em>Ask for the candidate's name and email</em> above if this
+                    course should award one.
+                  </p>
+                ) : (
+                  <>
+                    <label className="author-check">
+                      <input
+                        type="checkbox"
+                        checked={cert !== null}
+                        onChange={(e) => setCert(e.target.checked ? (cert ?? {}) : null)}
+                      />
+                      <span>Award a downloadable certificate when the learner passes</span>
+                    </label>
+                    {cert !== null && (
+                      <>
+                        <label className="author-field">
+                          <span>Name as printed</span>
+                          <input
+                            className="author-input"
+                            placeholder="Pentaho Data Integration Developer - Practitioner Level"
+                            value={cert.title ?? ""}
+                            onChange={(e) => setCertField("title", e.target.value)}
+                          />
+                        </label>
+                        <p className="author-hint">
+                          The formal credential name. Deliberately separate from the
+                          course title above — the sidebar wants the short working
+                          name, the certificate the full one.
+                        </p>
+                        <label className="author-field">
+                          <span>Topics — one per line</span>
+                          <textarea
+                            className="author-input" rows={6}
+                            placeholder={"Components and key concepts\nFlat files, databases and storage"}
+                            value={(cert.topics ?? []).join("\n")}
+                            onChange={(e) => setCertField("topics", e.target.value.split("\n"))}
+                          />
+                        </label>
+                        <p className="author-hint">
+                          Listed under the statement, two columns past four. Keep each
+                          short — one that wraps breaks the grid.
+                        </p>
+                        <label className="author-field">
+                          <span>Capstone line</span>
+                          <textarea
+                            className="author-input" rows={3}
+                            placeholder="Completed a capstone project: …"
+                            value={cert.capstone ?? ""}
+                            onChange={(e) => setCertField("capstone", e.target.value)}
+                          />
+                        </label>
+                        <label className="author-field">
+                          <span>Watermark</span>
+                          <input
+                            className="author-input" placeholder="PENTAHO"
+                            value={cert.watermark ?? ""}
+                            onChange={(e) => setCertField("watermark", e.target.value)}
+                          />
+                        </label>
+                        <label className="author-field">
+                          <span>Valid for (years)</span>
+                          <input
+                            className="author-input" type="number" min={0} max={20}
+                            value={cert.validYears ?? 2}
+                            onChange={(e) =>
+                              setCertField("validYears", e.target.value === "" ? 2 : Number(e.target.value))}
+                          />
+                        </label>
+                        <p className="author-hint">
+                          Counted from the pass date. <code>0</code> prints no expiry
+                          line at all, rather than a date in the past.
+                        </p>
+                        <label className="author-field">
+                          <span>Signed by</span>
+                          <input
+                            className="author-input" placeholder="Jason Allaway"
+                            value={cert.signatory?.name ?? ""}
+                            onChange={(e) => setSignatory("name", e.target.value)}
+                          />
+                        </label>
+                        <label className="author-field">
+                          <span>Signatory title</span>
+                          <input
+                            className="author-input"
+                            placeholder="President Pentaho - A Leo Software Group Company"
+                            value={cert.signatory?.title ?? ""}
+                            onChange={(e) => setSignatory("title", e.target.value)}
+                          />
+                        </label>
+                      </>
+                    )}
                   </>
                 )}
               </fieldset>

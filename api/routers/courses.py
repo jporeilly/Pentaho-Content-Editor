@@ -107,12 +107,15 @@ def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
     # hand-edited, and a dialog that showed the fields would silently drop
     # them on save.
     for key in ("title", "description", "version", "theme", "launchers",
-                "assistant", "mode", "welcome", "contact"):
+                "assistant", "mode", "welcome", "contact",
+                "completionCertificate"):
         if key in body:
             cj[key] = body[key]
-    # An emptied welcome/contact block (or null) removes the key rather
-    # than leaving "welcome": {} behind in course.json.
-    for key in ("welcome", "contact"):
+    # An emptied welcome/contact/certificate block (or null) removes the
+    # key rather than leaving "welcome": {} behind in course.json. For
+    # the certificate that IS the off switch: a course with no block
+    # offers no certificate.
+    for key in ("welcome", "contact", "completionCertificate"):
         if key in body and not body[key]:
             cj.pop(key, None)
     if isinstance(cj.get("title"), str):
