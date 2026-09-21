@@ -45,8 +45,19 @@ describe("the Questions button", () => {
 
   it("says what each side owns, because that is the whole contract", () => {
     const s = pqbButtonState(found("installed", "C:\\Program Files\\Pentaho Question Bank"), "pdi-2hr-lab", false);
-    expect(s.title).toMatch(/exam POOL/);
+    expect(s.title).toMatch(/bank owns the questions/i);
     expect(s.title).toMatch(/pass mark|intake/);
+  });
+
+  it("warns that an unadopted course opens empty-ish, and why", () => {
+    // Since the bank's 7c3147d the button really does open on the
+    // course's pool - but only two of eleven real courses have been
+    // adopted, so the common case is a course it holds no questions
+    // for. That opens with a note on how to adopt it, and an author who
+    // was not told will read it as the button having failed.
+    const s = pqbButtonState(found("checkout", "C:\\Projects\\Pentaho-Question-Bank"), "developer-ml-specialty", false);
+    expect(s.title).toMatch(/question pool/i);
+    expect(s.title).toMatch(/not adopted yet/i);
   });
 
   it("needs a course, and defers while the app is busy", () => {

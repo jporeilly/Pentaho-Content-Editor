@@ -13,7 +13,23 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **The Questions button now says what actually happens, because the
+  bank's side landed.** Since the Question Bank's `7c3147d` it reads the
+  course it was launched with and opens on that course's pool, so the
+  tooltip stops hedging about having to pick the course again. Two
+  things it now says instead: only some courses have been adopted into
+  the bank, and one that has not opens with a note on how to adopt it
+  rather than an empty table - an empty bank the author was not warned
+  about reads as a failed button. The round-trip sentence stays, and so
+  does the test that fails if it turns into a promise: publishing back
+  still regenerates `exam.json` from a fixed parameter list and would
+  drop `intake`, which this editor owns.
+- The launch target is unchanged and deliberately so. `run.bat` still
+  starts the NiceGUI app the author sees, and it repairs the venv on the
+  way; the React UI beside it is real but not yet the replacement. That
+  swap comes with the bank's 0.4.0, noted at `_CHECKOUT_LAUNCHER`.
 
 ## [1.23.0] - 2026-09-21
 
