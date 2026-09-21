@@ -62,6 +62,21 @@ _INSTALL_SHAPES = ("pentaho-question-bank.exe", "question-bank.exe")
 # it when a dependency is missing. Calling `python main.py` directly
 # would skip all four and fail on a machine whose venv has drifted —
 # which is most of them, most of the time.
+#
+# THIS TARGET MOVES. `run.bat` starts the bank's NiceGUI app on 7777,
+# and at the bank's 0.4.0 that layer is deleted in favour of a React
+# front end (Vite 7789 over its FastAPI on 7788) - about ten of the
+# twelve thousand lines its restack retires. Stable through its 0.1.x;
+# the durable contract is the install (the registry key above) and the
+# launcher name inside it, not this file.
+#
+# Two things are worth knowing when that day comes, because they are
+# what the button is FOR: the bank will read `PQB_COURSE` to open on
+# the course it was launched with, and it still cannot publish back -
+# its exporter regenerates exam.json from a fixed parameter list and
+# would drop `intake`, which this editor owns. So the tooltip's
+# round-trip hedge outlives the move; only "makes you pick the course
+# again" goes with it.
 _CHECKOUT_LAUNCHER = "run.bat"
 
 # The directory name the repo has after its rename. The old
