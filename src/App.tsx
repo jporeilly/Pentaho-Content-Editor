@@ -9,7 +9,7 @@
 // same logic as the CLI scaffolder).
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api } from "./api";
+import { api, type PqbStatus } from "./api";
 import { linkScrollers } from "./scrollSync";
 import { highlightLines, linesToHtml, fenceRangeAt } from "./markdownTokens";
 import { parseVerifyOutput, problemsForGuide, byLine, unplaced } from "./verifyProblems";
@@ -32,6 +32,7 @@ import { ChatPanel } from "./ChatPanel";
 import { Splitter, useSplit } from "./Splitter";
 import { Menu } from "./Menu";
 import { toggleHeadingAt } from "./headingTracking";
+import { pqbButtonState } from "./pqbButton";
 import { restoreCaret } from "./caret";
 import { useEditorTheme, EDITOR_THEMES } from "./theme";
 import { handleMarkdownKey } from "./markdownKeys";
@@ -167,6 +168,12 @@ export function App() {
   // course.json — so it gets its own pane rather than a lab slug.
   const [welcomeMode, setWelcomeMode] = useState(false);
 
+  // Where the Question Bank is, asked once at startup. It is a separate
+  // app on its own release cycle, so "nowhere" is the common answer and
+  // the button explains itself rather than disappearing.
+  const [pqb, setPqb] = useState<PqbStatus | null>(null);
+  useEffect(() => { api.pqb().then(setPqb).catch(() => setPqb(null)); }, []);
+
   const { health, refreshHealth } = useProviderHealth();
   const { setup } = useSetup(setStatus);
   const { repo, checking: checkingRepo, recheck: recheckRepo } = useRepoStatus();
@@ -211,6 +218,21 @@ export function App() {
   // this course's folder in the authoring repo (and pushes), then
   // publishes it to the distribution repo VMs sync from.
   const [publishing, setPublishing] = useState(false);
+  // Hand this course to the Question Bank. A launch and nothing more:
+  // the bank opens its own window, reads the course from the repo root
+  // it is given, and the editor stops being involved. Deliberately not
+  // an API call between the two apps - see api/pqb.py for why.
+  async function openQuestions() {
+    if (!course) return;
+    setStatus("Opening the Question Bank…");
+    try {
+      const r = await api.launchPqb(course);
+      setStatus(`✓ Question Bank opening on ${course} (${r.kind})`);
+    } catch (err) {
+      setStatus(`✗ ${(err as Error).message}`);
+    }
+  }
+
   async function publishAll() {
     if (!course) return;
     setPublishing(true);
@@ -631,6 +653,15 @@ export function App() {
         </button>
         <button type="button" className="author-tool" onClick={() => setShowCourseSettings(true)} disabled={working || !course} title="Edit course title, description, accent, and assistant models">
           ⚙ Course
+        </button>
+        <button
+          type="button"
+          className="author-tool"
+          onClick={openQuestions}
+          disabled={pqbButtonState(pqb, course, working).disabled}
+          title={pqbButtonState(pqb, course, working).title}
+        >
+          {pqbButtonState(pqb, course, working).label}
         </button>
         <button type="button" className="author-tool" onClick={runVerify} disabled={working || !course} title="Check this course against the publishing guidelines">
           ✓ Verify

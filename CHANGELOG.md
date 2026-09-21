@@ -13,7 +13,56 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **A Questions button, next to Course, that opens the Question Bank on
+  the course you are editing.** The exam pool has never had an editor
+  here and never will: `exam.json` has two writers with disjoint keys -
+  this editor owns the settings (pass mark, questions per attempt, the
+  intake form), the bank owns `questions` - so two apps edit one file
+  with no protocol between them and git reconciles the rare collision.
+
+  It is a **launch, not an integration**. The editor spawns the bank
+  with the course slug and the Content Manager root in the environment
+  and stops being involved. Calling between the two was considered and
+  rejected: this editor's port is assigned at launch, so the bank would
+  have to discover a running editor rather than call one; it would make
+  each app a runtime dependency of the other; and it would prevent no
+  conflict the key contract does not already prevent.
+
+  The bank is found in three places, the way `tools.py` finds node and
+  git: an installed copy, then a checkout beside the other two repos,
+  then nothing. **Nothing is a first-class answer** - the bank is a
+  separate product on its own release cycle, so the button disables
+  itself and says what the thing is rather than disappearing. It also
+  names which copy it will open, because "why did my edit not show up?"
+  should be answered by a tooltip rather than an investigation.
+
+  The wording is deliberately modest and a test holds it there: the bank
+  cannot publish back into a course yet - its exporter regenerates
+  `exam.json` from a fixed parameter list and would drop `intake`, a key
+  this editor owns - so questions come back as a file the author places.
+  "Open the question bank for this course" is honest; "edit this
+  course's questions" would not be.
+
+### Fixed
+
+- **A spawned app no longer inherits this backend's virtualenv.** Found
+  by pressing the new button: the child got `VIRTUAL_ENV` and a `PATH`
+  starting with the editor's `api/.venv/Scripts`, so the bank's launcher
+  checked `import nicegui` against the EDITOR's interpreter, concluded
+  its own environment was broken, and began rebuilding it. Nothing ever
+  reached the port and the window closed by itself, which reads exactly
+  like a button that does nothing. The venv variables are stripped and
+  the venv's directories come off `PATH`; everything else passes
+  through, because the bank wants the user's PATH and not a sanitised
+  one.
+- Windows rejects `CREATE_NEW_CONSOLE | DETACHED_PROCESS` as a pair, so
+  the first version of the launch returned a 500 having started nothing.
+  It now takes a new console - `run.bat` reports a venv repair and a
+  silent window would make 40 seconds of work look like a hang - and
+  asks to break away from the job object, falling back when the job
+  refuses, so the packaged editor closing does not take the bank with it.
 
 ## [1.22.0] - 2026-09-19
 

@@ -147,6 +147,16 @@ async function json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Where the Question Bank is, if anywhere. `kind` decides the button;
+ *  `detail` is the sentence shown when it cannot be pressed. */
+export interface PqbStatus {
+  kind: "installed" | "checkout" | "broken" | null;
+  path: string | null;
+  launcher: string | null;
+  detail: string;
+  available: boolean;
+}
+
 /** What a tool lookup found: a bundled copy, one on PATH, or nothing. */
 export interface ToolStatus {
   found: boolean;
@@ -489,6 +499,25 @@ export const api = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, topic, kind }),
+      }),
+    );
+  },
+
+  /** Where the Question Bank is — the exam POOL's editor, a separate
+   *  app on its own release cycle. This editor owns the exam settings
+   *  beside the questions and never writes the questions themselves. */
+  async pqb(): Promise<PqbStatus> {
+    return json(await fetch(`${API_BASE}/api/pqb`));
+  },
+
+  /** Open the Question Bank on a course. A launch, not a conversation:
+   *  it opens its own window and the editor stops being involved. */
+  async launchPqb(course: string): Promise<{ launched: string; kind: string; course: string }> {
+    return json(
+      await fetch(`${API_BASE}/api/pqb/launch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ course }),
       }),
     );
   },
