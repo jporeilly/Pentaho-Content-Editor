@@ -1,10 +1,10 @@
-"""The Question Bank, and how a course is handed over to it.
+"""The Exam Bank, and how a course is handed over to it.
 
 The exam pool is not this editor's work. `courses/<id>/exam.json` has two
 writers and they own disjoint keys: the editor owns the SETTINGS
 (`title`, `description`, `passMark`, `questionsPerAttempt`, `shuffle`,
 `webhookUrl`, `webhookSecret`, `intake` — the `_EXAM_SETTINGS` tuple in
-`routers/courses.py`), and the Question Bank owns `questions`. Neither
+`routers/courses.py`), and the Exam Bank owns `questions`. Neither
 touches the other's keys, so two apps can edit one file without a
 protocol between them and git reconciles the rare collision.
 
@@ -28,7 +28,7 @@ answer here rather than an error — the bank is a separate product on its
 own release cycle, and an author who has never installed it should get a
 button that explains itself, not one that fails.
 
-The course travels in the ENVIRONMENT (`PQB_COURSE`), not as an argument.
+The course travels in the ENVIRONMENT (`PEB_COURSE`), not as an argument.
 The bank's entry point takes no arguments today and ignores `sys.argv`
 entirely, so a flag would be silently dropped; an environment variable is
 ignored just as harmlessly by a version that does not read it yet, and
@@ -52,10 +52,10 @@ import core
 # below is what answers. Reading it now costs one failed registry open
 # and means the button starts preferring a real install the day one
 # exists, with no change here.
-_PQB_KEY = r"SOFTWARE\Pentaho\QuestionBank"
+_PEB_KEY = r"SOFTWARE\Pentaho\ExamBank"
 
 # The launcher inside an install, most specific first.
-_INSTALL_SHAPES = ("pentaho-question-bank.exe", "question-bank.exe")
+_INSTALL_SHAPES = ("pentaho-exam-bank.exe", "exam-bank.exe")
 
 # What a CHECKOUT is launched with. `run.bat` is the bank's own front
 # door: it loads .env, frees a stale port, activates the venv and repairs
@@ -71,7 +71,7 @@ _INSTALL_SHAPES = ("pentaho-question-bank.exe", "question-bank.exe")
 # launcher name inside it, not this file.
 #
 # Two things are worth knowing when that day comes, because they are
-# what the button is FOR: the bank will read `PQB_COURSE` to open on
+# what the button is FOR: the bank will read `PEB_COURSE` to open on
 # the course it was launched with, and it still cannot publish back -
 # its exporter regenerates exam.json from a fixed parameter list and
 # would drop `intake`, which this editor owns. So the tooltip's
@@ -79,10 +79,16 @@ _INSTALL_SHAPES = ("pentaho-question-bank.exe", "question-bank.exe")
 # again" goes with it.
 _CHECKOUT_LAUNCHER = "run.bat"
 
-# The directory name the repo has after its rename. The old
-# `question_bank` is accepted too: a machine that has not pulled the
-# rename still has a perfectly good bank on it.
-_CHECKOUT_NAMES = ("Pentaho-Question-Bank", "question_bank")
+# The directory name the repo has now, newest first. The two earlier
+# names are accepted as well: a machine that has not pulled the Exam Bank
+# rename still has a perfectly good bank on it, and the button going dead
+# because a sibling checkout was not renamed on the same day is a failure
+# with nothing on screen to explain it.
+_CHECKOUT_NAMES = ("Pentaho-Exam-Bank", "Pentaho-Question-Bank", "question_bank")
+
+# The package directory inside a checkout, and the same story: `exam_bank`
+# after the rename, `question_bank` before it.
+_CHECKOUT_PACKAGES = ("exam_bank", "question_bank")
 
 # This repo's own root. A module constant rather than a `__file__`
 # expression inside the search, because it is one of the two parents
@@ -92,15 +98,31 @@ _CHECKOUT_NAMES = ("Pentaho-Question-Bank", "question_bank")
 _EDITOR_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _override(*names: str) -> str:
+    """The first of these environment variables that is set to something.
+
+    Each override has two names, the Exam Bank's and the one it had before
+    the rename. A machine with the old one exported in a shell profile
+    would otherwise fall back to searching, find a different copy of the
+    bank, and give no sign that it had ignored what it was told.
+    """
+    for name in names:
+        value = (os.environ.get(name) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 def install() -> Path | None:
     """The installed bank's directory, or None.
 
-    `PQB_INSTALL_DIR` first so a test, or an author with a portable copy,
-    can say where it is without touching the registry. Both registry
-    views are read for the reason `tools.py` gives: this process is
-    64-bit and the value is written by a 32-bit NSIS.
+    `PEB_INSTALL_DIR` (or the pre-rename `PQB_INSTALL_DIR`) first so a
+    test, or an author with a portable copy, can say where it is without
+    touching the registry. Both registry views are read for the reason
+    `tools.py` gives: this process is 64-bit and the value is written by
+    a 32-bit NSIS.
     """
-    override = os.environ.get("PQB_INSTALL_DIR")
+    override = _override("PEB_INSTALL_DIR", "PQB_INSTALL_DIR")
     if override:
         path = Path(override).expanduser()
         return path if path.is_dir() else None
@@ -110,7 +132,7 @@ def install() -> Path | None:
         return None
     for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
         try:
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _PQB_KEY, 0, winreg.KEY_READ | view) as key:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _PEB_KEY, 0, winreg.KEY_READ | view) as key:
                 value, _ = winreg.QueryValueEx(key, "")
         except OSError:
             continue
@@ -121,15 +143,15 @@ def install() -> Path | None:
 
 
 def checkout() -> Path | None:
-    """A Question Bank checkout, or None.
+    """An Exam Bank checkout, or None.
 
-    `PQB_REPO` mirrors `PCM_REPO`, then the siblings of the two repos we
+    `PEB_REPO` mirrors `PCM_REPO`, then the siblings of the two repos we
     already know about: the Content Manager's root (which is wherever
     `PCM_REPO` pointed) and this editor's own. A dev machine has all
     three side by side under one directory, and either sibling finds the
     third from the other two.
     """
-    override = os.environ.get("PQB_REPO")
+    override = _override("PEB_REPO", "PQB_REPO")
     if override:
         path = Path(override).expanduser()
         return path if _is_checkout(path) else None
@@ -143,7 +165,9 @@ def checkout() -> Path | None:
 
 def _is_checkout(path: Path) -> bool:
     """A directory holding the bank's launcher and its package."""
-    return (path / _CHECKOUT_LAUNCHER).is_file() and (path / "question_bank").is_dir()
+    if not (path / _CHECKOUT_LAUNCHER).is_file():
+        return False
+    return any((path / name).is_dir() for name in _CHECKOUT_PACKAGES)
 
 
 def find() -> dict[str, object]:
@@ -180,11 +204,11 @@ def status() -> dict[str, object]:
     elif kind == "broken":
         found["detail"] = (
             f"Registered at {found['path']} but no launcher is there — "
-            "reinstall the Question Bank."
+            "reinstall the Exam Bank."
         )
     else:
         found["detail"] = (
-            "The Question Bank isn't installed. It edits the exam pool "
+            "The Exam Bank isn't installed. It edits the exam pool "
             "(the questions); this editor owns the exam settings beside them."
         )
     found["available"] = kind in ("installed", "checkout")
@@ -202,7 +226,12 @@ def launch(course_id: str) -> dict[str, object]:
     found = find()
     if not found["launcher"]:
         raise RuntimeError(str(status()["detail"]))
-    env = {**_clean_env(), "PQB_COURSE": course_id}
+    # Both names. A bank checkout that predates the Exam Bank rename
+    # reads PQB_COURSE and nothing else, and sending only the new name
+    # would open it on no course with no error - the exact silent
+    # failure the handover exists to avoid. Drop the old one once no
+    # bank on any machine still reads it.
+    env = {**_clean_env(), "PEB_COURSE": course_id, "PQB_COURSE": course_id}
     # The Content Manager checkout the bank should read the course from.
     # It resolves this itself the same way the editor does, but passing
     # the answer we already have means the two cannot disagree about

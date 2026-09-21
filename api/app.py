@@ -31,7 +31,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 import core
-from routers import courses, labs, assets, ai, settings, imports, export, publish, setup, repo, pqb
+from routers import courses, labs, assets, ai, settings, imports, export, publish, setup, repo, peb
 
 app = FastAPI(title="Pentaho Content Editor API")
 
@@ -44,7 +44,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _module in (courses, labs, assets, ai, settings, imports, export, publish, setup, repo, pqb):
+for _module in (courses, labs, assets, ai, settings, imports, export, publish, setup, repo, peb):
     app.include_router(_module.router)
 
 

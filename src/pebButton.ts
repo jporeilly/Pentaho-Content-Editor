@@ -25,24 +25,24 @@
 //     checkout can both exist, "why did my edit not show up?" is
 //     answered by the tooltip rather than by an investigation.
 
-import type { PqbStatus } from "./api";
+import type { PebStatus } from "./api";
 
-export interface PqbButtonState {
+export interface PebButtonState {
   label: string;
   title: string;
   disabled: boolean;
 }
 
 /** The wording for the button, given what the backend found. */
-export function pqbButtonState(
-  status: PqbStatus | null,
+export function pebButtonState(
+  status: PebStatus | null,
   course: string,
   busy: boolean,
-): PqbButtonState {
+): PebButtonState {
   const label = "❓ Questions";
 
   if (!status) {
-    return { label, title: "Looking for the Question Bank…", disabled: true };
+    return { label, title: "Looking for the Exam Bank…", disabled: true };
   }
   if (!course) {
     return { label, title: "Pick a course first", disabled: true };
@@ -57,7 +57,7 @@ export function pqbButtonState(
   return {
     label,
     title:
-      `Open the Question Bank on "${course}" — ${where}.\n\n` +
+      `Open the Exam Bank on "${course}" — ${where}.\n\n` +
       "It opens on this course's question pool. A course the bank has not " +
       "adopted yet opens with a note saying how, rather than an empty " +
       "table.\n\n" +

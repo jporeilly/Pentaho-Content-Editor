@@ -286,4 +286,4 @@ the traps worth knowing before changing anything.
 
 ## Not yet
 
-- Exam authoring stays in the Question Bank app.
+- Exam authoring stays in the Exam Bank app.

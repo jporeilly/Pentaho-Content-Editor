@@ -13,7 +13,26 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **The Question Bank is the Exam Bank.** The other app renamed, so the
+  strings an author reads renamed with it, and so did this side of the
+  handover: `api/pqb.py` is `api/peb.py`, `/api/pqb` is `/api/peb`, the
+  registry key it will look for is `SOFTWARE\Pentaho\ExamBank`, and the
+  course travels as `PEB_COURSE`.
+
+- **Both names are accepted on the way in and sent on the way out.**
+  The search takes `Pentaho-Exam-Bank`, `Pentaho-Question-Bank` and
+  `question_bank` as directory names and `exam_bank` or `question_bank`
+  as the package inside, and a launch sets `PEB_COURSE` **and**
+  `PQB_COURSE`. The rename moved two names on two different days, and a
+  sibling checkout that is halfway through it would otherwise make the
+  button go dead with nothing on screen to explain why. The overrides
+  `PEB_REPO` / `PEB_INSTALL_DIR` read their `PQB_` spellings too.
+
+  This does not save an **installed** 1.23.1, which carries the old
+  search and cannot see a checkout renamed to `Pentaho-Exam-Bank`. The
+  button needs this release installed to keep working.
 
 ## [1.23.1] - 2026-09-21
 

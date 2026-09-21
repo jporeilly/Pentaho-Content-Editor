@@ -147,9 +147,9 @@ async function json<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** Where the Question Bank is, if anywhere. `kind` decides the button;
+/** Where the Exam Bank is, if anywhere. `kind` decides the button;
  *  `detail` is the sentence shown when it cannot be pressed. */
-export interface PqbStatus {
+export interface PebStatus {
   kind: "installed" | "checkout" | "broken" | null;
   path: string | null;
   launcher: string | null;
@@ -503,18 +503,18 @@ export const api = {
     );
   },
 
-  /** Where the Question Bank is — the exam POOL's editor, a separate
+  /** Where the Exam Bank is — the exam POOL's editor, a separate
    *  app on its own release cycle. This editor owns the exam settings
    *  beside the questions and never writes the questions themselves. */
-  async pqb(): Promise<PqbStatus> {
-    return json(await fetch(`${API_BASE}/api/pqb`));
+  async peb(): Promise<PebStatus> {
+    return json(await fetch(`${API_BASE}/api/peb`));
   },
 
-  /** Open the Question Bank on a course. A launch, not a conversation:
+  /** Open the Exam Bank on a course. A launch, not a conversation:
    *  it opens its own window and the editor stops being involved. */
-  async launchPqb(course: string): Promise<{ launched: string; kind: string; course: string }> {
+  async launchPeb(course: string): Promise<{ launched: string; kind: string; course: string }> {
     return json(
-      await fetch(`${API_BASE}/api/pqb/launch`, {
+      await fetch(`${API_BASE}/api/peb/launch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ course }),
