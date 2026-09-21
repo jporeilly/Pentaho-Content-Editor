@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.24.0] - 2026-09-21
+
 ### Changed
 
 - **The Question Bank is the Exam Bank.** The other app renamed, so the
@@ -33,6 +37,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   This does not save an **installed** 1.23.1, which carries the old
   search and cannot see a checkout renamed to `Pentaho-Exam-Bank`. The
   button needs this release installed to keep working.
+
 
 ## [1.23.1] - 2026-09-21
 
