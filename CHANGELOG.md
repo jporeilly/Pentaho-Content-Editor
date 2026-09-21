@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.23.1] - 2026-09-21
+
 ### Changed
 
 - **The Questions button now says what actually happens, because the
@@ -30,6 +34,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   starts the NiceGUI app the author sees, and it repairs the venv on the
   way; the React UI beside it is real but not yet the replacement. That
   swap comes with the bank's 0.4.0, noted at `_CHECKOUT_LAUNCHER`.
+
 
 ## [1.23.0] - 2026-09-21
 
