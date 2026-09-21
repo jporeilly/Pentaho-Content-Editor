@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.23.0] - 2026-09-21
+
 ### Added
 
 - **A Questions button, next to Course, that opens the Question Bank on
@@ -63,6 +67,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   silent window would make 40 seconds of work look like a hang - and
   asks to break away from the job object, falling back when the job
   refuses, so the packaged editor closing does not take the bank with it.
+
 
 ## [1.22.0] - 2026-09-19
 
