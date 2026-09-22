@@ -87,6 +87,7 @@ python $gen --installer-ico "$icons\icon.ico" --badge pencil --badge-color "#0E7
 
 # the installer wizard's header and sidebar
 python $gen --nsis-only --out-dir $icons --badge pencil --badge-color "#0E7490" `
+            --accent "#CC0000" `
             --title "Content Editor" --subtitle "Course authoring"
 
 # the PNGs Tauri's bundle.icon list names, scaled DOWN from the .ico's
@@ -94,7 +95,13 @@ python $gen --nsis-only --out-dir $icons --badge pencil --badge-color "#0E7490" 
 python -c "from PIL import Image; im=Image.open(r'$icons\icon.ico'); im.size=max(im.ico.sizes()); m=im.convert('RGBA'); [m.resize((s,s), Image.LANCZOS).save(rf'$icons\{n}') for n,s in (('32x32.png',32),('128x128.png',128),('128x128@2x.png',256))]"
 ```
 
-Two things that bite, both already paid for:
+Three things that bite, all already paid for:
+
+- **`--accent` draws the red rule; omit it and there is no rule.** It is
+  not the sidebar colour — that is `--sidebar-field`, which this app
+  deliberately does not pass, because a coloured sidebar on a Content
+  Manager installer means "this is the course you are installing" and
+  this is a tool. The two were one flag until 2026-09-22.
 
 - **`--nsis-only` uses the generator's DEFAULT badge.** Omit the badge
   flags on that second command and the sidebar comes out wearing the

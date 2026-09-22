@@ -15,6 +15,27 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.24.1] - 2026-09-22
+
+### Changed
+
+- **The wizard art carries the registered mark, and the header a red
+  rule.** `Pentaho` is set with a superscript `®` on both the welcome
+  sidebar and the header strip, and the header gains the brand-red rule
+  under the wordmark that the Content Manager's installers already had.
+  The sidebar field stays **black**: red on a Content Manager installer
+  says which COURSE is being installed, and this is a tool, so it would
+  be borrowing a signal that means something else.
+
+  Only `nsis-header.bmp` and `nsis-sidebar.bmp` changed. `icon.ico` and
+  the three PNGs are byte-identical — the wordmark appears on neither.
+
+  Drawn by the Content Manager's `make-icons.py`, which gained a
+  `--sidebar-field` flag for it: `--accent` had come to mean both the
+  header rule and the sidebar colour, so no caller could ask for one
+  without the other.
+
+
 ## [1.24.0] - 2026-09-21
 
 ### Changed
