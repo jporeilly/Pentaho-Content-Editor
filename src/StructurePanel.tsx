@@ -4,7 +4,7 @@
 // and renames persist to SUMMARY.md + manifests via PUT /structure; new
 // labs go through the Node scaffolder via POST /labs.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 // Same icon set the learner sidebar uses (Sidebar.tsx), so the
 // author's tree reads exactly like the tree learners navigate:
 // Home for Welcome, FileText for a page, FlaskConical for a workshop.
@@ -25,6 +25,10 @@ interface StructurePanelProps {
   refreshKey?: number;
   /** Report the docs an AI action was grounded in, for citation display. */
   onSources?: (sources: Source[]) => void;
+  /** Every structure this panel holds once loaded, including its own
+   *  optimistic edits - so the toolbar's Link to page menu lists a lab
+   *  the moment it is created or renamed, not after the next refresh. */
+  onStructure?: (structure: Structure) => void;
   /** Hide the sidebar — the shell shows a thin rail to bring it back. */
   onCollapse?: () => void;
   /** True while the Welcome pane is open (no lab is selected). */
@@ -33,8 +37,14 @@ interface StructurePanelProps {
   onSelectWelcome?: () => void;
 }
 
-export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources, onCollapse, welcomeActive, onSelectWelcome }: StructurePanelProps) {
+export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSources, onStructure, onCollapse, welcomeActive, onSelectWelcome }: StructurePanelProps) {
   const [structure, setStructure] = useState<Structure>({ topics: [] });
+  // The initial empty tree is a placeholder, not the course: reporting
+  // it would blank the Link to page menu until the fetch lands.
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (loaded.current) onStructure?.(structure);
+  }, [structure, onStructure]);
   // Free-text filter over the tree. Courses run to eighteen entries and
   // the only way to reach one was to read the list.
   const [filter, setFilter] = useState("");
@@ -56,7 +66,9 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
 
   const load = useCallback(() => {
     if (!course) return;
-    api.getStructure(course).then(setStructure).catch(() => setStructure({ topics: [] }));
+    api.getStructure(course)
+      .then((s) => { loaded.current = true; setStructure(s); })
+      .catch(() => setStructure({ topics: [] }));
   }, [course]);
 
   useEffect(() => { load(); }, [load, refreshKey]);

@@ -13,7 +13,23 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **Link to page**, beside Go to → Link to tab. It lists every other
+  page of the course in sidebar order (sub-topics indented) and writes
+  `[Title](../<slug>/guide.md)` at the caret; selected text becomes the
+  link text instead of the title. That path is the form GitBook and
+  GitHub follow too, and it is written by the Content Manager's own
+  `pageLinkMarkdown` (through `@app`), the module the learner app uses
+  to follow the link, so the two cannot disagree about the rule.
+- **Page links work in the preview.** A link to another page opens that
+  page in the editor, as a click in the structure panel does. A link
+  naming a page the course does not have shows with a wavy underline and
+  a tooltip naming the missing slug, which is how a typo or a deleted
+  lab surfaces before review. **Needs a Content Manager checkout that has
+  `src/components/pageLinks.ts`** (its Unreleased entry): the editor
+  imports it, so against an older checkout the build fails rather than
+  quietly writing links the Engine cannot follow.
 
 ## [1.24.1] - 2026-09-22
 

@@ -8,8 +8,9 @@
 // manifest metadata forms, and new-course / new-lab UI (wrapping the
 // same logic as the CLI scaffolder).
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { api, type PebStatus } from "./api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { api, type PebStatus, type StructureTopic } from "./api";
+import { coursePages } from "./pageLinks";
 import { linkScrollers } from "./scrollSync";
 import { highlightLines, linesToHtml, fenceRangeAt } from "./markdownTokens";
 import { parseVerifyOutput, problemsForGuide, byLine, unplaced } from "./verifyProblems";
@@ -205,6 +206,22 @@ export function App() {
     onBodyChange, undoEdit, lastEditAt, insertAtCaret, textareaRef, baseUrl,
     structureKey, bumpStructure, lastRewrite, setLastRewrite,
   } = useLab(course, lab, setStatus);
+  // The course's pages, for the toolbar's Link to page menu and for
+  // following those links in the preview. Fetched here as well as
+  // reported by the structure panel, because the panel is unmounted
+  // while the sidebar is collapsed and a course switch must not leave
+  // the menu offering the previous course's pages.
+  const [structureTopics, setStructureTopics] = useState<StructureTopic[]>([]);
+  useEffect(() => {
+    if (!course) { setStructureTopics([]); return; }
+    let live = true;
+    api.getStructure(course)
+      .then((s) => { if (live) setStructureTopics(s.topics); })
+      .catch(() => { if (live) setStructureTopics([]); });
+    return () => { live = false; };
+  }, [course, structureKey]);
+  const pages = useMemo(() => coursePages(structureTopics), [structureTopics]);
+  const onStructure = useCallback((s: { topics: StructureTopic[] }) => setStructureTopics(s.topics), []);
   const {
     working, sources, setSources, reviewOut, setReviewOut, verifyOut, setVerifyOut,
     rewriteSelection, rewriteRange, undoRewrite, uploadAndInsertImage, onEditorPaste, onEditorDrop,
@@ -827,6 +844,7 @@ export function App() {
                 onSelect={(slug) => { setWelcomeMode(false); setLab(slug); }}
                 refreshKey={structureKey}
                 onSources={setSources}
+                onStructure={onStructure}
                 onCollapse={() => setSidebarOpen(false)}
                 welcomeActive={welcomeMode}
                 onSelectWelcome={() => setWelcomeMode(true)}
@@ -994,6 +1012,8 @@ export function App() {
               <Toolbar
                 textarea={textareaRef.current}
                 value={body}
+                pages={pages}
+                currentSlug={lab}
                 /* programmatic: the browser never saw these, so they
                    need recording for Ctrl+Z to reach them. */
                 onChange={(next, caret) => onBodyChange(next, caret, true)}
@@ -1125,6 +1145,8 @@ export function App() {
                 labSlug={lab}
                 glossary={glossary}
                 manifest={detail.manifest}
+                pages={pages}
+                onOpenPage={(slug) => { setWelcomeMode(false); setLab(slug); }}
               />
             </section>
           </div>

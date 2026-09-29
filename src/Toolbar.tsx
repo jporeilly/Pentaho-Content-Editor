@@ -17,6 +17,7 @@ import { CALLOUT_KINDS, buildCallout } from "./callouts";
 import { CalloutModal } from "./CalloutModal";
 import { outlineOf, scrollTopForLine } from "./outline";
 import { tabsInBody, tabLink, navButton } from "./tabLinks";
+import { pageLinkFor, type CoursePage } from "./pageLinks";
 import { headingAnchorId } from "@app/components/MarkdownBody";
 import { TEXT_COLOURS } from "@app/components/textColours";
 import { applyColour } from "./textColour";
@@ -48,6 +49,10 @@ interface ToolbarProps {
   value: string;
   /** Commit a new body value + desired caret position. */
   onChange: (next: string, caret?: number) => void;
+  /** The course's pages, in sidebar order, for Link to page. */
+  pages?: CoursePage[];
+  /** The page being edited - left out of Link to page. */
+  currentSlug?: string;
 }
 
 interface Block {
@@ -254,13 +259,14 @@ export const BLOCKS: Block[] = [
 
 const GROUP_ORDER = ["Heading", "Callout", "List", "Text", "Media", "Code", "Block", "Pentaho"];
 
-export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
+export function Toolbar({ textarea, value, onChange, pages = [], currentSlug }: ToolbarProps) {
   const [dialog, setDialog] = useState<"table" | "tabs" | "callout" | null>(null);
   const [palette, setPalette] = useState(false);
   // Recomputed on every keystroke. A guide is a few hundred lines, so
   // one pass over it costs nothing next to React's own render.
   const outline = outlineOf(value);
   const tabs = tabsInBody(value);
+  const linkablePages = pages.filter((p) => p.slug !== currentSlug);
 
   // Every place a nav button can send the reader, in document order:
   // the guide's headings and its tabs, merged. The heading anchor is
@@ -432,6 +438,26 @@ export function Toolbar({ textarea, value, onChange }: ToolbarProps) {
           label: t.title,
           title: `Writes [${t.title}](#${t.slug}) — line ${t.line}`,
           onSelect: () => insertText(tabLink(t)),
+        }))}
+      />
+      {/* Another page of the course, by title. The path is the
+          Engine's rule (pageLinkMarkdown, through @app) - the same
+          module the learner app uses to follow the link - so an author
+          never types `../03-x/guide.md` and finds out at review time
+          whether the slug was right. A selection becomes the link text. */}
+      <Menu
+        label="Link to page"
+        title={
+          linkablePages.length
+            ? "Insert a link to another page of this course (selected text becomes the link text)"
+            : "This course has no other pages to link to yet"
+        }
+        disabled={linkablePages.length === 0}
+        items={linkablePages.map((p) => ({
+          id: p.slug,
+          label: `${"  ".repeat(p.depth)}${p.title}`,
+          title: `Writes a link to ../${p.slug}/guide.md`,
+          onSelect: () => insertText(pageLinkFor(p, selectionText())),
         }))}
       />
       {/* Nav buttons. Every jump target in the guide, in one list -

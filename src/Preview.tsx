@@ -26,6 +26,8 @@ import { countSteps, stripLeadingH1, tracksProgress } from "@app/components/guid
 const EMPTY_PROGRESS = new Set<string>();
 const noopToggle = () => {};
 import { ToolPanelProvider } from "@app/components/ToolPanelContext";
+import { PageLinkContext, type PageLinks } from "@app/components/pageLinks";
+import type { CoursePage } from "./pageLinks";
 import { GlossaryProvider, normaliseGlossary } from "@app/components/GlossaryContext";
 
 interface PreviewProps {
@@ -37,13 +39,35 @@ interface PreviewProps {
   /** The lab's manifest.json — supplies the header fields and the
    *  noProgress flag, so ☑ Tracking / ⏱ changes show up here. */
   manifest?: Record<string, unknown>;
+  /** The course's pages. A page link naming one the course does not
+   *  have is flagged in the preview, the same way the learner app
+   *  flags it - which is where an author finds a typo or a deleted lab. */
+  pages?: CoursePage[];
+  /** Follow a page link: open that page in the editor. */
+  onOpenPage?: (slug: string) => void;
 }
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v : undefined);
 const num = (v: unknown) => (typeof v === "number" && v > 0 ? v : undefined);
 
-export function Preview({ body, baseUrl, labSlug, glossary, manifest }: PreviewProps) {
+export function Preview({ body, baseUrl, labSlug, glossary, manifest, pages, onOpenPage }: PreviewProps) {
   const normalised = useMemo(() => normaliseGlossary(glossary ?? {}), [glossary]);
+
+  // The Engine's own page-link component renders these; this is only
+  // what it asks of its host. A link to a heading on THIS page scrolls
+  // the preview; a link to another page opens it for editing, like a
+  // click in the structure panel.
+  const pageLinks = useMemo<PageLinks>(() => {
+    const titles = new Map((pages ?? []).map((p) => [p.slug, p.title]));
+    return {
+      currentSlug: labSlug,
+      titleOf: (slug) => titles.get(slug),
+      open: (slug, anchor) => {
+        if (slug && slug !== labSlug) { onOpenPage?.(slug); return; }
+        if (anchor) document.getElementById(anchor)?.scrollIntoView({ block: "start" });
+      },
+    };
+  }, [pages, labSlug, onOpenPage]);
 
   const track = tracksProgress(manifest?.noProgress);
   const totalSteps = useMemo(
@@ -53,6 +77,7 @@ export function Preview({ body, baseUrl, labSlug, glossary, manifest }: PreviewP
 
   return (
     <GlossaryProvider glossary={normalised}>
+      <PageLinkContext.Provider value={pages?.length ? pageLinks : null}>
       <ToolPanelProvider>
         <article className="pcm-guide author-preview-guide">
           <GuideHeader
@@ -76,6 +101,7 @@ export function Preview({ body, baseUrl, labSlug, glossary, manifest }: PreviewP
           />
         </article>
       </ToolPanelProvider>
+      </PageLinkContext.Provider>
     </GlossaryProvider>
   );
 }
