@@ -12,6 +12,9 @@ shipped to the learner VMs — those run the Tauri app. The two stay
 deliberately separate, and since 2026-09-15 they are separate
 repositories with separate version numbers.
 
+<img width="1801" height="982" alt="image" src="https://github.com/user-attachments/assets/5f1075ea-3f37-446a-ae81-9d76c5e2c179" />
+
+
 ## It needs the Content Manager first
 
 The editor has no courses of its own and no Engine of its own. Install
