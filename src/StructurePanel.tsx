@@ -15,6 +15,13 @@ import {
 } from "./topicTree";
 import { LabModal, type LabDraft } from "./LabModal";
 
+/** How many section colours the sidebar cycles through (`--author-sec-0`
+ *  … in author.css). Each top-level section takes the next, so where a lab
+ *  sits in the course shows as a colour, the way the Exam Bank's rail
+ *  colours its three groups. Six before a repeat: more sections than that
+ *  are rare, and a seventh hue would be too close to one of the six. */
+export const SECTION_COLOURS = 6;
+
 interface StructurePanelProps {
   course: string;
   /** Currently-open lab slug (highlighted). */
@@ -261,7 +268,9 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
     return (
       <div
         key={key + topic.title}
-        className={`author-topic author-topic--depth-${Math.min(depth, 3)}`}
+        // author-sec-N: each top-level section has its own colour, and
+        // its sub-topics carry it on (the custom property cascades).
+        className={`author-topic author-topic--depth-${Math.min(depth, 3)} author-sec-${path[0] % SECTION_COLOURS}`}
         onDragOver={(e) => { if (dragSlug) e.preventDefault(); }}
         onDrop={(e) => { if (dragSlug) { e.preventDefault(); dropOnTopic(dragSlug, path); setDragSlug(null); setDropSlug(null); } }}
       >
@@ -455,7 +464,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
         <span className="author-structure-actions">
           <button
             type="button"
-            className="author-mini-btn"
+            className="author-mini-btn role-ai"
             onClick={() => openLabModal("ai")}
             disabled={busy || generating || aiReady === false}
             title={
@@ -466,7 +475,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
           >
             {generating ? "Drafting…" : "✨ AI Lab"}
           </button>
-          <button type="button" className="author-mini-btn" onClick={() => openLabModal("new")} disabled={busy || generating} title="New blank workshop — numbered steps the learner ticks off">
+          <button type="button" className="author-mini-btn role-add" onClick={() => openLabModal("new")} disabled={busy || generating} title="New blank workshop — numbered steps the learner ticks off">
             + Lab
           </button>
           {/* The Kind dropdown inside the modal could always make a
@@ -474,7 +483,7 @@ export function StructurePanel({ course, activeSlug, onSelect, refreshKey, onSou
               for a button and concluded pages were workshops-only. The
               dropdown is still there and still switchable — this only
               changes which way it starts. */}
-          <button type="button" className="author-mini-btn" onClick={() => openLabModal("page")} disabled={busy || generating} title="New blank page — reference content, no tracked steps">
+          <button type="button" className="author-mini-btn role-add" onClick={() => openLabModal("page")} disabled={busy || generating} title="New blank page — reference content, no tracked steps">
             + Page
           </button>
           {onCollapse && (

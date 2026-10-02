@@ -251,6 +251,16 @@ export const BLOCKS: Block[] = [
     build: () => ({ text: `<div data-env-check="ai"></div>\n\n` }) },
   { group: "Pentaho", label: "Env check — streaming", title: "Prerequisite panel: everything plus the MQTT/AMQP brokers",
     build: () => ({ text: `<div data-env-check="streaming"></div>\n\n` }) },
+  // The sidebar's own marks, inline in a sentence that explains the
+  // sidebar. The Engine draws the very components its sidebar draws
+  // (sidebarIcons.tsx over there), so these never drift the way 📄 and
+  // 🧪 did - emoji are the system font's drawings, not the app's.
+  { group: "Pentaho", label: "Icon — overview page", title: "The sidebar's overview-page icon, inline in the text",
+    build: () => ({ text: `<span data-icon="page"></span>` }) },
+  { group: "Pentaho", label: "Icon — workshop", title: "The sidebar's workshop icon, inline in the text",
+    build: () => ({ text: `<span data-icon="workshop"></span>` }) },
+  { group: "Pentaho", label: "Icon — video badge", title: "The sidebar's \"includes a video\" badge, inline in the text",
+    build: () => ({ text: `<span data-icon="video"></span>` }) },
 
   // ── Standalone (inline) ──
   { group: "", label: "＋ Glossary", title: "Inline glossary term (add a glossary.json entry)",

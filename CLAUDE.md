@@ -289,6 +289,18 @@ dark surface (a hard-coded colour in inline HTML, a screenshot with a
 white background, a callout with no dark variant). Both are classes on
 `<html>`, which is where the app itself puts `pcm-dark`.
 
+**Parchment is the default and the suite look** — token for token the
+Pentaho Exam Bank's (warm paper `#f6f3ec`, slate text, teal `#16707c`). The
+owner does not want a dark default; the other palettes stay selectable but
+are not demoed. **Colour carries a role** (`author.css`, "Colour by role"):
+`role-ai` violet, `role-add` green, `role-info` blue, `role-accent` teal,
+`role-bad` red, as tints so Save stays the one filled control. Two token
+sets: dark by default, light under `.author-light` (theme.ts sets it for
+light palettes). Structure sections cycle `author-sec-0…5`
+(`SECTION_COLOURS` in StructurePanel). `suiteColours.test.ts` reads the
+stylesheet to pin all of it, and `iconMenu.test.ts` pins the Pentaho
+menu's sidebar icons against the Engine's `INLINE_ICONS` through `@app`.
+
 **The AI review anchors on TEXT; Verify anchors on coordinates**
 (`reviewFindings.ts`, merged with Verify's problems in
 `lineAnnotations.ts`). The verifier reports `path:line:col` and is right,

@@ -195,10 +195,19 @@ the owner if something foreign holds the port.
   the preview, proportionally, so the two panes always show the same part
   of the lab.
 - **Eight editor palettes**: Midnight, Daylight, Ocean, Ember, Forest,
-  Plum, Parchment and Contrast. The *editor* theme is comfort; the
-  *preview* theme is correctness — learners run the app in either, and a
-  guide that reads fine on white can be unreadable on the dark surface.
-  Flipping the preview catches that while authoring.
+  Plum, Parchment and Contrast. **Parchment is the default** and the
+  suite's look, shared with the Pentaho Exam Bank: warm paper, slate text,
+  a teal accent. The *editor* theme is comfort; the *preview* theme is
+  correctness — learners run the app in either, and a guide that reads
+  fine on white can be unreadable on the dark surface. Flipping the
+  preview catches that while authoring.
+- **Colour that means something**, in every palette: violet for anything
+  the AI does (Rewrite, Review, Chat, AI Lab), green for making something
+  new (New Course, Import, + Lab, + Page), blue for looking without
+  changing (Verify, Find), teal for Questions, Publish and Save. Each
+  top-level section of the course has its own colour in the structure
+  sidebar - on its heading, its labs' icons and the open lab's bar - so
+  where a lab sits in the course shows at a glance.
 - **Save** writes `guide.md` and re-stamps `manifest.json` (`stepCount` /
   `estimatedMinutes` / `hasVideo`), mirroring the app's
   `scripts/stamp-manifests.mjs`. `Ctrl/Cmd+S` also saves. A save is

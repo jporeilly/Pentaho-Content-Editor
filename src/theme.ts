@@ -44,7 +44,7 @@ export const EDITOR_THEMES: EditorThemeDef[] = [
   { id: "ember",     label: "Ember",     hint: "Warm dark, Pentaho amber accent",              dark: true  },
   { id: "forest",    label: "Forest",    hint: "Muted green, easy for long sessions",          dark: true  },
   { id: "plum",      label: "Plum",      hint: "Dark violet, magenta accent",                  dark: true  },
-  { id: "parchment", label: "Parchment", hint: "Warm paper, low glare",                        dark: false },
+  { id: "parchment", label: "Parchment", hint: "Warm paper, slate text, teal accent - the Exam Bank's look", dark: false },
   { id: "contrast",  label: "Contrast",  hint: "Maximum contrast for small or dim VM screens", dark: true  },
 ];
 

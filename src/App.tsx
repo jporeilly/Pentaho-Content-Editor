@@ -662,10 +662,13 @@ export function App() {
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
-        <button type="button" className="author-tool" onClick={() => setShowNewCourse(true)} disabled={working} title="Create a new workshop course from scratch">
+        {/* Colour by role, the suite's scheme (author.css, "Colour by
+            role"): green adds, blue looks, violet is the AI, teal is
+            the accent's own work. */}
+        <button type="button" className="author-tool role-add" onClick={() => setShowNewCourse(true)} disabled={working} title="Create a new workshop course from scratch">
           ✚ New Course
         </button>
-        <button type="button" className="author-tool" onClick={() => setShowImport(true)} disabled={working} title="Create a course from a PDF / DOCX / PPTX / Markdown document">
+        <button type="button" className="author-tool role-add" onClick={() => setShowImport(true)} disabled={working} title="Create a course from a PDF / DOCX / PPTX / Markdown document">
           ⬆ Import
         </button>
         <button type="button" className="author-tool" onClick={() => setShowCourseSettings(true)} disabled={working || !course} title="Edit course title, description, accent, and assistant models">
@@ -673,19 +676,19 @@ export function App() {
         </button>
         <button
           type="button"
-          className="author-tool"
+          className="author-tool role-accent"
           onClick={openQuestions}
           disabled={pebButtonState(peb, course, working).disabled}
           title={pebButtonState(peb, course, working).title}
         >
           {pebButtonState(peb, course, working).label}
         </button>
-        <button type="button" className="author-tool" onClick={runVerify} disabled={working || !course} title="Check this course against the publishing guidelines">
+        <button type="button" className="author-tool role-info" onClick={runVerify} disabled={working || !course} title="Check this course against the publishing guidelines">
           ✓ Verify
         </button>
         <button
           type="button"
-          className="author-tool"
+          className="author-tool role-accent"
           onClick={publishAll}
           disabled={working || publishing || !course}
           title="One click, whole loop: commit + push the authoring repo, then publish this course to the distribution repo VMs sync from"
@@ -716,7 +719,7 @@ export function App() {
               onSelect: () => theme.setPreview("dark") },
           ]}
         />
-        <button type="button" className={`author-tool${showChat ? " is-active" : ""}`} onClick={() => setShowChat((v) => !v)} title="Toggle the AI assistant chat">
+        <button type="button" className={`author-tool role-ai${showChat ? " is-active" : ""}`} onClick={() => setShowChat((v) => !v)} title="Toggle the AI assistant chat">
           💬 Chat
         </button>
         {/* Which checkout, and whether it has moved on without us. The
@@ -907,7 +910,7 @@ export function App() {
               <div className="author-editor-bar">
                 <button
                   type="button"
-                  className={`author-toolbar-btn author-rewrite${lastRewrite ? " is-undo" : ""}`}
+                  className={`author-toolbar-btn author-rewrite role-ai${lastRewrite ? " is-undo" : ""}`}
                   onClick={lastRewrite ? undoRewrite : rewriteSelection}
                   disabled={working || (!lastRewrite && health?.ok === false)}
                   title={
@@ -928,7 +931,7 @@ export function App() {
                     The shortcut still works and the title names it. */}
                 <button
                   type="button"
-                  className={`author-toolbar-btn${showFind ? " is-active" : ""}`}
+                  className={`author-toolbar-btn role-info${showFind ? " is-active" : ""}`}
                   onClick={() => setShowFind((v) => !v)}
                   disabled={working}
                   title="Find & replace in this lab (Ctrl/Cmd+F). Plain text, never regex — guides are full of ** and [ and |"
@@ -994,7 +997,7 @@ export function App() {
                   />
                   min
                 </label>
-                <button type="button" className="author-toolbar-btn author-review-btn" onClick={runReview} disabled={working || health?.ok === false} title={health?.ok === false ? "AI provider not ready — see Settings" : "AI review of this lab (quality, accuracy, completeness)"}>
+                <button type="button" className="author-toolbar-btn author-review-btn role-ai" onClick={runReview} disabled={working || health?.ok === false} title={health?.ok === false ? "AI provider not ready — see Settings" : "AI review of this lab (quality, accuracy, completeness)"}>
                   🔍 Review
                 </button>
                 <input

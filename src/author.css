@@ -147,22 +147,28 @@
   --author-bad: #f6879b;
 }
 
-/* Parchment - warm paper, for glare. */
+/* Parchment - warm paper, for glare. Since 1.25.0 it is the SUITE look,
+   token for token the Exam Bank's (its styles.css :root): the paper stays
+   warm, but the text is a dark slate, the lines near-neutral and the
+   accent teal. Every part of it used to be a shade of brown, which the
+   Exam Bank's owner found "all very brown" and that app left in 1.4.0;
+   the two apps sit side by side on an author's machine, so they now look
+   like one toolkit again. */
 :root.author-theme-parchment {
-  --author-bg: #f5efe3;
-  --author-panel: #fffdf7;
-  --author-border: #ded2bd;
-  --author-text: #2e2618;
-  --author-muted: #6a5c45;
-  --author-accent: #8a5a12;
-  --author-raised: #efe7d7;
-  --author-raised-hi: #e4d9c4;
-  --author-sunken: #e8ded0;
-  --author-hover: rgba(90, 70, 30, 0.07);
-  --author-shadow: rgba(80, 60, 20, 0.18);
-  --author-text-strong: #171208;
-  --author-ok: #3f6d21;
-  --author-warn: #8a5a12;
+  --author-bg: #f6f3ec;
+  --author-panel: #fffefb;
+  --author-border: #e0dbd0;
+  --author-text: #1f2a37;
+  --author-muted: #4b5a6b;
+  --author-accent: #16707c;
+  --author-raised: #ebe7df;
+  --author-raised-hi: #e2ded4;
+  --author-sunken: #e6e2d9;
+  --author-hover: rgba(30, 40, 55, 0.06);
+  --author-shadow: rgba(30, 40, 55, 0.14);
+  --author-text-strong: #0f172a;
+  --author-ok: #2e7d32;
+  --author-warn: #b45309;
   --author-bad: #a32b1c;
   /* Indigo rather than the default blue: on the sepia ground the blue
      reads as a faded ink stain, and this is the one mark that has to be
@@ -1871,4 +1877,114 @@ textarea.author-input { min-height: 0; }
   width: 12px;
   text-align: center;
   flex: none;
+}
+
+
+/* ── Colour by role (1.25.0) ───────────────────────────────────────
+   The Exam Bank's scheme, so the two apps an author keeps open side by
+   side speak one colour language:
+
+   - violet  anything the AI does (Rewrite, Review, Chat, AI Lab)
+   - green   making something new (New Course, Import, + Lab, + Page)
+   - blue    looking without changing (Verify, Find)
+   - teal    the accent's own work (Questions, Publish, Save)
+   - red     removing (a lab's delete)
+
+   A role button is a TINT with coloured text and a coloured edge, not a
+   fill: the header holds eight of them, and eight filled buttons would
+   bury Save, which is the one filled control and stays that way.
+
+   Two token sets, because the eight palettes are two kinds of ground. The
+   dark set is the default; the light set takes over on the palettes that
+   theme.ts marks light (it puts .author-light on <html>), at the
+   saturated end of each hue, where a pastel would drop under 4.5:1. */
+:root {
+  --author-c-ai: #a78bfa;   --author-c-ai-ink: #c4b5fd;
+  --author-c-add: #4ade80;  --author-c-add-ink: #86efac;
+  --author-c-info: #60a5fa; --author-c-info-ink: #93c5fd;
+  --author-c-bad: #f87171;  --author-c-bad-ink: #fca5a5;
+  /* The course's sections, cycled in order (StructurePanel's
+     SECTION_COLOURS): blue, teal, violet, amber, green, pink. */
+  --author-sec-0: #60a5fa; --author-sec-1: #2dd4bf; --author-sec-2: #a78bfa;
+  --author-sec-3: #fbbf24; --author-sec-4: #4ade80; --author-sec-5: #f472b6;
+}
+:root.author-light {
+  --author-c-ai: #6b3fd4;   --author-c-ai-ink: #4f25a8;
+  --author-c-add: #2e7d32;  --author-c-add-ink: #1d5a22;
+  --author-c-info: #1d5fbf; --author-c-info-ink: #18478f;
+  --author-c-bad: #a32b1c;  --author-c-bad-ink: #8f2617;
+  --author-sec-0: #1d5fbf; --author-sec-1: #16707c; --author-sec-2: #6b3fd4;
+  --author-sec-3: #b45309; --author-sec-4: #2e7d32; --author-sec-5: #be185d;
+}
+
+:is(.author-tool, .author-toolbar-btn, .author-mini-btn):is(.role-ai, .role-add, .role-info, .role-accent, .role-bad) {
+  background: color-mix(in srgb, var(--role-c) 14%, var(--author-panel));
+  color: var(--role-ink);
+  border-color: color-mix(in srgb, var(--role-c) 45%, var(--author-border));
+  font-weight: 600;
+}
+:is(.author-tool, .author-toolbar-btn, .author-mini-btn):is(.role-ai, .role-add, .role-info, .role-accent, .role-bad):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--role-c) 22%, var(--author-panel));
+  border-color: var(--role-c);
+  color: var(--role-ink);
+}
+:is(.author-tool, .author-toolbar-btn, .author-mini-btn).is-active:is(.role-ai, .role-add, .role-info, .role-accent, .role-bad) {
+  background: color-mix(in srgb, var(--role-c) 28%, var(--author-panel));
+  border-color: var(--role-c);
+}
+.role-ai { --role-c: var(--author-c-ai); --role-ink: var(--author-c-ai-ink); }
+.role-add { --role-c: var(--author-c-add); --role-ink: var(--author-c-add-ink); }
+.role-info { --role-c: var(--author-c-info); --role-ink: var(--author-c-info-ink); }
+.role-bad { --role-c: var(--author-c-bad); --role-ink: var(--author-c-bad-ink); }
+.role-accent { --role-c: var(--author-accent); --role-ink: var(--author-text-strong); }
+:root.author-light .role-accent { --role-ink: var(--author-accent); }
+/* Undo after a rewrite keeps its amber: it is a warning that the text was
+   just replaced, not an AI action. */
+.author-rewrite.role-ai.is-undo {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: #f59e0b;
+  color: var(--author-text);
+}
+
+/* The one flourish: a band under the header in the Exam Bank's three
+   rail colours, which is what makes the two read as one suite. */
+.author-header { position: relative; }
+.author-header::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; pointer-events: none;
+  background: linear-gradient(90deg, var(--author-c-info) 0 33.3%, var(--author-sec-1) 33.3% 66.6%,
+                              var(--author-c-ai) 66.6% 100%);
+}
+
+/* ── Colour-coded sections in the structure sidebar ─────────────────
+   Each top-level section takes a colour (author-sec-N on the topic, set
+   in StructurePanel), and its sub-topics inherit it through the custom
+   property. The heading wears it, every lab's icon carries it, and the
+   open lab's row is tinted and barred in it, so the place a lab holds in
+   the course reads at a glance. The Welcome row, outside any section,
+   keeps the accent. */
+.author-topic { --section: var(--author-accent); }
+.author-sec-0 { --section: var(--author-sec-0); }
+.author-sec-1 { --section: var(--author-sec-1); }
+.author-sec-2 { --section: var(--author-sec-2); }
+.author-sec-3 { --section: var(--author-sec-3); }
+.author-sec-4 { --section: var(--author-sec-4); }
+.author-sec-5 { --section: var(--author-sec-5); }
+.author-topic--depth-0 > .author-topic-row .author-topic-title {
+  color: var(--section);
+  display: flex; align-items: center; gap: 7px;
+}
+.author-topic--depth-0 > .author-topic-row .author-topic-title::before {
+  content: ""; width: 8px; height: 8px; border-radius: 2px; flex: none; background: var(--section);
+}
+.author-topic .author-lab-icon { color: var(--section); opacity: 0.85; }
+.author-lab-row.is-active { background: color-mix(in srgb, var(--author-accent) 14%, transparent); }
+.author-topic .author-lab-row.is-active {
+  background: color-mix(in srgb, var(--section) 14%, transparent);
+  box-shadow: inset 3px 0 0 var(--section);
+}
+.author-topic .author-lab-row.is-active .author-lab-icon { color: var(--section); opacity: 1; }
+.author-topic .author-lab-row.is-drop { box-shadow: inset 0 2px 0 var(--section); }
+/* A sub-topic's guide line takes its section's colour too, faintly. */
+.author-topic--depth-1, .author-topic--depth-2, .author-topic--depth-3 {
+  border-left-color: color-mix(in srgb, var(--section) 40%, var(--author-border));
 }

@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.25.0] - 2026-10-02
+
 ### Added
 
 - **Link to page**, beside Go to → Link to tab. It lists every other
@@ -30,6 +34,38 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   `src/components/pageLinks.ts`** (its Unreleased entry): the editor
   imports it, so against an older checkout the build fails rather than
   quietly writing links the Engine cannot follow.
+- **The sidebar's own icons, from the Pentaho insert menu.** *Icon —
+  overview page*, *Icon — workshop* and *Icon — video badge* write
+  `<span data-icon="…"></span>` mid-sentence, and the preview draws the
+  learner sidebar's own marks (the Engine's `sidebarIcons.tsx`, through
+  `@app`). For the pages that explain the sidebar, which used emoji the
+  system font draws differently. **Needs a Content Manager checkout with
+  `src/components/sidebarIcons.tsx`** (its `67b94c4`); `iconMenu.test.ts`
+  pins the menu to the Engine's list.
+
+### Changed
+
+- **Parchment is the suite look**, token for token the Pentaho Exam
+  Bank's: the paper stays warm, but the text is a dark slate, the lines
+  near-neutral and the accent teal. Every part of it used to be a shade
+  of brown. It is still the default, so an author who never picked a
+  palette sees the change at once; one who picked Parchment keeps it and
+  gets the new values.
+- **Colour that means something**, in all eight palettes: violet for the
+  AI (Rewrite, Review, Chat, AI Lab), green for making something new (New
+  Course, Import, + Lab, + Page), blue for looking (Verify, Find), teal
+  for Questions and Publish. Tints with coloured text and a coloured
+  edge, so Save stays the one filled control. A dark token set and a
+  light one, keyed off `.author-light`, so a pastel never lands on paper.
+- **Each section of the course has a colour in the structure sidebar**:
+  its heading (with a swatch), its labs' icons, and the open lab's tint
+  and bar. Sub-topics take their section's colour. Six before a repeat
+  (`SECTION_COLOURS`). The Exam Bank colour-codes its navigation the
+  same way.
+- A thin band under the header in the Exam Bank's three rail colours.
+- The open lab's row took a hard-coded green from the Midnight palette
+  in every theme; it now takes its section's colour, or the accent.
+
 
 ## [1.24.1] - 2026-09-22
 
