@@ -176,9 +176,13 @@ def find_repo_candidates(limit: int = MAX_CANDIDATES) -> list[dict[str, Any]]:
     somewhere inside Program Files that has never existed.
 
     A candidate is any directory with a `courses/` in it, which is the
-    same bar `repo_problem` sets. Ones that also have the authoring
-    scripts sort first: both are usable, but only one of them can
-    scaffold and verify.
+    same bar `repo_problem` sets. A git worktree (a `.git` FILE) sorts
+    after every main checkout: it is a branch in flight, and editing or
+    publishing from a stale one is the danger. Then ones that also have
+    the authoring scripts: both are usable, but only one of them can
+    scaffold and verify. Among equals, the order found - which puts the
+    obviously named checkout first. This used to break ties by PATH, so
+    "pcm-060" (a worktree) was offered before "Pentaho-Content-Manager".
 
     Best-effort by construction. An unreadable root, a permission error
     or a disconnected drive skips that root rather than failing the
@@ -200,6 +204,7 @@ def find_repo_candidates(limit: int = MAX_CANDIDATES) -> list[dict[str, Any]]:
         found.append({
             "path": str(resolved),
             "scaffolding": scaffolding_available(resolved),
+            "worktree": (resolved / ".git").is_file(),
         })
 
     for root in _candidate_roots():
@@ -219,7 +224,8 @@ def find_repo_candidates(limit: int = MAX_CANDIDATES) -> list[dict[str, Any]]:
         if len(found) >= limit:
             break
 
-    found.sort(key=lambda c: (not c["scaffolding"], c["path"]))
+    # sort() is stable, so equals keep the order they were found in.
+    found.sort(key=lambda c: (c["worktree"], not c["scaffolding"]))
     return found[:limit]
 
 

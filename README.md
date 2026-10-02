@@ -129,7 +129,16 @@ the owner if something foreign holds the port.
   Manager's `scripts/new-course.mjs` / `new-lab.mjs`, so there is one
   source of truth for scaffolding and `SUMMARY.md` wiring.
 - **Course settings (⚙)** — a form over `course.json`, including the
-  Welcome page's fields, with unknown keys preserved on save.
+  Welcome page's fields, with unknown keys preserved on save. **Track
+  colour** picks the course's category by name (PDI red, BA green,
+  Architect blue: the learner app's dot beside the course title, never a
+  button colour), and the award section is named from the course's
+  level: a **course accreditation** at levels 1-2 (capstone plus a passed
+  exam), **certification** at level 3 only.
+- **Finds your Content Manager checkout.** The installer's search, and
+  the first-run screen's, prefer a main checkout over a git worktree and
+  the obviously named folder in a tie, so a stale release branch is never
+  what the editor opens and publishes from.
 - **Lab files** — manage the `files/` and `_assets/` a lab ships.
 - **Verify** — runs the Content Manager's guideline checker in-app, and
   marks each problem on the line, and under the exact text, it is about.

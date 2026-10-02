@@ -15,6 +15,52 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.26.0] - 2026-10-02
+
+### Added
+
+- **Course settings picks the course's track by name.** "Accent colour"
+  (a free colour picker defaulting to `#16a34a`, which is no category) is
+  now **Track colour**: one button each for **PDI - Data Integration**
+  (red), **BA - Business Analytics** (green) and **Architect** (blue),
+  from the Content Manager's one list (`src/content/courseTracks.ts`,
+  through `@app`). The colour is the course's category for learners, a
+  dot beside its title and in the course switcher, never the colour of a
+  button. A course still carrying some other colour is told so and asked
+  to pick. **Needs Content Manager `c926cab`** (the list) or later.
+
+### Changed
+
+- **The award is a course accreditation, or certification at level 3.**
+  Course settings names it from the course's level, through the Content
+  Manager's `credential.ts`: the section is **Course accreditation**
+  (levels 1-2, for completing the capstone and passing the exam) or
+  **Certification** (level 3 only). "Certificate" is gone from the
+  dialog. **Needs Content Manager `3b1c617`** or later.
+- **The preview shows the learner app as it now looks**: Parchment,
+  colour by role, the exam intake laid out like Contact Us with the
+  Partner Program box and Partner ID. Picked up from the Content Manager
+  at build time; nothing in the editor changed for it.
+
+### Fixed
+
+- **The installer finds the main Content Manager checkout, not a
+  worktree.** Its "Find my Content Manager courses" search broke ties by
+  PATH, alphabetically, though its comment said the first found wins, so
+  `C:\Projects\pcm-060` (a worktree on a release branch) beat
+  `C:\Projects\Pentaho-Content-Manager`. The installed editor opened the
+  stale branch, where a Publish would have pushed its older exams over
+  the rewritten ones. A git worktree (a `.git` file) now ranks below any
+  main checkout, ties go to the order found (the named folder first,
+  with the order spelled out because PowerShell 5.1's sort is not
+  stable), and the install log names any worktree passed over. The
+  first-run screen's own scan (`find_repo_candidates`) ranks the same
+  way. The script gained `-ReportOnly` and `-Roots`, and
+  `api/test_find_courses_script.py` runs it for real under Windows
+  PowerShell; four of its seven tests fail on the old sort. The Exam
+  Bank's copy of the search had the same fault (its `7e8bb90`).
+
+
 ## [1.25.0] - 2026-10-02
 
 ### Added

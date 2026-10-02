@@ -346,6 +346,22 @@ body {
 .author-check input:disabled { cursor: default; }
 .author-check:has(input:disabled) { opacity: 0.5; cursor: default; }
 .author-hint { font-size: 12px; color: var(--author-muted); margin: 0; }
+/* Course settings' track picker: one button per product family, its
+   colour as a dot, the chosen one tinted in it. */
+.author-track-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.author-track {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--author-border); background: var(--author-panel);
+  color: var(--author-text); font: inherit; font-weight: 500;
+}
+.author-track:hover { border-color: var(--track); }
+.author-track__dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--track); }
+.author-track[aria-pressed="true"] {
+  border-color: var(--track);
+  background: color-mix(in srgb, var(--track) 14%, var(--author-panel));
+  font-weight: 600;
+}
 .author-hint code, .author-field code { background: var(--author-bg); padding: 1px 5px; border-radius: 4px; }
 
 /* ── Import outline editor ──────────────────────────────────────── */

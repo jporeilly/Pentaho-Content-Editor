@@ -25,7 +25,15 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$KeyPath = "HKLM:\SOFTWARE\Pentaho\ContentEditor"
+    [string]$KeyPath = "HKLM:\SOFTWARE\Pentaho\ContentEditor",
+    # Report what would be recorded and stop before the registry write,
+    # which needs elevation. For tests, and for a developer checking the
+    # search without installing.
+    [switch]$ReportOnly,
+    # Search these roots instead of the list below. For tests: the default
+    # list includes C:\Projects, so a test run against it passes or fails on
+    # whatever checkouts this machine happens to hold.
+    [string[]]$Roots
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,23 +41,32 @@ $ErrorActionPreference = "Stop"
 # The same roots, in the same order, as api/core.py's own scan. One
 # level deep: a recursive hunt across a home directory is how an
 # installer ends up waiting on OneDrive or a mapped drive.
-$roots = @(
-    "C:\Projects",
-    (Join-Path $env:USERPROFILE "Projects"),
-    (Join-Path $env:USERPROFILE "source\repos"),
-    (Join-Path $env:USERPROFILE "git"),
-    (Join-Path $env:USERPROFILE "Documents"),
-    $env:USERPROFILE
-) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+if (-not $Roots) {
+    $Roots = @(
+        "C:\Projects",
+        (Join-Path $env:USERPROFILE "Projects"),
+        (Join-Path $env:USERPROFILE "source\repos"),
+        (Join-Path $env:USERPROFILE "git"),
+        (Join-Path $env:USERPROFILE "Documents"),
+        $env:USERPROFILE
+    )
+}
+$Roots = @($Roots | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
 
 function Test-Checkout($path) {
     if (-not (Test-Path -LiteralPath (Join-Path $path "courses"))) { return $null }
     $scripts = Test-Path -LiteralPath (Join-Path $path "scripts\new-course.mjs")
-    return [pscustomobject]@{ Path = $path; Scaffolding = $scripts }
+    # A git worktree has a .git FILE ("gitdir: ...") where a main checkout
+    # has a .git directory. A worktree is a branch in flight - on the dev
+    # machine, a release branch that predated four exam rewrites - so it
+    # ranks below any main checkout. A copy with no .git at all is not a
+    # worktree: courses/ is still the whole requirement.
+    $worktree = Test-Path -LiteralPath (Join-Path $path ".git") -PathType Leaf
+    return [pscustomobject]@{ Path = $path; Scaffolding = $scripts; Worktree = $worktree }
 }
 
 $found = @()
-foreach ($root in $roots) {
+foreach ($root in $Roots) {
     # The obvious name first, then anything else one level down that
     # happens to hold courses - a clone renamed on checkout is common.
     $named = Join-Path $root "Pentaho-Content-Manager"
@@ -68,14 +85,40 @@ foreach ($root in $roots) {
     }
 }
 
-# One that can also scaffold and verify beats one that can only be
-# edited; among equals, the first root wins.
-$best = $found | Sort-Object -Property @{ Expression = { -not $_.Scaffolding } }, Path |
-    Select-Object -First 1 -Unique
+# A main checkout beats a git worktree, whatever else; then one that can
+# also scaffold and verify beats one that can only be edited; among
+# equals, the first found wins. That last key used to be Path, so the tie
+# went ALPHABETICALLY - C:\Projects\pcm-060 sorts before
+# C:\Projects\Pentaho-Content-Manager - and the installed editor opened a
+# stale worktree, where a Publish would have pushed its older exams. The
+# order is spelled out because Sort-Object in Windows PowerShell 5.1 is
+# not stable either. (The Exam Bank's copy of this search had the same
+# fault, fixed there in 7e8bb90.)
+for ($i = 0; $i -lt $found.Count; $i++) {
+    $found[$i] | Add-Member -NotePropertyName Order -NotePropertyValue $i
+}
+$best = $found | Sort-Object -Property @(
+    @{ Expression = { $_.Worktree } },
+    @{ Expression = { -not $_.Scaffolding } },
+    @{ Expression = { $_.Order } }
+) | Select-Object -First 1
 
 if (-not $best) {
     Write-Host "No Content Manager checkout found - the editor will ask on first run."
     exit 1
+}
+
+# Say what was passed over, so an install log explains a choice that looks
+# wrong next to a worktree.
+if (-not $best.Worktree) {
+    foreach ($skipped in @($found | Where-Object { $_.Worktree } | Select-Object -ExpandProperty Path -Unique)) {
+        Write-Host "Passed over git worktree $skipped."
+    }
+}
+
+if ($ReportOnly) {
+    Write-Host "Would record $($best.Path) under $KeyPath"
+    exit 0
 }
 
 # Written to the 64-BIT registry view, explicitly.

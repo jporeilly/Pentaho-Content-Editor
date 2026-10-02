@@ -975,6 +975,34 @@ def test_candidates_skip_unreadable_roots_and_never_repeat_one(tmp_path, monkeyp
     assert [c["path"] for c in found] == [str(repo.resolve())]
 
 
+def test_candidates_put_a_worktree_last_and_keep_the_order_found(tmp_path, monkeypatch):
+    # The main checkout and a worktree of it on a release branch. Ties
+    # used to break by path. Python compares paths ordinally, upper case
+    # first, so the real "pcm-060" happened to sort AFTER
+    # "Pentaho-Content-Manager" here (the installer's PowerShell sort is
+    # case-insensitive and put it first). These names sort first under
+    # either rule, so this fails against a path sort. A worktree has a
+    # .git FILE.
+    roots = tmp_path / "roots"
+    roots.mkdir()
+    main = _make_repo(roots, "Pentaho-Content-Manager")
+    (main / ".git").mkdir()
+    worktree = _make_repo(roots, "PCM-060")
+    (worktree / ".git").write_text("gitdir: C:/elsewhere/.git/worktrees/PCM-060\n")
+    other = _make_repo(roots, "Another-clone")
+    (other / ".git").mkdir()
+
+    monkeypatch.setattr(core, "_candidate_roots", lambda: [roots])
+    found = core.find_repo_candidates()
+
+    names = [Path(c["path"]).name for c in found]
+    assert names[-1] == "PCM-060"
+    # The named checkout is looked at first and wins the tie with another
+    # full clone; by path, "Another-clone" would have.
+    assert names[0] == "Pentaho-Content-Manager"
+    assert [c["worktree"] for c in found] == [False, False, True]
+
+
 def test_setup_offers_candidates_only_when_lost(env, client, monkeypatch, tmp_path):
     monkeypatch.setattr(core, "find_repo_candidates",
                         lambda limit=6: [{"path": "C:\somewhere", "scaffolding": True}])

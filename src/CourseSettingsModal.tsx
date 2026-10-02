@@ -5,6 +5,8 @@
 import { useEffect, useState } from "react";
 import { api, type PublishDiff, type ExamSettings } from "./api";
 import { Modal } from "./Modal";
+import { COURSE_TRACKS, trackForColour } from "@app/content/courseTracks";
+import { CREDENTIAL_WORDS, credentialFor } from "@app/components/credential";
 
 /** course.json `contact` — the learner app's Contact Us form, which is
  *  always a mailto: handoff to `to`. `webhookUrl`/`webhookSecret` exist
@@ -65,7 +67,11 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [version, setVersion] = useState("");
-  const [accent, setAccent] = useState("#16a34a");
+  const [accent, setAccent] = useState(COURSE_TRACKS[0].colour);
+  // Read only, to word the award: a course accreditation at levels 1-2,
+  // certification at level 3 (the learner app's credential.ts).
+  const [level, setLevel] = useState<number | undefined>(undefined);
+  const award = CREDENTIAL_WORDS[credentialFor(level)];
   const [welcomeVideo, setWelcomeVideo] = useState("");
   const [welcomeCaption, setWelcomeCaption] = useState("");
   const [welcomeEyebrow, setWelcomeEyebrow] = useState("");
@@ -180,7 +186,8 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
       setTitle(c.title ?? "");
       setDescription(c.description ?? "");
       setVersion(c.version ?? "");
-      setAccent(c.theme?.accent ?? "#16a34a");
+      setAccent(c.theme?.accent ?? COURSE_TRACKS[0].colour);
+      setLevel(typeof c.level?.number === "number" ? c.level.number : undefined);
       setWelcomeVideo(c.welcome?.video ?? "");
       setWelcomeCaption(c.welcome?.caption ?? "");
       setWelcomeEyebrow(c.welcome?.eyebrow ?? "");
@@ -342,13 +349,35 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                 />
                 <span className="author-hint">Course content version — bump it when you publish meaningful changes. Independent of the app's version.</span>
               </label>
-              <label className="author-field">
-                <span>Accent colour</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input type="color" value={accent} onChange={(e) => setAccent(e.target.value)} />
-                  <input className="author-input" style={{ flex: "1 1 auto" }} value={accent} onChange={(e) => setAccent(e.target.value)} />
+              {/* The course's category by product family, from the
+                  Content Manager's one list (src/content/courseTracks.ts),
+                  stored as theme.accent. It is the dot beside the course's
+                  title for learners, never the colour of a button. No free
+                  colour picker: a colour that is no track is a category of
+                  one, and the Content Manager's tests fail it. */}
+              <div className="author-field" role="group" aria-labelledby="author-track-label">
+                <span id="author-track-label">Track colour</span>
+                <div className="author-track-options">
+                  {COURSE_TRACKS.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className="author-track"
+                      style={{ ["--track" as string]: t.colour }}
+                      aria-pressed={trackForColour(accent)?.id === t.id}
+                      onClick={() => setAccent(t.colour)}
+                    >
+                      <span className="author-track__dot" aria-hidden />
+                      {t.label}
+                    </button>
+                  ))}
                 </div>
-              </label>
+                <span className="author-hint">
+                  {trackForColour(accent)
+                    ? "The course's category: a dot beside its title and in the course switcher. Every course's buttons are the same teal."
+                    : `This course's colour (${accent}) is not a track. Pick the one it belongs to.`}
+                </span>
+              </div>
               <label className="author-field">
                 <span>Lab order</span>
                 <select className="author-input" value={mode} onChange={(e) => setMode(e.target.value as "free" | "sequential")}>
@@ -399,7 +428,8 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                     Replaces the default disclosure on the Welcome page. Say exactly what
                     leaves the machine for this course: what the analytics record, and what
                     each form (exam, feedback, contact) sends, to whom and why. Blank shows
-                    the default, which describes a course with an exam certificate.
+                    the default, which mentions the course accreditation only when this
+                    course awards one.
                   </span>
                 </label>
               </fieldset>
@@ -586,7 +616,7 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                 )}
               </fieldset>
               <fieldset className="author-fieldset">
-                <legend>Completion certificate</legend>
+                <legend>{capitalise(award.name)}</legend>
                 {/* A certificate names its holder, so a course whose exam
                     doesn't identify the candidate cannot issue one. That
                     is the try-it lab: its check is anonymous by design,
@@ -595,8 +625,8 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                 {exam?.exists && exam.intake?.collectCandidate === false ? (
                   <p className="author-hint">
                     This course's check is <strong>anonymous</strong> — the exam
-                    doesn't ask for a name, so there is nobody to certify and no
-                    certificate is offered. Turn on{" "}
+                    doesn't ask for a name, so there is nobody to award it to and no{" "}
+                    {award.name} is offered. Turn on{" "}
                     <em>Ask for the candidate's name and email</em> above if this
                     course should award one.
                   </p>
@@ -608,7 +638,10 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                         checked={cert !== null}
                         onChange={(e) => setCert(e.target.checked ? (cert ?? {}) : null)}
                       />
-                      <span>Award a downloadable certificate when the learner passes</span>
+                      <span>
+                        Award a downloadable {award.name} for completing the capstone
+                        and passing the exam
+                      </span>
                     </label>
                     {cert !== null && (
                       <>
@@ -624,7 +657,8 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                         <p className="author-hint">
                           The formal credential name. Deliberately separate from the
                           course title above — the sidebar wants the short working
-                          name, the certificate the full one.
+                          name, the {award.name} the full one. Levels 1 and 2 award a
+                          course accreditation; certification is level 3 only.
                         </p>
                         <label className="author-field">
                           <span>Topics — one per line</span>
@@ -782,4 +816,9 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
           )}
     </Modal>
   );
+}
+
+/** "course accreditation" -> "Course accreditation", for a legend. */
+function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
