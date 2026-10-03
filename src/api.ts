@@ -75,7 +75,6 @@ export interface ExamSettings {
   questionsPerAttempt?: number;
   shuffle?: boolean;
   webhookUrl?: string;
-  webhookSecret?: string;
   intake?: ExamIntake;
 }
 

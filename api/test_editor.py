@@ -152,13 +152,26 @@ def test_put_course_saves_contact_block(env, client):
         "heading": "Contact Us",
         "blurb": "Ask us anything.",
         "webhookUrl": "https://script.google.com/macros/s/AAA/exec",
-        "webhookSecret": "pcm_secret",
     }
     r = client.put("/api/courses/sample", json={"contact": contact})
     assert r.status_code == 200
     saved = json.loads((env / "sample" / "course.json").read_text())["contact"]
     assert saved["webhookUrl"].endswith("/exec")
     assert saved["to"] == "academy@pentaho.com"
+
+
+def test_put_course_refuses_a_secret(env, client):
+    # Course files are published; since Content Manager 0.7.2 secrets
+    # reach machines from the private secrets file instead.
+    before = (env / "sample" / "course.json").read_text()
+    for contact in (
+        {"to": "a@b.com", "webhookSecret": "pcm_secret"},
+        {"to": "a@b.com", "webhookUrl": "https://prod-1.westeurope.logic.azure.com/workflows/x/triggers/manual/paths/invoke?sv=1.0&sig=AbC"},
+    ):
+        r = client.put("/api/courses/sample", json={"contact": contact})
+        assert r.status_code == 400 and "secrets file" in r.json()["detail"]
+        assert "pcm_secret" not in r.json()["detail"] and "AbC" not in r.json()["detail"]
+    assert (env / "sample" / "course.json").read_text() == before
 
 
 def test_put_course_empty_contact_removes_the_key(env, client):
@@ -1241,6 +1254,35 @@ def test_put_exam_allows_clearing_the_webhook(env, client):
     _exam(env)
     r = client.put("/api/courses/sample/exam", json={"webhookUrl": ""})
     assert r.status_code == 200 and r.json()["webhookUrl"] == ""
+
+
+def test_put_exam_refuses_a_secret(env, client):
+    _exam(env)
+    before = (env / "sample" / "exam.json").read_text()
+    r = client.put("/api/courses/sample/exam", json={"webhookSecret": "pcm_new"})
+    assert r.status_code == 400 and "secrets file" in r.json()["detail"]
+    assert "pcm_new" not in r.json()["detail"]
+    assert (env / "sample" / "exam.json").read_text() == before  # nothing written
+
+
+def test_put_exam_drops_a_leftover_secret(env, client):
+    # The fixture models a pre-0.7.2 file that still carries one.
+    _exam(env)
+    r = client.put("/api/courses/sample/exam", json={"title": "Renamed"})
+    assert r.status_code == 200
+    saved = json.loads((env / "sample" / "exam.json").read_text())
+    assert "webhookSecret" not in saved and saved["title"] == "Renamed"
+    assert saved["webhookUrl"].endswith("/exec")
+
+
+def test_published_secrets_rule():
+    from published_secrets import published_secrets
+    assert published_secrets({"analytics": {"measurementId": "G-1", "apiSecret": "s"}}) == ["analytics.apiSecret"]
+    assert published_secrets({"webhookSecret": "", "x": {"token": "  "}}) == []
+    assert published_secrets({"webhookUrl": "https://script.google.com/macros/s/A/exec"}) == []
+    assert published_secrets({"v": "https://vimeo.com/1/abc?share=copy"}) == []
+    assert published_secrets({"u": "https://a.logic.azure.com/x?sp=1&sig=Z"}) == ["u"]
+    assert published_secrets({"items": [{"apiKey": "k"}]}) == ["items[0].apiKey"]
 
 
 def test_put_exam_404s_without_an_exam_file(env, client):

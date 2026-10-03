@@ -3,8 +3,10 @@
 The exam pool is not this editor's work. `courses/<id>/exam.json` has two
 writers and they own disjoint keys: the editor owns the SETTINGS
 (`title`, `description`, `passMark`, `questionsPerAttempt`, `shuffle`,
-`webhookUrl`, `webhookSecret`, `intake` — the `_EXAM_SETTINGS` tuple in
-`routers/courses.py`), and the Exam Bank owns `questions`. Neither
+`webhookUrl`, `intake` — the `_EXAM_SETTINGS` tuple in
+`routers/courses.py`; `webhookSecret` left it with Content Manager 0.7.2,
+because secrets are no longer published), and the Exam Bank owns
+`questions`. Neither
 touches the other's keys, so two apps can edit one file without a
 protocol between them and git reconciles the rare collision.
 

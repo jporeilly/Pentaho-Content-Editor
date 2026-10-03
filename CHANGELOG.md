@@ -13,7 +13,21 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **Secrets stay out of the course files** (Content Manager 0.7.2,
+  whose `docs/SECRETS.md` explains the model). Courses are published to
+  a public repository, so the exam secret, a Contact Us relay secret, a
+  Logic App URL (its `sig=` is the key) and the GA4 api secrets now
+  reach machines through the installers and provisioning instead.
+  - **Course → Exam & results** no longer has a **Shared secret** box;
+    a note under the webhook says where the secret lives.
+  - The API refuses a course or exam save that would write a secret
+    (`api/published_secrets.py`, the Python twin of the Content
+    Manager's `published-secrets.mjs` rule that `verify-course` applies).
+    The message names the key, never the value.
+  - Saving exam settings drops a `webhookSecret` an older editor left in
+    `exam.json`, rather than carrying it into the next publish.
 
 ## [1.26.0] - 2026-10-02
 

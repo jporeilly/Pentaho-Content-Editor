@@ -13,6 +13,7 @@ from pydantic import BaseModel
 import core
 import tools
 from core import _course_dir, _read_json, _write_json, _run_node, _slugify
+from published_secrets import published_secrets, refusal
 
 router = APIRouter()
 
@@ -106,9 +107,15 @@ def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
     # `contact` is editable: without it the Contact Us block could only be
     # hand-edited, and a dialog that showed the fields would silently drop
     # them on save.
-    for key in ("title", "description", "version", "theme", "launchers",
+    editable = ("title", "description", "version", "theme", "launchers",
                 "assistant", "mode", "welcome", "contact",
-                "completionCertificate"):
+                "completionCertificate")
+    # Never write a secret into a published file (a relay's webhookSecret,
+    # a Logic App URL carrying sig=). Checked before anything is applied.
+    found = published_secrets({k: body[k] for k in editable if k in body})
+    if found:
+        raise HTTPException(400, refusal(found))
+    for key in editable:
         if key in body:
             cj[key] = body[key]
     # An emptied welcome/contact/certificate block (or null) removes the
@@ -128,10 +135,12 @@ def put_course(course: str, body: dict[str, Any]) -> dict[str, Any]:
 
 # Settings the exam dialog owns. `questions` is deliberately absent:
 # the dialog never sends it, and a PUT that carried a partial body
-# would otherwise wipe the question pool.
+# would otherwise wipe the question pool. `webhookSecret` left this list
+# with Content Manager 0.7.2: the exam secret reaches machines from the
+# private secrets file, never from the published exam.json.
 _EXAM_SETTINGS = (
     "title", "description", "passMark", "questionsPerAttempt", "shuffle",
-    "webhookUrl", "webhookSecret", "intake",
+    "webhookUrl", "intake",
 )
 
 
@@ -183,6 +192,9 @@ def put_exam(course: str, body: dict[str, Any]) -> dict[str, Any]:
         # Results carry candidate details, and the outbox retries — an
         # http:// endpoint would resend them in clear on every attempt.
         raise HTTPException(400, "webhookUrl must be an https:// URL")
+    found = published_secrets(body)
+    if found:
+        raise HTTPException(400, refusal(found))
 
     for key in _EXAM_SETTINGS:
         if key in body:
@@ -190,6 +202,9 @@ def put_exam(course: str, body: dict[str, Any]) -> dict[str, Any]:
     for key in ("intake",):
         if key in body and not body[key]:
             exam.pop(key, None)
+    # A secret an older editor (or a hand edit) left behind goes on the
+    # next save rather than being carried into the next publish.
+    exam.pop("webhookSecret", None)
     _write_json(path, exam)
     return get_exam(course)
 

@@ -9,9 +9,11 @@ import { COURSE_TRACKS, trackForColour } from "@app/content/courseTracks";
 import { CREDENTIAL_WORDS, credentialFor } from "@app/components/credential";
 
 /** course.json `contact` — the learner app's Contact Us form, which is
- *  always a mailto: handoff to `to`. `webhookUrl`/`webhookSecret` exist
- *  in the schema and in some course.json files, but are not offered
- *  here and are preserved rather than edited. */
+ *  always a mailto: handoff to `to`. `webhookUrl` exists in the schema
+ *  but is not offered here and is preserved rather than edited. A relay
+ *  secret (or a Logic App URL, whose sig= is one) never belongs in
+ *  course.json since Content Manager 0.7.2: the API refuses to save one
+ *  (api/published_secrets.py). */
 interface Contact {
   to?: string;
   heading?: string;
@@ -19,7 +21,6 @@ interface Contact {
   messagePlaceholder?: string;
   sendLabel?: string;
   webhookUrl?: string;
-  webhookSecret?: string;
   /** Anything course.json carries that this dialog doesn't name. */
   [key: string]: unknown;
 }
@@ -304,7 +305,6 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
           questionsPerAttempt: exam.questionsPerAttempt,
           shuffle: exam.shuffle,
           webhookUrl: (exam.webhookUrl ?? "").trim(),
-          webhookSecret: (exam.webhookSecret ?? "").trim(),
           intake: exam.intake ?? {},
         });
       }
@@ -560,18 +560,12 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                         onChange={(e) => setExamField("webhookUrl", e.target.value)}
                       />
                     </label>
-                    <label className="author-field">
-                      <span>Shared secret</span>
-                      <input
-                        className="author-input" placeholder="pcm_…"
-                        value={exam.webhookSecret ?? ""}
-                        onChange={(e) => setExamField("webhookSecret", e.target.value)}
-                      />
-                    </label>
                     <p className="author-hint">
                       {exam.webhookUrl?.trim()
                         ? "Attempts POST to this Apps Script, which writes the results sheet. Retries are safe — it upserts on attempt id."
                         : "No webhook set — attempts are graded on the machine and nothing is sent anywhere."}
+                      {" "}Its shared secret is not set here: course files are published, so the secret
+                      reaches each machine through the installer or provisioning (Content Manager docs/SECRETS.md).
                     </p>
 
                     <label className="author-check">
