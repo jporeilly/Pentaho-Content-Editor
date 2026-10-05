@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.26.1] - 2026-10-05
+
 ### Changed
 
 - **Secrets stay out of the course files** (Content Manager 0.7.2,
@@ -28,6 +32,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
     The message names the key, never the value.
   - Saving exam settings drops a `webhookSecret` an older editor left in
     `exam.json`, rather than carrying it into the next publish.
+
 
 ## [1.26.0] - 2026-10-02
 
