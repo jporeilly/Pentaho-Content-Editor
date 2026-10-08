@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import subprocess
+from collections.abc import Container
 from pathlib import Path
 from typing import Any
 
@@ -92,7 +93,9 @@ def _fresh_clone() -> Path:
                 _git(["fetch", "--quiet", "origin", REPO_REF], cache)
                 _git(["checkout", "--quiet", REPO_REF], cache)
                 _git(["reset", "--quiet", "--hard", f"origin/{REPO_REF}"], cache)
-                _git(["clean", "--quiet", "-fd"], cache)
+                # -x too: an ignored leftover from an earlier copy-in
+                # would otherwise pass for a published file (_publishable).
+                _git(["clean", "--quiet", "-fdx"], cache)
                 return cache
         except HTTPException:
             pass  # fall through to re-clone
@@ -145,10 +148,58 @@ def _walk_files(root: Path) -> dict[str, Path]:
     return out
 
 
-def _diff_course(local: Path, remote: Path) -> dict[str, list[str]]:
-    """Added / modified / removed file lists, local vs the repo copy."""
-    local_files = _walk_files(local)
+def _ignored_files(local: Path) -> set[str]:
+    """Course-relative paths of the untracked files .gitignore keeps out.
+
+    Asked of git rather than re-implemented, so every rule counts: the
+    Content Manager's root .gitignore, a workshop's nested one,
+    .git/info/exclude. Tracked files are never listed - a file force-added
+    with ``git add -f`` is published like any other.
+    """
+    try:
+        out = _git(["ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--", "."], local)
+    except HTTPException as e:
+        # Fail closed: without the ignore rules, a .env or a secrets file
+        # in a workshop's files/ would go to a PUBLIC repo.
+        raise HTTPException(e.status_code, (
+            f"Publish could not read the .gitignore rules for {local}, so it cannot "
+            "tell which files must stay private. The courses must be in a git checkout "
+            f"of the Content Manager. ({e.detail})"
+        ))
+    return {p for p in out.split("\0") if p}
+
+
+def _publishable(local: Path, published: Container[str]) -> tuple[dict[str, Path], list[str]]:
+    """The files a publish copies, and the ignored ones it skips.
+
+    The distribution repo is PUBLIC, and what the authoring repo ignores
+    it ignores for a reason - a workshop's .env, a kettle.properties.
+    Ignored files are skipped unless already ``published`` (in the
+    distribution repo): those were put there on purpose - a .env.template,
+    the sample databases a workshop ships - and skipping them would delete
+    them from every VM. The skipped list goes back to the author.
+    """
+    files = _walk_files(local)
+    ignored = _ignored_files(local)
+    skipped = sorted(rel for rel in files if rel in ignored and rel not in published)
+    for rel in skipped:
+        del files[rel]
+    return files, skipped
+
+
+def _plan(local: Path, remote: Path) -> tuple[dict[str, Path], dict[str, list[str]]]:
+    """What a publish copies, and the diff against the repo copy.
+
+    The diff carries ``skippedIgnored`` beside added / modified / removed;
+    only those three are changes.
+    """
     remote_files = _walk_files(remote)
+    local_files, skipped = _publishable(local, remote_files)
+    return local_files, {**_diff_course(local_files, remote_files), "skippedIgnored": skipped}
+
+
+def _diff_course(local_files: dict[str, Path], remote_files: dict[str, Path]) -> dict[str, list[str]]:
+    """Added / modified / removed file lists, local vs the repo copy."""
     added = sorted(k for k in local_files if k not in remote_files)
     removed = sorted(k for k in remote_files if k not in local_files)
     # No size shortcut: CRLF/LF differences change the size of files
@@ -172,7 +223,7 @@ def publish_diff(course: str) -> dict[str, Any]:
     local = _course_dir(course)  # 404 if unknown
     clone = _fresh_clone()
     remote_commit = _git(["rev-parse", "HEAD"], clone)
-    diff = _diff_course(local, clone / course)
+    _, diff = _plan(local, clone / course)
     up_to_date = not (diff["added"] or diff["modified"] or diff["removed"])
     return {
         "course": course,
@@ -227,18 +278,19 @@ def publish_course(course: str, body: PublishBody | None = None) -> dict[str, An
     clone = _fresh_clone()
     target = clone / course
 
-    diff = _diff_course(local, target)
+    files, diff = _plan(local, target)
     if not (diff["added"] or diff["modified"] or diff["removed"]):
         return {
             "ok": True, "upToDate": True,
             "commit": _git(["rev-parse", "HEAD"], clone),
             "authoring": authoring,
+            "skippedIgnored": diff["skippedIgnored"],
         }
 
     # Replace the course dir wholesale — removals propagate too.
     shutil.rmtree(target, ignore_errors=True)
     target.mkdir(parents=True)
-    for rel, src in _walk_files(local).items():
+    for rel, src in files.items():
         dst = target / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
@@ -255,8 +307,9 @@ def publish_course(course: str, body: PublishBody | None = None) -> dict[str, An
         "ok": True,
         "upToDate": False,
         "commit": commit,
-        "changed": {k: len(v) for k, v in diff.items()},
+        "changed": {k: len(diff[k]) for k in ("added", "modified", "removed")},
         "authoring": authoring,
+        "skippedIgnored": diff["skippedIgnored"],
     }
 
 

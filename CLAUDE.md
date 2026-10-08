@@ -479,12 +479,26 @@ a course-root `README.md`, which is the internal ops runbook; nested
 `jporeilly@users.noreply.github.com` — GH007 email privacy blocks the
 hotmail address.
 
+**Publish honours `.gitignore`; the distribution repo is PUBLIC.**
+`_publishable` (`routers/publish.py`) asks git for the course's
+untracked ignored files and skips them, unless the file is already in
+the distribution repo. That exception covers architect-con's
+`.env.template` and developer-ai's two sample `.db` files, which are
+ignored by the Content Manager's root `.env.*` / `*.db` but were shipped
+on purpose. A nested `.gitignore` travels to Pentaho-Courses with the
+course; the root one does not. So a root-ignored file copied into the
+clone gets committed. That is how those three got there, and how a
+`.env` would leak. The skipped list comes back as `skippedIgnored` and
+the UI names it. If git cannot read the rules, Publish **fails closed**
+(502) rather than publishing everything. The cache is cleaned with
+`-fdx` so that "in the clone" means "in the repo".
+
 ## Tests
 
 | Suite | Command | Size |
 | --- | --- | --- |
-| Frontend | `npm test` (vitest) | 220 tests, 19 files |
-| Backend | `cd api && .venv\Scripts\python -m pytest -q` | 68 tests |
+| Frontend | `npm test` (vitest) | 320 tests, 32 files |
+| Backend | `cd api && .venv\Scripts\python -m pytest -q` | 129 tests |
 
 The backend venv is normally created from `requirements.txt` alone, which
 does **not** include pytest — `python -m pytest` then fails with "No

@@ -34,6 +34,7 @@ import { Splitter, useSplit } from "./Splitter";
 import { Menu } from "./Menu";
 import { toggleHeadingAt } from "./headingTracking";
 import { pebButtonState } from "./pebButton";
+import { skippedIgnoredNote } from "./publishNote";
 import { restoreCaret } from "./caret";
 import { useEditorTheme, EDITOR_THEMES } from "./theme";
 import { handleMarkdownKey } from "./markdownKeys";
@@ -265,7 +266,8 @@ export function App() {
       const distNote = r.upToDate
         ? "distribution up to date"
         : `distribution ${r.commit.slice(0, 7)}`;
-      setStatus(`✓ Published — ${authorNote}, ${distNote}`);
+      const skipped = skippedIgnoredNote(r.skippedIgnored);
+      setStatus(`✓ Published — ${authorNote}, ${distNote}` + (skipped ? ` · ${skipped}` : ""));
     } catch (e) {
       setStatus(`✗ Publish failed: ${(e as Error).message}`);
     } finally {

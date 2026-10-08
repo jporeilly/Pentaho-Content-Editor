@@ -450,6 +450,7 @@ def test_delete_unknown_course_404(env, client):
 # A local bare repo stands in for Pentaho-Courses; a seeded working
 # clone pushes the initial state so diffs have something to compare to.
 
+import shutil
 import subprocess
 
 from routers import publish as publishmod
@@ -477,6 +478,9 @@ def publish_env(env, tmp_path, monkeypatch):
 
     monkeypatch.setattr(publishmod, "REPO_URL", str(origin))
     monkeypatch.setattr(publishmod, "CACHE_DIR", tmp_path / "publish-cache")
+    # The authoring side is a git checkout, as the Content Manager is:
+    # Publish reads its .gitignore rules through git.
+    _run(["git", "init", "-b", "main", "-q"], env.parent)
     return origin
 
 
@@ -535,11 +539,10 @@ def test_publish_with_commit_pushes_authoring_repo(publish_env, client, tmp_path
     # Authoring repo = a git repo whose courses/ IS core.COURSES_DIR,
     # with its own bare origin. commit:true must commit ONLY the course
     # folder there and push, then publish to the distribution repo.
-    root = core.COURSES_DIR.parent
+    root = core.COURSES_DIR.parent  # publish_env made it a repo
     origin2 = tmp_path / "authoring-origin.git"
     origin2.mkdir()
     _run(["git", "init", "--bare", "-b", "main", "-q"], origin2)
-    _run(["git", "init", "-b", "main", "-q"], root)
     _run(["git", "remote", "add", "origin", str(origin2)], root)
     (root / "unrelated.txt").write_text("must stay uncommitted\n")
     _run(["git", "add", "courses"], root)
@@ -580,6 +583,96 @@ def test_publish_diff_ignores_line_endings(publish_env, client):
     guide.write_bytes(flipped)  # same content, opposite endings
     body = client.get("/api/courses/sample/publish/diff").json()
     assert body["upToDate"] is True, body
+
+
+# Pentaho-Courses is PUBLIC; what the Content Manager's .gitignore keeps
+# out of git must not reach it through Publish. The rules below are the
+# Content Manager's own (root `.env` / `*.db`, a workshop's nested
+# `config/.kettle/**`).
+
+def _ignore_like_the_content_manager():
+    root = core.COURSES_DIR.parent
+    (root / ".gitignore").write_text(".env\n*.db\n")
+    files = core.COURSES_DIR / "sample" / "01-intro" / "files"
+    (files / "config" / ".kettle").mkdir(parents=True)
+    (files / ".gitignore").write_text("config/.kettle/**\n")
+    (files / ".env").write_text("DB_PASSWORD=not-for-github\n")
+    (files / "config" / ".kettle" / "kettle.properties").write_text("PASSWORD=x\n")
+    (files / "run.sh").write_text("echo hi\n")
+
+
+_SKIPPED = ["01-intro/files/.env", "01-intro/files/config/.kettle/kettle.properties"]
+
+
+def test_publish_diff_reports_skipped_ignored_files(publish_env, client):
+    _ignore_like_the_content_manager()
+    body = client.get("/api/courses/sample/publish/diff").json()
+    assert body["skippedIgnored"] == _SKIPPED
+    # Skipped, not added; the nested .gitignore and its neighbours still go.
+    assert not set(_SKIPPED) & set(body["added"])
+    assert {"01-intro/files/run.sh", "01-intro/files/.gitignore"} <= set(body["added"])
+
+
+def test_publish_never_pushes_an_ignored_file(publish_env, client, tmp_path):
+    _ignore_like_the_content_manager()
+    body = client.post("/api/courses/sample/publish", json={}).json()
+    assert body["ok"] is True and body["skippedIgnored"] == _SKIPPED
+    files = _origin_files(publish_env, tmp_path)
+    assert "sample/01-intro/files/run.sh" in files
+    assert not {f"sample/{p}" for p in _SKIPPED} & files
+    # Nothing else changed: up to date, and still says what it skipped.
+    again = client.post("/api/courses/sample/publish", json={}).json()
+    assert again["upToDate"] is True and again["skippedIgnored"] == _SKIPPED
+
+
+def test_an_ignored_file_already_published_keeps_publishing(publish_env, client, tmp_path):
+    # The real case: a workshop's sample databases, ignored by the root
+    # `*.db`, published long ago on purpose. Skipping them now would
+    # delete them from every VM.
+    seed = tmp_path / "seed"
+    (seed / "sample" / "data").mkdir()
+    (seed / "sample" / "data" / "history.db").write_bytes(b"\0old")
+    _run(["git", "add", "-A"], seed)
+    _run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "db"], seed)
+    _run(["git", "push", "-q", "origin", "main"], seed)
+    _ignore_like_the_content_manager()
+    local_db = core.COURSES_DIR / "sample" / "data" / "history.db"
+    local_db.parent.mkdir()
+    local_db.write_bytes(b"\0new")
+
+    diff = client.get("/api/courses/sample/publish/diff").json()
+    assert "data/history.db" in diff["modified"]
+    assert "data/history.db" not in diff["skippedIgnored"]
+    client.post("/api/courses/sample/publish", json={})
+    check = tmp_path / "check"
+    _run(["git", "clone", "-q", str(publish_env), str(check)], tmp_path)
+    assert (check / "sample" / "data" / "history.db").read_bytes() == b"\0new"
+
+
+def test_an_ignored_leftover_in_the_cache_is_not_already_published(publish_env, client, tmp_path):
+    # "Already published" means in the distribution repo, not merely on
+    # disk in the cache clone. Plant an untracked, clone-ignored copy of
+    # the .env there; the freshen must clear it, or the .env would pass
+    # for published and stop being reported.
+    _ignore_like_the_content_manager()
+    client.get("/api/courses/sample/publish/diff")  # creates the cache
+    cache = tmp_path / "publish-cache"
+    (cache / ".git" / "info" / "exclude").write_text(".env\n")
+    (cache / "sample" / "01-intro" / "files").mkdir(parents=True)
+    (cache / "sample" / "01-intro" / "files" / ".env").write_text("DB_PASSWORD=not-for-github\n")
+    body = client.get("/api/courses/sample/publish/diff").json()
+    assert "01-intro/files/.env" in body["skippedIgnored"]
+
+
+def test_publish_refuses_when_it_cannot_read_the_ignore_rules(publish_env, client, tmp_path):
+    # Not a git checkout: no way to tell what must stay private, so fail
+    # closed rather than publish everything.
+    shutil.rmtree(tmp_path / ".git")
+    r = client.get("/api/courses/sample/publish/diff")
+    assert r.status_code == 502 and ".gitignore" in r.json()["detail"]
+    r = client.post("/api/courses/sample/publish", json={})
+    assert r.status_code == 502
+    assert "sample/old.md" in _origin_files(publish_env, tmp_path)  # untouched
 
 
 # ── course settings + lab timing (the editor owns these course.json / manifest fields) ──

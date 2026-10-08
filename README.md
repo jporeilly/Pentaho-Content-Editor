@@ -265,6 +265,11 @@ the owner if something foreign holds the port.
   so workshop images pinned with `set-git-source -Ref <tag>` stay frozen.
   Uses the git credentials already on your machine; a persistent clone
   lives in the gitignored `api/.publish-cache/`.
+  The distribution repo is public, so files the Content Manager's
+  `.gitignore` keeps out of git are **not published**, and Check changes
+  lists them. Ignored files already in the repo keep publishing. To
+  publish a new one on purpose, force-add it in the Content Manager
+  (`git add -f`).
 
 ## Development
 

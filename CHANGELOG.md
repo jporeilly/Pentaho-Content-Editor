@@ -13,7 +13,34 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Security
+
+- **Publish no longer pushes gitignored files to the public repo.** It
+  used to copy every file under `courses/<id>/` except a fixed junk list
+  and the course-root `README.md`, ignoring `.gitignore`. A `.env` or a
+  secrets file in a workshop's `files/` folder would have gone to
+  Pentaho-Courses on the next Publish. The first one found was a
+  `config/.kettle/kettle.properties` in architect-con-specialty, never
+  published so far. Publish now asks git
+  (`git ls-files --others --ignored --exclude-standard`) and skips
+  every ignored file, so the root `.gitignore`, a workshop's nested
+  one and `.git/info/exclude` all count.
+  - **Already-published ignored files keep publishing.** The
+    `.env.template` in architect-con-specialty and the two sample
+    databases in developer-ai-specialty are ignored (`.env.*`, `*.db`)
+    but were put in the distribution repo on purpose. Skipping them
+    would delete them from every VM. "Published" means tracked in
+    Pentaho-Courses: the publish cache is now cleaned with `-x`, so an
+    ignored leftover in the cache cannot pass for published. To publish
+    a new ignored file on purpose, force-add it in the Content Manager
+    (`git add -f`). Tracked files always publish.
+  - **The author is told what was left out.** The diff and the publish
+    response carry `skippedIgnored`. **⚙ Course → Check changes** lists
+    the files under the diff, and both Publish buttons name them in
+    their result line.
+  - **Fails closed.** If git cannot read the ignore rules (the courses
+    are not in a git checkout), Publish refuses with a 502 instead of
+    publishing everything.
 
 ## [1.26.1] - 2026-10-05
 

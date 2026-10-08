@@ -86,6 +86,8 @@ export interface PublishDiff {
   added: string[];
   modified: string[];
   removed: string[];
+  /** Gitignored files Publish leaves out (not counted as changes). */
+  skippedIgnored?: string[];
 }
 
 export interface PublishResult {
@@ -95,6 +97,8 @@ export interface PublishResult {
   changed?: { added: number; modified: number; removed: number };
   /** Present when the publish also committed the authoring repo. */
   authoring?: { committed: boolean; commit?: string; upToDate?: boolean } | null;
+  /** Gitignored files this publish left out. */
+  skippedIgnored?: string[];
 }
 
 export type Provider = "ollama" | "anthropic" | "openai";

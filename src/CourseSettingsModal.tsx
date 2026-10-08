@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { api, type PublishDiff, type ExamSettings } from "./api";
 import { Modal } from "./Modal";
+import { skippedIgnoredNote } from "./publishNote";
 import { COURSE_TRACKS, trackForColour } from "@app/content/courseTracks";
 import { CREDENTIAL_WORDS, credentialFor } from "@app/components/credential";
 
@@ -137,13 +138,14 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
     setPublishNote("Publishing…");
     try {
       const r = await api.publishCourse(course, commitMsg.trim() || undefined);
+      const skipped = skippedIgnoredNote(r.skippedIgnored);
       if (r.upToDate) {
-        setPublishNote("✓ Already up to date — nothing to publish.");
+        setPublishNote("✓ Already up to date — nothing to publish." + (skipped ? ` ${skipped}.` : ""));
       } else {
         const c = r.changed;
         setPublishNote(`✓ Published ${r.commit.slice(0, 7)}` +
           (c ? ` (+${c.added} ~${c.modified} -${c.removed} files)` : "") +
-          " — VMs pick it up on next launch.");
+          " — VMs pick it up on next launch." + (skipped ? ` ${skipped}.` : ""));
         setDiff(null);
         setCommitMsg("");
       }
@@ -749,6 +751,14 @@ export function CourseSettingsModal({ course, onClose, onSaved, onDeleted }: Cou
                     {diff.newCourse ? "New course. " : ""}
                     {diff.added.length} added, {diff.modified.length} changed,{" "}
                     {diff.removed.length} removed file(s) vs {diff.remoteCommit.slice(0, 7)}.
+                  </p>
+                )}
+                {diff && !!diff.skippedIgnored?.length && (
+                  <p className="author-hint">
+                    {skippedIgnoredNote(diff.skippedIgnored, 10)}. What the Content
+                    Manager's .gitignore keeps out of git stays out of this public repo too;
+                    to publish such a file on purpose, force-add it there
+                    (<code>git add -f</code>).
                   </p>
                 )}
                 <label className="author-field">
