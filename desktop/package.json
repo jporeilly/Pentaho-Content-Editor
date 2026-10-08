@@ -1,6 +1,6 @@
 {
   "name": "pentaho-content-editor-desktop",
-  "version": "1.26.1",
+  "version": "1.26.2",
   "private": true,
   "description": "Windows desktop shell for the Pentaho Content Editor",
   "scripts": {

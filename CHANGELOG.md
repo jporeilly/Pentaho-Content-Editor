@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.26.2] - 2026-10-08
+
 ### Security
 
 - **Publish no longer pushes gitignored files to the public repo.** It
@@ -41,6 +45,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   - **Fails closed.** If git cannot read the ignore rules (the courses
     are not in a git checkout), Publish refuses with a 502 instead of
     publishing everything.
+
 
 ## [1.26.1] - 2026-10-05
 

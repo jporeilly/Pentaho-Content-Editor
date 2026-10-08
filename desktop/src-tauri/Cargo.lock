@@ -2450,7 +2450,7 @@ dependencies = [
 
 [[package]]
 name = "pentaho-content-editor-desktop"
-version = "1.26.1"
+version = "1.26.2"
 dependencies = [
  "serde",
  "serde_json",
