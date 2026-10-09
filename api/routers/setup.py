@@ -26,6 +26,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 import core
+import seed
 import tools
 
 router = APIRouter()
@@ -58,6 +59,10 @@ def _status() -> dict[str, Any]:
 
     return {
         "pcmRepo": str(core.REPO_ROOT),
+        # True when the folder is the copy a seeded installer laid down
+        # rather than a checkout the author chose: worth saying, because
+        # publishing from it is not publishing from their repository.
+        "seeded": seed.is_seeded(core.REPO_ROOT),
         "valid": problem is None,
         "reason": problem,
         # Only when it is real. From a checkout the sibling directory is

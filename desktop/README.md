@@ -46,6 +46,87 @@ it and forgetting to is not a silent old-dependency-set install.
 Engine is compiled in, so `PCM_REPO` (or the sibling directory) gates
 releases as well as development.
 
+## Seeded installer: no checkout needed
+
+The plain installer edits a Content Manager checkout and has to be told
+where it is. For a clean laptop, a demo or a test of the whole install,
+build the seeded one instead:
+
+```
+cd desktop
+npm install          # once
+npm run dist:seeded  # -> dist\Pentaho Content Editor_<version>_x64-seeded-setup.exe
+```
+
+It needs, on the **build** machine, a Content Manager checkout with
+`npm install` done in it (`PCM_REPO`, or the sibling directory).
+
+The **target** machine still needs a Node to run the Content Manager's
+scripts for New Course, New Lab, Import and Verify, and git for Publish.
+The seed carries neither. The learner app's installer provides both and
+`api/tools.py` finds them there, so install that first. What the seed does
+remove is the checkout and `npm install`: it carries the packages those
+scripts import. Without Node, editing, saving, preview and the AI actions
+still work.
+
+| Step | What it does |
+| --- | --- |
+| `build:ui` | `npm run build` in the repo root. Bundles the UI **and the Content Manager's Engine** through the `@app` alias, with `VITE_EDITOR_API=` from `.env.production` so every call is same-origin. |
+| `stage:app` | Copies `api/` and `ui/` into `src-tauri/vendor/app`, excluding the dev venv, `settings.json` and the publish cache, then proves the staged tree imports on the vendored runtime. |
+| `tauri:build` | Compiles the shell and bundles the NSIS installer. `beforeBuildCommand` re-runs `fetch:python` (idempotent) and `stage:app`. |
+| `collect` | Copies the installer to the repo root's `dist/` and prints its SHA-256 — the same place every app in this suite collects to. |
+
+`npm run fetch:python` is the one that takes minutes: it downloads
+Python's embeddable package, patches its `._pth` so site-packages works
+at all, bootstraps pip, installs `api/requirements.txt` and proves the
+result can import what `boot.py` needs. It is stamped with the Python
+version **and** the requirements hash, so adding a dependency rebuilds
+it and forgetting to is not a silent old-dependency-set install.
+
+**The build machine needs the Content Manager checkout.** The preview's
+Engine is compiled in, so `PCM_REPO` (or the sibling directory) gates
+releases as well as development.
+
+## Seeded installer: no checkout needed
+
+The plain installer edits a Content Manager checkout and has to be told
+where it is. For a clean laptop, a demo or a test of the whole install,
+build the seeded one instead:
+
+```
+cd desktop
+npm install          # once
+npm run dist:seeded  # -> dist\Pentaho Content Editor_<version>_x64-seeded-setup.exe
+```
+
+It needs, on the **build** machine, a Content Manager checkout with
+`npm install` done in it (`PCM_REPO`, or the sibling directory). The
+**target** machine needs nothing but the learner app's installer if it
+wants Node for scaffolding and Verify, and not even that for editing,
+saving, preview and the AI actions. Verify needs Node because the editor
+runs the Content Manager's scripts; the seed carries the packages those
+scripts import, so no `npm install` is needed anywhere.
+
+| Step | What it does |
+| --- | --- |
+| `stage:seed` | `scripts/stage-seed.mjs` writes `src-tauri/vendor/seed/`: the courses git tracks, the scripts the editor runs and everything they import, and the `lowlight` closure. Ends by running the staged `verify-course.mjs`. |
+| `tauri:build:seeded` | `tauri build` with `tauri.seeded.conf.json`, which adds `vendor/seed` to `bundle.resources` as `seed`. The plain `tauri.conf.json` never carries it. |
+| `collect:seeded` | `collect-installer.ps1 -Suffix seeded`, so the file name differs from the plain installer's. |
+
+Pick courses with `PCE_SEED_COURSES=developer-di-practitioner,analyst-ba-practitioner`
+before `npm run dist:seeded`. The default is every course, and the
+Content Manager's `courses/` is large; list the installer before you
+hand it over, as above.
+
+On first run `api/seed.py` copies the seed to
+`%APPDATA%\com.pentaho.content-editor\pcm-seed` and the editor works on
+that copy. The order of preference is `PCM_REPO`, the saved choice, the
+installer's registry hint, then the seed, then the sibling directory, so
+installing a real checkout later takes over with nothing to undo. An
+upgrade adds courses the seed has that the copy lacks and replaces the
+scripts and packages; it never overwrites or deletes a course. **Ticking
+"delete application data" on uninstall deletes those courses too.**
+
 ## Verify what you built
 
 List the artifact before installing it. The Policy installer shipped
