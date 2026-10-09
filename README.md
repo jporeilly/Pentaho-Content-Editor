@@ -73,6 +73,11 @@ New Lab, Import and Verify, which run the Content Manager's own scripts)
 and **git** (Publish). Neither is bundled; without them the editor still
 opens, edits, saves, previews and runs its AI actions.
 
+For a machine with no Content Manager checkout at all, build the **seeded**
+installer instead (`npm run dist:seeded` in `desktop/`): it carries a pruned
+copy of a Content Manager tree and opens onto its courses on first run. See
+[`desktop/README.md`](desktop/README.md#seeded-installer-no-checkout-needed).
+
 Everything below is the development flow, from a checkout.
 
 ## Running it

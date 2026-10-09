@@ -422,6 +422,21 @@ invisible from a checkout:
   code change, and PATH still catches a machine whose Content Manager
   predates the change.
 
+**A seeded installer exists for machines with no checkout** (`npm run
+dist:seeded`, `desktop/README.md`). `desktop/scripts/stage-seed.mjs`
+stages a pruned Content Manager tree - git-tracked courses, the four
+scripts plus whatever they import (walked, not listed), and the
+`node_modules` closure of `lowlight` - into `vendor/seed`; the
+`tauri.seeded.conf.json` overlay bundles it as `<install>/seed`, and
+`api/seed.py` lays it out under the state dir on first run. Three rules,
+each pinned by `api/test_seed.py`: the seed ranks BELOW `PCM_REPO`, the
+saved `pcmRepo` and the registry hint in `core._resolve_repo_root` (and is
+never persisted as `pcmRepo`, so a real checkout takes over cleanly);
+courses are additive and never overwritten; tooling is replaced when the
+manifest `id` changes. It does not carry Node or git - `tools.py` still
+finds those in the Content Manager's install. Only the **plain** installer
+is the default: the overlay is the only place `vendor/seed` is named.
+
 Two things about the installer are **deliberate differences from the
 learner app's template**, which `desktop/src-tauri/nsis/installer.nsi`
 was copied from wholesale. Both are pinned by

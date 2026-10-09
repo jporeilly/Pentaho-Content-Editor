@@ -13,7 +13,45 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **A seeded installer, for a machine with no Content Manager checkout.**
+  `npm run dist:seeded` (in `desktop/`) builds
+  `Pentaho Content Editor_<version>_x64-seeded-setup.exe`, which carries
+  a pruned copy of a Content Manager tree and opens straight onto its
+  courses. The plain installer is unchanged and stays the right one for
+  an author who already has a checkout.
+  - **What it carries**: the courses (`PCE_SEED_COURSES=a,b` or
+    `npm run stage:seed -- --courses a,b` for a subset; every course
+    otherwise, which is large), the four authoring scripts and what they
+    import, the two TypeScript modules `verify-course.mjs` imports, and
+    the `node_modules` closure of `lowlight`. That last part is why a
+    seeded editor can Verify without `npm install` anywhere: the learner
+    app's installer vendors `node.exe` but not npm.
+  - **Only tracked files ship.** Courses are staged from
+    `git ls-files`, because the distribution repo is public and an
+    installer is a second way for an ignored `.env` to leave the
+    building. Outside git a short skip list applies instead.
+  - **First run** lays the seed out under the editor's data folder
+    (`%APPDATA%\com.pentaho.content-editor\pcm-seed`) and edits that,
+    since the install tree is read-only. It ranks below `PCM_REPO`, a
+    saved choice and the installer's registry hint, so a real checkout
+    always wins and nothing is saved that a later checkout would have to
+    undo.
+  - **Upgrades never touch an author's courses.** A course is copied only
+    if missing, and none is ever deleted. The scripts, `src/` and
+    `node_modules/` are replaced when the seed's id changes, and the id
+    is a hash of exactly those, so editing a lab changes nothing.
+  - `/api/setup` gains `seeded`, true when the open courses are that copy.
+  - **Uninstall**: the install-tree seed is removed, and the author's
+    copy is not, unless "delete application data" is ticked. It is
+    unticked by default, and ticking it now also deletes edited courses.
+- `desktop/scripts/stage-seed.mjs`, in Node so it runs under pytest on any
+  OS. It refuses to run without `npm install` in the checkout, will not
+  delete a directory that is not a seed, and finishes by running the
+  staged `verify-course.mjs`.
+- `collect-installer.ps1 -Suffix <name>` keeps a seeded and a plain
+  installer of one version side by side in `dist\`.
 
 ## [1.26.2] - 2026-10-08
 

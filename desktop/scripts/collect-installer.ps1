@@ -8,6 +8,13 @@
 # build shipped a 29 MB copy of itself inside app\dist\, found only by
 # listing the artifact. The UI now builds to ui\ (vite.config.ts), which
 # frees this folder for what it means everywhere else.
+[CmdletBinding()]
+param(
+    # "seeded" -> <name>-seeded-setup.exe, so the seeded and plain installers
+    # of one version sit side by side in dist\ instead of overwriting each other.
+    [string]$Suffix = ""
+)
+
 $ErrorActionPreference = "Stop"
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -21,8 +28,10 @@ if (-not $exe) {
 }
 
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
-Copy-Item -Path $exe.FullName -Destination $dist -Force
-$final = Join-Path (Resolve-Path $dist).Path $exe.Name
+$name = $exe.Name
+if ($Suffix) { $name = $name -replace '-setup\.exe$', "-$Suffix-setup.exe" }
+Copy-Item -Path $exe.FullName -Destination (Join-Path (Resolve-Path $dist).Path $name) -Force
+$final = Join-Path (Resolve-Path $dist).Path $name
 $hash = (Get-FileHash -Path $final -Algorithm SHA256).Hash
 Write-Output "installer -> $final"
 Write-Output "sha256    -> $hash"
