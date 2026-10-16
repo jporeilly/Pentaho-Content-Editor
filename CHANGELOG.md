@@ -13,7 +13,22 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **AI-drafted labs and AI reviews follow the course standard.** The
+  Content Manager now has `docs/COURSE-STANDARD.md`, and its checker
+  measures every course against it; the owner asked for it to be the
+  editor's template too. New labs from the scaffolder already were, but
+  the AI draft prompt still asked for a `> **Note:**` opener, made Lab
+  Files optional and said steps are "ticked off". It now asks for the
+  standard's shapes: for a workshop, the `> **Warning:**` banner with
+  What you'll do, Prerequisites and Estimated time, Success checkpoints,
+  an Under the hood panel and a Lab Files section; for a topic page, the
+  intro block and What You'll Learn; and for both, American English,
+  bold UI labels as PDI shows them, no filler or unsourced claims. The
+  AI review checks the same points. A test pins the prompt (shown failing
+  on the old one).
+
 
 ## [1.26.2] - 2026-10-08
 

@@ -737,27 +737,63 @@ def _clean_generated(text: str) -> str:
 
 
 def _lab_prompt(title: str, outline: str | None, kind: str) -> str:
+    """The prompt for an AI-drafted lab, written to the course standard
+    (the Content Manager's docs/COURSE-STANDARD.md). It asks for the page
+    shape that standard's checker measures, so a draft starts close to
+    publishable instead of being reshaped by hand: the workshop banner,
+    checkpoints, an Under the hood panel and Lab Files for a workshop; the
+    intro and What You'll Learn for a topic page."""
     outline_block = (
         f"\nCover these points, in order:\n{outline.strip()}\n" if outline and outline.strip() else ""
     )
-    page_note = (
-        "This is a reference PAGE, so headings organise content but are not hands-on steps."
-        if kind == "page"
-        else "Each `## ` heading is a hands-on step the learner ticks off."
-    )
+    if kind == "page":
+        shape = f"""This is a topic PAGE (reading, not a hands-on workshop):
+- The VERY FIRST line must be `# {title}` (a single H1), nothing before it.
+- Then a `<div class="pcm-intro">` block: a blank line, two to four
+  sentences on what the topic covers and why it matters, a blank line,
+  then `</div>`.
+- Then `**What You'll Learn**` and a short bullet list.
+- Then the content. With several sub-topics, use a tab block (below),
+  one tab per sub-topic.
+- Headings organize the content; they are not steps the learner checks off."""
+    else:
+        shape = f"""This is a hands-on WORKSHOP:
+- The VERY FIRST line must be `# {title}` (a single H1), nothing before it.
+- Then the banner, one blockquote: `> **Warning:**`, `>`,
+  `> #### Workshop - {title}`, one or two sentences on what the learner
+  builds and why, `> **What you'll do**` with three to six bullets,
+  `> **Prerequisites:**` (an earlier workshop as a link,
+  `[Its Title](../NN-its-folder/guide.md)`), and
+  `> **Estimated time:** N minutes`.
+- Each `## ` or `### ` heading is a hands-on step the learner checks off.
+  Number the actions, one per line, with every setting and value given.
+- Where the learner can see a result, add a `> **Success:** Checkpoint:`
+  callout saying exactly what they should see (row counts, values).
+- After at least one key action, add a `> **Under the hood:**` callout
+  with a `#### ` title: what the engine actually did, ending with a
+  `**Why it matters:**` sentence.
+- End with a `## Lab Files` section listing the files to download, or
+  `_No bundled files for this lab._`."""
     return f"""Write a complete lab guide in GitHub-flavored Markdown for a lab titled "{title}".
 {outline_block}
-Follow these conventions exactly:
-- The VERY FIRST line must be `# {title}` (a single H1) — nothing before it.
-- Then a `> **Note:**` callout stating what the learner will accomplish.
-- {page_note}
-- Put any commands or code in fenced code blocks with a language tag.
-- Use `> **Note:**` and `> **Warning:**` callouts where helpful.
+{shape}
+
+Language and formatting, in every guide:
+- American English (behavior, color, organize, catalog). A check box is
+  selected or cleared, never ticked.
+- UI labels in bold, exactly as PDI shows them: select **OK**, the
+  **Fields** tab. Menu paths as **File > New > Transformation**.
+- File names, field names, values and paths in backticks; commands and
+  code in fenced blocks with a language tag.
+- Plain, direct sentences. No "simply", "just" or "easy", and no
+  marketing or unsourced business claims: state only what is true.
+- Callouts start `> **Note:**`, `> **Tip:**`, `> **Warning:**`,
+  `> **Success:**` or `> **Under the hood:**`, and every callout has a body.
 - If steps differ by OS or tool, use a tab block: a line `::: tabs`, then
   `### Tab Title` sub-headings for each variant, closed by a line `:::`.
-- Do NOT include image references or `![...]` markdown — the author adds
-  screenshots afterward. Never invent image filenames.
-- End with a `## Lab Files` section only if the lab uses downloadable files.
+- Do NOT include image references or `![...]` markdown: the author adds
+  screenshots afterward, with alt text and a caption. Never invent image
+  filenames.
 
-Output ONLY the Markdown body — no preamble, no commentary, and do NOT wrap
+Output ONLY the Markdown body: no preamble, no commentary, and do NOT wrap
 the whole thing in a code fence."""

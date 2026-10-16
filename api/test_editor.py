@@ -1380,3 +1380,17 @@ def test_published_secrets_rule():
 
 def test_put_exam_404s_without_an_exam_file(env, client):
     assert client.put("/api/courses/sample/exam", json={"passMark": 50}).status_code == 404
+
+
+def test_lab_prompt_asks_for_the_course_standard_shape():
+    # The Content Manager's docs/COURSE-STANDARD.md: a workshop draft needs
+    # the banner, checkpoints, an Under the hood panel and Lab Files; a
+    # topic page the intro and What You'll Learn, and no workshop banner.
+    w = core._lab_prompt("Hello", None, "workshop")
+    for part in ("> **Warning:**", "#### Workshop - Hello", "**Estimated time:**",
+                 "> **Success:** Checkpoint:", "> **Under the hood:**", "## Lab Files",
+                 "American English", "never ticked"):
+        assert part in w, part
+    p = core._lab_prompt("Topic", "first\nsecond", "page")
+    assert 'class="pcm-intro"' in p and "What You'll Learn" in p
+    assert "#### Workshop -" not in p and "Cover these points" in p
