@@ -1394,3 +1394,49 @@ def test_lab_prompt_asks_for_the_course_standard_shape():
     p = core._lab_prompt("Topic", "first\nsecond", "page")
     assert 'class="pcm-intro"' in p and "What You'll Learn" in p
     assert "#### Workshop -" not in p and "Cover these points" in p
+
+
+# -- The course standard's phrasebook (PCM docs/COURSE-STANDARD.md 2.1) ------
+
+def test_lab_prompt_asks_for_the_phrasebook():
+    # The owner: "each call to action and phrasing should be consistent
+    # across all the workshops. this should be set as a standard in the
+    # PCE course template." A drafted workshop starts in those words.
+    w = core._lab_prompt("Hello", None, "workshop")
+    for part in ("**Start PDI**", "Select **File > New > Transformation** (`Ctrl+N`)",
+                 "Select **OK**.", "press `F10`", "**Quick Launch**", "Press\n    `F9`",
+                 "check box is selected or CLEARED", "starts with the word `Checkpoint:`",
+                 "Never two callouts back to back", r"Set-Location C:\Pentaho\design-tools\data-integration"):
+        assert part in w, part
+    # A topic page has no workshop actions to word.
+    assert "Start PDI" not in core._lab_prompt("Topic", None, "page")
+
+
+def test_review_checks_the_phrasebook(env, client, monkeypatch):
+    seen = {}
+
+    def capture(prompt, system, timeout=240):
+        seen["prompt"] = prompt
+        return "[]"
+
+    monkeypatch.setattr(providers, "generate", capture)
+    client.post("/api/review", json={"body": "# Lab\n\nClick OK.\n"})
+    for part in ("phrasebook", "never click, hit or choose", "Checkpoint:", "back to back",
+                 "only shows a screenshot"):
+        assert part in seen["prompt"], part
+
+
+def test_verify_shows_the_course_standard(env, client, monkeypatch):
+    # Verify passes --standard, so the standard's findings (phrasebook
+    # included) reach the author as warnings where they work.
+    import subprocess as sp
+    calls = []
+
+    class Done:
+        returncode, stdout, stderr = 0, "0 error(s), 0 warning(s)", ""
+
+    monkeypatch.setattr(tools, "node", lambda: "node")
+    monkeypatch.setattr(sp, "run", lambda args, **kw: calls.append(args) or Done())
+    r = client.post("/api/courses/sample/verify")
+    assert r.status_code == 200 and r.json()["ok"] is True
+    assert calls and calls[0][1:] == ["scripts/verify-course.mjs", "sample", "--standard"]
