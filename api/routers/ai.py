@@ -230,7 +230,13 @@ def review_lab(req: ReviewRequest) -> ReviewResponse:
     prompt = (
         "Review this lab guide and report concrete, actionable problems: "
         "clarity, technical accuracy, missing or out-of-order steps, and "
-        "whether it reads as a hands-on step-by-step workshop.\n\n"
+        "whether it reads as a hands-on step-by-step workshop. Hold it to the "
+        "course standard too: a workshop opens with a `> **Warning:**` banner "
+        "(`#### Workshop - <Title>`, What you'll do, Prerequisites, Estimated "
+        "time), gives checkpoints the learner can verify, has at least one "
+        "Under the hood panel and ends with Lab Files; American English; UI "
+        "labels in bold exactly as PDI shows them; no filler words and no "
+        "unsourced claims.\n\n"
         "Answer with a JSON array and NOTHING else — no preamble, no prose "
         "around it, no commentary after it. Each element:\n"
         '  {"severity": "critical" | "should" | "nice", "quote": "...", '
