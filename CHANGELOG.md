@@ -13,6 +13,24 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+
+- **Windows 11 courses (Content Manager COURSE-STANDARD 3.5).** A course
+  whose `course.json` sets `"platform": "windows11"` (DI, BA and
+  pdi-2hr-lab first; the rest after the owner checks those) is a Windows 11
+  workshop. In such a course the AI lab draft asks for the Start PDI
+  PowerShell block alone, "or from PowerShell:", and never a tab per
+  operating system; the **Tabs** dialog starts from numbered steps, not
+  the Windows / macOS-Linux pair. Every other course is unchanged. Course
+  Settings already keeps keys it does not edit, so the flag survives a save.
+- **Media > Walkthrough placeholder.** A walkthrough still to record: a
+  figure holding only the video caption, which the Engine renders as the
+  video icon and "Walkthrough: coming soon", never a broken player.
+  Recording it later is one line, the video above the caption, as
+  **Video - with caption** writes it. It replaces Loom cards and
+  `vimeo.com/placeholder`, which the app shows as an image that cannot
+  load.
+
 ### Changed
 
 - **Every workshop is worded the same way: the course standard's

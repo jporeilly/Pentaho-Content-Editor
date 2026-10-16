@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { BLOCKS } from "./Toolbar";
+import { BLOCKS, WALKTHROUGH_PLACEHOLDER } from "./Toolbar";
 import { parseCalloutTag } from "@app/components/Callout";
 import type { CalloutKind } from "@app/components/Callout";
 
@@ -108,5 +108,20 @@ describe("captioned video block", () => {
     const text = block!.build("Walkthrough").text;
     expect(text).toMatch(/<figure>\n\n!\[/);
     expect(text).toMatch(/\n\n<\/figure>/);
+  });
+});
+
+describe("walkthrough placeholder (COURSE-STANDARD 3.5)", () => {
+  const block = BLOCKS.find((b) => b.group === "Media" && b.label === "Walkthrough placeholder");
+
+  it("is the caption row alone: the video icon and the words, no player", () => {
+    expect(block).toBeDefined();
+    const text = block!.build("").text;
+    expect(text).toBe(WALKTHROUGH_PLACEHOLDER);
+    expect(text).toContain('<figcaption class="pcm-video-caption">Walkthrough: coming soon</figcaption>');
+    // never a link the app cannot embed (vimeo.com/placeholder shows a
+    // broken image), never Loom
+    expect(text).not.toMatch(/vimeo\.com|loom\.com|!\[/);
+    expect(text).toMatch(/^<figure>\n\n<figcaption/);
   });
 });

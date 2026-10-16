@@ -1440,3 +1440,17 @@ def test_verify_shows_the_course_standard(env, client, monkeypatch):
     r = client.post("/api/courses/sample/verify")
     assert r.status_code == 200 and r.json()["ok"] is True
     assert calls and calls[0][1:] == ["scripts/verify-course.mjs", "sample", "--standard"]
+
+
+def test_lab_prompt_windows11_course_has_no_macos_or_linux():
+    # The owner, 2026-10-16: DI, BA and pdi-2hr-lab are "a pure windows 11
+    # workshop" - course.json platform "windows11" (COURSE-STANDARD 3.5).
+    # A draft for such a course must not bring the macOS / Linux tab back.
+    w = core._lab_prompt("Hello", None, "workshop", "windows11")
+    assert "or from PowerShell:" in w
+    assert r"Set-Location C:\Pentaho\design-tools\data-integration" in w
+    assert "spoon.sh" not in w and "### macOS / Linux" not in w
+    assert "Never a tab per operating system" in w
+    # Every other course keeps the Windows / macOS-Linux pair.
+    other = core._lab_prompt("Hello", None, "workshop")
+    assert "### macOS / Linux" in other and "spoon.sh" in other
