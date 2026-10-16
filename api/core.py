@@ -766,9 +766,32 @@ def _lab_prompt(title: str, outline: str | None, kind: str) -> str:
   `[Its Title](../NN-its-folder/guide.md)`), and
   `> **Estimated time:** N minutes`.
 - Each `## ` or `### ` heading is a hands-on step the learner checks off.
-  Number the actions, one per line, with every setting and value given.
+  Number the actions, one per line, with every setting and value given:
+  the steps build the WHOLE result, every step, setting, hop and save.
+- Word every action the standard way (the phrasebook), the same in every
+  workshop:
+  * Step 1 starts Spoon: `1. Start Spoon with the **Start PDI** button
+    below, or from a terminal:` then a tab block with `### Windows
+    (PowerShell)` (`Set-Location C:\\Pentaho\\design-tools\\data-integration`
+    then `.\\spoon.bat`) and `### macOS / Linux` (`./spoon.sh`).
+  * `Select **File > New > Transformation** (`Ctrl+N`).`, then
+    `Select **File > Save as** and save it as `name.ktr` in <folder>.`
+  * `On the **Design** tab, open the **Input** folder and drag **Step**
+    onto the canvas.` / `Double-click **Step**.` / `Set **Step name** to
+    `x`.` / `On the **Fields** tab, set **Type** to `String`.` / a grid as
+    a markdown table / `Select **OK**.`
+  * A button, tab or option is SELECTED (never click, hit or choose); a
+    check box is selected or CLEARED; a key is PRESSED and goes in
+    backticks (`F9`, `Ctrl+S`); a menu path is one bold span.
+  * `Create a hop from **A** to **B**.` / `Save the transformation
+    (`Ctrl+S`).` / preview: `Select **B** on the canvas, press `F10`
+    (**Action > Preview**), and select **Quick Launch**.` / run: `Press
+    `F9` (**Action > Run**), and select **Run** in the **Run Options**
+    dialog.`
+  * Never two callouts back to back.
 - Where the learner can see a result, add a `> **Success:** Checkpoint:`
-  callout saying exactly what they should see (row counts, values).
+  callout saying exactly what they should see (row counts, values); every
+  Success callout starts with the word `Checkpoint:`.
 - After at least one key action, add a `> **Under the hood:**` callout
   with a `#### ` title: what the engine actually did, ending with a
   `**Why it matters:**` sentence.

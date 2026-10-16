@@ -15,6 +15,21 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- **Every workshop is worded the same way: the course standard's
+  phrasebook.** The owner: "each call to action and phrasing should be
+  consistent across all the workshops. this should be set as a standard
+  in the PCE course template." The Content Manager's
+  `docs/COURSE-STANDARD.md` now has the phrasebook (section 2.1): a
+  button, tab or option is selected, a check box selected or cleared, a
+  key pressed and in backticks, a menu path one bold span, the same
+  sentences for starting Spoon, new and save, adding a step, hops,
+  preview and run, and `> **Success:** Checkpoint:` after every result.
+  Here, three places follow it: **Verify** runs the verifier with
+  `--standard`, so the standard's findings (S501-S507 among them) show
+  as warnings where the author works, never failing Verify (an older
+  verifier drops the flag); the AI draft prompt asks for those sentences;
+  and the AI review checks them, and flags a step that only shows a
+  screenshot. Three tests, each shown failing on the old code.
 - **AI-drafted labs and AI reviews follow the course standard.** The
   Content Manager now has `docs/COURSE-STANDARD.md`, and its checker
   measures every course against it; the owner asked for it to be the

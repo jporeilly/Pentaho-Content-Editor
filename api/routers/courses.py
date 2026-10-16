@@ -211,7 +211,10 @@ def put_exam(course: str, body: dict[str, Any]) -> dict[str, Any]:
 
 @router.post("/api/courses/{course}/verify")
 def verify_course(course: str) -> dict[str, Any]:
-    """Run the course verifier and return its report."""
+    """Run the course verifier and return its report, with the course
+    standard's findings (docs/COURSE-STANDARD.md, phrasebook included) as
+    warnings: they never fail Verify, but the author sees them where they
+    work. An older verifier ignores the flag (it drops any `--` argument)."""
     _course_dir(course)  # 404 if unknown
     # Through the resolver, not a bare "node": a bundled copy must win,
     # and a machine without Node needs the message naming which features
@@ -225,7 +228,7 @@ def verify_course(course: str) -> dict[str, Any]:
             "the editor. Editing and saving do not.",
         )
     proc = subprocess.run(
-        [node, "scripts/verify-course.mjs", course],
+        [node, "scripts/verify-course.mjs", course, "--standard"],
         cwd=str(core.REPO_ROOT), capture_output=True, text=True, encoding="utf-8", timeout=60,
     )
     return {"ok": proc.returncode == 0, "output": (proc.stdout + proc.stderr).strip()}
