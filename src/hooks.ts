@@ -134,6 +134,9 @@ export function useCourses(setStatus: (s: string) => void) {
   // independently of the app build and is what a learner quotes
   // in a support question.
   const [courseVersion, setCourseVersion] = useState<string>("");
+  // course.json `platform` ("windows11": COURSE-STANDARD 3.5) - the Tabs
+  // dialog stops offering a macOS / Linux tab in such a course.
+  const [coursePlatform, setCoursePlatform] = useState<string>("");
 
   // Boot: API health, then the course list (select the first).
   useEffect(() => {
@@ -168,8 +171,11 @@ export function useCourses(setStatus: (s: string) => void) {
     // Content version, also best-effort — a course without one just
     // shows the app version on its own.
     api.getCourse(course)
-      .then((c) => setCourseVersion(typeof c.version === "string" ? c.version : ""))
-      .catch(() => setCourseVersion(""));
+      .then((c) => {
+        setCourseVersion(typeof c.version === "string" ? c.version : "");
+        setCoursePlatform(typeof c.platform === "string" ? c.platform : "");
+      })
+      .catch(() => { setCourseVersion(""); setCoursePlatform(""); });
   }, [course, setStatus]);
 
   // After a course is created/imported: refresh the list, select it, announce.
@@ -184,7 +190,7 @@ export function useCourses(setStatus: (s: string) => void) {
     }
   }, [setStatus]);
 
-  return { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, onCourseCreated };
+  return { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, coursePlatform, onCourseCreated };
 }
 
 // ── Unsaved-draft backup ──────────────────────────────────────────

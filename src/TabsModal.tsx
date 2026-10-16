@@ -13,13 +13,19 @@ import { Modal } from "./Modal";
 interface TabsModalProps {
   onInsert: (markdown: string) => void;
   onClose: () => void;
+  /** A Windows 11 course (course.json platform "windows11",
+   *  COURSE-STANDARD 3.5): no macOS / Linux tab to start from. */
+  windowsOnly?: boolean;
 }
 
 /** The pair almost every existing widget uses, so it stays one click. */
-const DEFAULT_TABS = ["Windows", "macOS / Linux"];
+export const DEFAULT_TABS = ["Windows", "macOS / Linux"];
+/** In a Windows 11 course a tab block is never an OS choice; numbered
+ *  steps are what DI and BA use tabs for. */
+export const WINDOWS_ONLY_TABS = ["1. First step", "2. Second step"];
 
-export function TabsModal({ onInsert, onClose }: TabsModalProps) {
-  const [titles, setTitles] = useState<string[]>(DEFAULT_TABS);
+export function TabsModal({ onInsert, onClose, windowsOnly = false }: TabsModalProps) {
+  const [titles, setTitles] = useState<string[]>(windowsOnly ? WINDOWS_ONLY_TABS : DEFAULT_TABS);
 
   const setTitle = (i: number, v: string) =>
     setTitles((prev) => prev.map((t, j) => (j === i ? v : t)));

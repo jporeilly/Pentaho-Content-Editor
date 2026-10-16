@@ -200,7 +200,7 @@ export function App() {
       default: return "Courses · no checkout";
     }
   }, [repo]);
-  const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, onCourseCreated } =
+  const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, coursePlatform, onCourseCreated } =
     useCourses(setStatus);
   const {
     detail, setDetail, body, setBody, setDirty, dirty, saving, save,
@@ -1019,6 +1019,7 @@ export function App() {
                 value={body}
                 pages={pages}
                 currentSlug={lab}
+                platform={coursePlatform}
                 /* programmatic: the browser never saw these, so they
                    need recording for Ctrl+Z to reach them. */
                 onChange={(next, caret) => onBodyChange(next, caret, true)}

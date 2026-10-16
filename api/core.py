@@ -736,13 +736,34 @@ def _clean_generated(text: str) -> str:
     return t.strip() + "\n"
 
 
-def _lab_prompt(title: str, outline: str | None, kind: str) -> str:
+def _lab_prompt(title: str, outline: str | None, kind: str, platform: str | None = None) -> str:
     """The prompt for an AI-drafted lab, written to the course standard
     (the Content Manager's docs/COURSE-STANDARD.md). It asks for the page
     shape that standard's checker measures, so a draft starts close to
     publishable instead of being reshaped by hand: the workshop banner,
     checkpoints, an Under the hood panel and Lab Files for a workshop; the
-    intro and What You'll Learn for a topic page."""
+    intro and What You'll Learn for a topic page.
+
+    A course whose course.json sets `platform: "windows11"` (the
+    standard's section 3.5) gets a Windows-only draft: the Start PDI
+    PowerShell block on its own and no macOS / Linux tab, because
+    otherwise the draft is exactly what that course has to undo."""
+    if platform == "windows11":
+        start_spoon = """  * Step 1 starts Spoon: `1. Start Spoon with the **Start PDI** button
+    below, or from PowerShell:` then a `powershell` block
+    (`Set-Location C:\\Pentaho\\design-tools\\data-integration` then
+    `.\\spoon.bat`). This course runs on Windows 11 only: no macOS or Linux
+    tab, command or path anywhere."""
+        tabs_rule = """- Use a tab block for numbered steps or for alternative tools: a line
+  `::: tabs`, then `### Tab Title` sub-headings, closed by a line `:::`.
+  Never a tab per operating system: this course is Windows 11 only."""
+    else:
+        start_spoon = """  * Step 1 starts Spoon: `1. Start Spoon with the **Start PDI** button
+    below, or from a terminal:` then a tab block with `### Windows
+    (PowerShell)` (`Set-Location C:\\Pentaho\\design-tools\\data-integration`
+    then `.\\spoon.bat`) and `### macOS / Linux` (`./spoon.sh`)."""
+        tabs_rule = """- If steps differ by OS or tool, use a tab block: a line `::: tabs`, then
+  `### Tab Title` sub-headings for each variant, closed by a line `:::`."""
     outline_block = (
         f"\nCover these points, in order:\n{outline.strip()}\n" if outline and outline.strip() else ""
     )
@@ -770,10 +791,7 @@ def _lab_prompt(title: str, outline: str | None, kind: str) -> str:
   the steps build the WHOLE result, every step, setting, hop and save.
 - Word every action the standard way (the phrasebook), the same in every
   workshop:
-  * Step 1 starts Spoon: `1. Start Spoon with the **Start PDI** button
-    below, or from a terminal:` then a tab block with `### Windows
-    (PowerShell)` (`Set-Location C:\\Pentaho\\design-tools\\data-integration`
-    then `.\\spoon.bat`) and `### macOS / Linux` (`./spoon.sh`).
+{start_spoon}
   * `Select **File > New > Transformation** (`Ctrl+N`).`, then
     `Select **File > Save as** and save it as `name.ktr` in <folder>.`
   * `On the **Design** tab, open the **Input** folder and drag **Step**
@@ -812,8 +830,7 @@ Language and formatting, in every guide:
   marketing or unsourced business claims: state only what is true.
 - Callouts start `> **Note:**`, `> **Tip:**`, `> **Warning:**`,
   `> **Success:**` or `> **Under the hood:**`, and every callout has a body.
-- If steps differ by OS or tool, use a tab block: a line `::: tabs`, then
-  `### Tab Title` sub-headings for each variant, closed by a line `:::`.
+{tabs_rule}
 - Do NOT include image references or `![...]` markdown: the author adds
   screenshots afterward, with alt text and a caption. Never invent image
   filenames.

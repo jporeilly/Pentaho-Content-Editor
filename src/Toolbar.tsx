@@ -53,7 +53,14 @@ interface ToolbarProps {
   pages?: CoursePage[];
   /** The page being edited - left out of Link to page. */
   currentSlug?: string;
+  /** course.json `platform`; "windows11" (COURSE-STANDARD 3.5) means no
+   *  macOS / Linux tab is offered. */
+  platform?: string;
 }
+
+/** COURSE-STANDARD 3.5's placeholder for a walkthrough still to record. */
+export const WALKTHROUGH_PLACEHOLDER =
+  `<figure>\n\n<figcaption class="pcm-video-caption">Walkthrough: coming soon</figcaption>\n\n</figure>\n\n`;
 
 interface Block {
   /** Menu group; standalone buttons use "". */
@@ -178,6 +185,12 @@ export const BLOCKS: Block[] = [
   // same lucide video icon in front of it when the class is present.
   { group: "Media", label: "Video — with caption", title: "Vimeo video with a captioned row underneath, matching the Welcome page",
     build: (s) => ({ text: `<figure>\n\n![${s || "Walkthrough"}](https://vimeo.com/VIDEO_ID/ACCESS_HASH)\n\n<figcaption class="pcm-video-caption">Watch: what this lab builds</figcaption>\n\n</figure>\n\n` }) },
+  // A walkthrough not recorded yet (COURSE-STANDARD 3.5): the caption row
+  // alone, so the page shows the video icon and "Walkthrough: coming soon",
+  // never a broken player. Recording it later is one line - the video,
+  // above the caption, as Video — with caption writes it.
+  { group: "Media", label: "Walkthrough placeholder", title: "A walkthrough still to record: the video icon and \"Walkthrough: coming soon\"",
+    build: () => ({ text: WALKTHROUGH_PLACEHOLDER }) },
   // PDF last: it is Media, but it is neither an image nor a video, and
   // it used to sit after the whole Block group - so it arrived at the
   // end of the menu by accident rather than by intent.
@@ -269,7 +282,7 @@ export const BLOCKS: Block[] = [
 
 const GROUP_ORDER = ["Heading", "Callout", "List", "Text", "Media", "Code", "Block", "Pentaho"];
 
-export function Toolbar({ textarea, value, onChange, pages = [], currentSlug }: ToolbarProps) {
+export function Toolbar({ textarea, value, onChange, pages = [], currentSlug, platform }: ToolbarProps) {
   const [dialog, setDialog] = useState<"table" | "tabs" | "callout" | null>(null);
   const [palette, setPalette] = useState(false);
   // Recomputed on every keystroke. A guide is a few hundred lines, so
@@ -588,7 +601,7 @@ export function Toolbar({ textarea, value, onChange, pages = [], currentSlug }: 
         <TableModal onInsert={insertText} onClose={() => setDialog(null)} />
       )}
       {dialog === "tabs" && (
-        <TabsModal onInsert={insertText} onClose={() => setDialog(null)} />
+        <TabsModal onInsert={insertText} onClose={() => setDialog(null)} windowsOnly={platform === "windows11"} />
       )}
       {dialog === "callout" && (
         <CalloutModal

@@ -54,6 +54,7 @@ describe("media is ordered by kind", () => {
       "Image — float right",
       "Video",
       "Video — with caption",
+      "Walkthrough placeholder",
       "PDF",
     ]);
   });

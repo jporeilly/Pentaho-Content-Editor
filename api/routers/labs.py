@@ -244,7 +244,11 @@ def generate_lab(course: str, req: GenerateLabRequest) -> GeneratedLab:
 
     system = "You are a technical curriculum author for hands-on Pentaho workshops."
     ground, sources = _ground(f"{title}. {req.outline or ''}")
-    prompt = core.grounded_prompt(_lab_prompt(title, req.outline, kind), ground)
+    # course.json `platform` ("windows11": COURSE-STANDARD 3.5) keeps a
+    # macOS / Linux tab out of the draft.
+    cj = course_path / "course.json"
+    platform = (_read_json(cj) if cj.exists() else {}).get("platform")
+    prompt = core.grounded_prompt(_lab_prompt(title, req.outline, kind, platform), ground)
     try:
         raw = providers.generate(prompt, system)
     except providers.ProviderError as e:
