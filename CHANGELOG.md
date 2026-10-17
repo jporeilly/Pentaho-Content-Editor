@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.27.0] - 2026-10-17
+
 ### Added
 
 - **Windows 11 courses (Content Manager COURSE-STANDARD 3.5).** A course
