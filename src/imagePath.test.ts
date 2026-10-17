@@ -11,35 +11,32 @@ import { BLOCKS } from "./Toolbar";
 // copy-paste the menu exists to save.
 
 const media = (label: string) => BLOCKS.find((b) => b.group === "Media" && b.label === label)!;
-const IMAGE_BLOCKS = ["Image", "Image — centred", "Image — float left", "Image — float right"];
+const IMAGE_BLOCKS = ["Image"];
 
 describe("a selected path becomes the image source", () => {
   for (const label of IMAGE_BLOCKS) {
     it(label, () => {
       const out = media(label).build("../_assets/images/1788854678779.png").text;
-      expect(out).toContain("(../_assets/images/1788854678779.png");
+      expect(out).toContain('src="../_assets/images/1788854678779.png"');
       expect(out).not.toContain("example.png");
       // And it must not ALSO land in the alt slot.
-      expect(out).not.toContain("![../_assets/images/");
+      expect(out).not.toContain('alt="../_assets/images/');
     });
   }
 
-  it("keeps the size hint the block is for", () => {
-    // The float and centred variants cap the width with #w=NNN. A
-    // selected path has no hint of its own, so the block's must survive.
-    expect(media("Image — centred").build("").text).toContain("#w=420");
-    expect(media("Image — float left").build("").text).toContain("#w=320");
+  it("gives the house figure a width when the path has none", () => {
+    expect(media("Image").build("shot.png").text).toMatch(/src="shot.png" alt="alt text" width="\d+"/);
   });
 
-  it("honours a hint the author pasted", () => {
-    expect(media("Image").build("shot.png#w=500").text).toContain("(shot.png#w=500)");
+  it("turns a size hint the author pasted into the width", () => {
+    expect(media("Image").build("shot.png#w=500").text).toContain('src="shot.png" alt="alt text" width="500"');
   });
 });
 
 describe("a selected caption is still a caption", () => {
   it("goes in the alt slot, with the placeholder path", () => {
     const out = media("Image").build("The injector canvas").text;
-    expect(out).toContain("![The injector canvas]");
+    expect(out).toContain('alt="The injector canvas"');
     expect(out).toContain("example.png");
   });
 
@@ -49,7 +46,7 @@ describe("a selected caption is still a caption", () => {
     // the safer failure.
     const out = media("Image").build("open example.png in the viewer").text;
     expect(out).toContain("example.png");
-    expect(out).toContain("![open example.png in the viewer]");
+    expect(out).toContain('alt="open example.png in the viewer"');
   });
 });
 

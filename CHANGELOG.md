@@ -13,7 +13,26 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **Media > Image and upload / paste / drop write the house figure**
+  (Content Manager COURSE-STANDARD 6, checker S303): six lines,
+  `<div align="center">` / `<figure>` / `<img src alt width>` /
+  `<figcaption>Caption</figcaption>` / `</figure>` / `</div>`. All HTML, so
+  no blank lines to get wrong: the old form put a markdown `![...]` inside
+  the `<figure>`, and one edit that dropped its blank lines lost Hello
+  World's "What you build" picture. An uploaded picture gets its own
+  on-screen width (`pictureWidth`, `src/houseFigure.ts`: the pixel width,
+  divided by the display scale for a 150% / 200% PNG capture, at most 800);
+  a pasted path's `#w=NNN` hint becomes the width. Alt text is quoted
+  exactly, so a formula's `[FIELD]` references survive (`"` and `<` are
+  written as entities).
+
+### Removed
+
+- **Media > Image — centred, float left and float right.** Every course
+  picture is a centred house figure since the 2026-10-17 sweep of all 13
+  courses; a float is not one.
 
 ## [1.27.0] - 2026-10-17
 

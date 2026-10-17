@@ -23,6 +23,7 @@ import {
 } from "./api";
 import { parseFindings, tagLocated, type Finding } from "./reviewFindings";
 import { restoreCaret } from "./caret";
+import { DEFAULT_FIGURE_WIDTH, houseFigure, pictureWidth } from "./houseFigure";
 
 /** A completed AI review: the findings to mark with, and the raw answer
  *  behind them for the case where nothing could be parsed out of it. */
@@ -540,9 +541,10 @@ export function useAi(args: UseAiArgs) {
     setStatus("Uploading image…");
     try {
       const { name, path } = await api.uploadAsset(course, file, filename);
-      // Standard image insert — mirrors Toolbar's "Image" entry: figure,
-      // flush-left image, centred <figcaption> (theme caption style).
-      insertAtCaret(`<figure>\n\n![${name}](${path})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n`);
+      // The house figure, as Toolbar's "Image" entry writes it, at the
+      // picture's own on-screen width (COURSE-STANDARD 6).
+      const width = pictureWidth(new Uint8Array(await file.arrayBuffer())) ?? DEFAULT_FIGURE_WIDTH;
+      insertAtCaret(houseFigure(path, name, width));
       setStatus(`Inserted ${name}.`);
       bumpStructure();
     } catch (e) {
