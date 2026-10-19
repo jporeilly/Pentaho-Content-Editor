@@ -13,8 +13,29 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.28.0] - 2026-10-19
+
 ### Changed
 
+- **Insert tabs asks: steps or choices** (owner, 2026-10-19, with the
+  Content Manager's new tab looks, PCM `1457a27a`). The guide now shows a
+  tab block whose titles are all numbered as a **stepper** (numbered
+  dots, the step's title, Previous / Next), and any other block as tabs
+  on one row with **More**, or a small switch inside another tab. So the
+  dialog asks **Steps, done in order** or **Choices, pick one**:
+  - **Steps:** the dialog numbers the titles itself (`1. Read`,
+    `2. Write`), once, even when the author typed a number
+    (`tabsMarkdown`, `bareTitle`).
+  - **Choices:** never numbered, and a typed `1.` is dropped, so a choice
+    cannot become a stepper by accident.
+  - **Defaults:** a Windows 11 course starts on Steps; others keep the
+    Windows / macOS-Linux pair as Choices.
+  - **The preview** shows the new looks with no change here: it renders
+    through the app's `MarkdownBody` and `app.css` (`@app`).
+  - **Tests:** `tabsModalKind.test.tsx`, 7 tests; with steps left
+    unnumbered 5 fail.
 - **Media > Image and upload / paste / drop write the house figure**
   (Content Manager COURSE-STANDARD 6, checker S303): six lines,
   `<div align="center">` / `<figure>` / `<img src alt width>` /
@@ -33,6 +54,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - **Media > Image — centred, float left and float right.** Every course
   picture is a centred house figure since the 2026-10-17 sweep of all 13
   courses; a float is not one.
+
 
 ## [1.27.0] - 2026-10-17
 
