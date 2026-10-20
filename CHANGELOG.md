@@ -15,6 +15,23 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.29.0] - 2026-10-20
+
+### Changed
+
+- **The preview shows every choice as a switch** (owner, 2026-10-20:
+  "rebuild PCE"). Built against Content Manager 0.7.39 (`e63bf3b4`),
+  where a tab block whose titles are all numbered is a stepper and every
+  other block is a switch, on the page as well as in a tab. 1.28.0's
+  preview still drew top-level choices as underlined tabs, so it no
+  longer matched what learners see. The preview renders through the
+  app's `MarkdownBody` and `app.css` (`@app`), so no code here changed
+  for it.
+- **Insert tabs' "Choices, pick one" note** now says what the guide
+  shows: a switch, buttons on one row with More for the rest. It used to
+  say tabs on one row, or a small switch inside another tab.
+
+
 ## [1.28.0] - 2026-10-19
 
 ### Changed

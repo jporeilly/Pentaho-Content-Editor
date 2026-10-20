@@ -8,8 +8,9 @@
 //
 // Steps or choices (owner, 2026-10-19, the Content Manager 0.7.39 tab
 // looks): the guide shows a block whose titles are all numbered as a
-// STEPPER - numbered dots, Previous / Next - and any other block as tabs
-// (a small switch inside another tab). So the author says which this
+// STEPPER - numbered dots, Previous / Next - and any other block as a
+// SWITCH, segmented buttons, on the page or in a tab (0.7.39; the first
+// cut kept underlined tabs at the top level). So the author says which this
 // is, and the dialog numbers the titles for steps: nobody has to know
 // that the numbers are what decide it.
 
@@ -92,7 +93,7 @@ export function TabsModal({ onInsert, onClose, windowsOnly = false }: TabsModalP
           <input type="radio" name="tabs-kind" checked={kind === "choices"} onChange={() => setKind("choices")} />
           <span className="author-radio-label">Choices, pick one</span>
           <span className="author-radio-note">
-            An operating system, a tool, a variant. Tabs on one row (More for the rest), or a small switch inside another tab.
+            An operating system, a tool, a variant. The guide shows a switch: buttons on one row, More for the rest.
           </span>
         </label>
       </fieldset>
