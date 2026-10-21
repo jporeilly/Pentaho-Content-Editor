@@ -15,6 +15,28 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.30.0] - 2026-10-21
+
+### Changed
+
+- **The preview is built against Content Manager 0.7.42 (`f7b23060`)**
+  (owner, 2026-10-21: "please complete both"; "coordinate and sync merge
+  to ensure we have clean builds"). It now shows what 1.29.0's preview
+  did not:
+  - **One-step workshops:** a single numbered tab is a one-dot stepper
+    (CT 14, RD 10 and 19, Installation 11). It was a switch with one
+    option.
+  - **Long steppers:** eleven steps fit a narrow preview.
+  - **Annotated figures** (Media Studio's Export to course) show their
+    pins and caption, with the picture's URL rewritten once. Twice broke
+    it under the packaged editor's root-relative `/api/courses/` base.
+  - **Built from a clean copy:** the build runs against a worktree at
+    the v0.7.42 tag after `npm ci` (vite 8.3.4, dompurify 3.4.16), not
+    the shared checkout.
+- **trackPicker test** pins the Pentaho Data Integration track by id,
+  not by its label, which 0.7.40 changed (`e966889`).
+
+
 ## [1.29.0] - 2026-10-20
 
 ### Changed
