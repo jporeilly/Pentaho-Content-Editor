@@ -49,9 +49,6 @@ describe("media is ordered by kind", () => {
   it("runs images, then videos, then the PDF", () => {
     expect(labels("Media")).toEqual([
       "Image",
-      "Image — centred",
-      "Image — float left",
-      "Image — float right",
       "Video",
       "Video — with caption",
       "Walkthrough placeholder",
@@ -66,8 +63,7 @@ describe("alignment reads left to right wherever it appears", () => {
     expect(aligners).toEqual(["Left-aligned", "Centred", "Right-aligned"]);
   });
 
-  it("and in the Media menu's floats", () => {
-    const floats = labels("Media").filter((l) => /centred|float/.test(l));
-    expect(floats).toEqual(["Image — centred", "Image — float left", "Image — float right"]);
+  it("and the Media menu has no image variants: every picture is a centred house figure", () => {
+    expect(labels("Media").filter((l) => /centred|float/.test(l))).toEqual([]);
   });
 });

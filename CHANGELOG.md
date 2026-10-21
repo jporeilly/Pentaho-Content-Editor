@@ -15,6 +15,106 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **A seeded installer, for a machine with no Content Manager checkout.**
+  `npm run dist:seeded` (in `desktop/`) builds
+  `Pentaho Content Editor_<version>_x64-seeded-setup.exe`, which carries
+  a pruned copy of a Content Manager tree and opens straight onto its
+  courses. The plain installer is unchanged and stays the right one for
+  an author who already has a checkout.
+  - **What it carries**: the courses (`PCE_SEED_COURSES=a,b` or
+    `npm run stage:seed -- --courses a,b` for a subset; every course
+    otherwise, which is large), the four authoring scripts and what they
+    import, the two TypeScript modules `verify-course.mjs` imports, and
+    the `node_modules` closure of `lowlight`. That last part is why a
+    seeded editor can Verify without `npm install` anywhere: the learner
+    app's installer vendors `node.exe` but not npm.
+  - **Only tracked files ship.** Courses are staged from
+    `git ls-files`, because the distribution repo is public and an
+    installer is a second way for an ignored `.env` to leave the
+    building. Outside git a short skip list applies instead.
+  - **First run** lays the seed out under the editor's data folder
+    (`%APPDATA%\com.pentaho.content-editor\pcm-seed`) and edits that,
+    since the install tree is read-only. It ranks below `PCM_REPO`, a
+    saved choice and the installer's registry hint, so a real checkout
+    always wins and nothing is saved that a later checkout would have to
+    undo.
+  - **Upgrades never touch an author's courses.** A course is copied only
+    if missing, and none is ever deleted. The scripts, `src/` and
+    `node_modules/` are replaced when the seed's id changes, and the id
+    is a hash of exactly those, so editing a lab changes nothing.
+  - `/api/setup` gains `seeded`, true when the open courses are that copy.
+  - **Uninstall**: the install-tree seed is removed, and the author's
+    copy is not, unless "delete application data" is ticked. It is
+    unticked by default, and ticking it now also deletes edited courses.
+- `desktop/scripts/stage-seed.mjs`, in Node so it runs under pytest on any
+  OS. It refuses to run without `npm install` in the checkout, will not
+  delete a directory that is not a seed, and finishes by running the
+  staged `verify-course.mjs`.
+- `collect-installer.ps1 -Suffix <name>` keeps a seeded and a plain
+  installer of one version side by side in `dist\`.
+
+## [1.29.0] - 2026-10-20
+
+### Changed
+
+- **The preview shows every choice as a switch** (owner, 2026-10-20:
+  "rebuild PCE"). Built against Content Manager 0.7.39 (`e63bf3b4`),
+  where a tab block whose titles are all numbered is a stepper and every
+  other block is a switch, on the page as well as in a tab. 1.28.0's
+  preview still drew top-level choices as underlined tabs, so it no
+  longer matched what learners see. The preview renders through the
+  app's `MarkdownBody` and `app.css` (`@app`), so no code here changed
+  for it.
+- **Insert tabs' "Choices, pick one" note** now says what the guide
+  shows: a switch, buttons on one row with More for the rest. It used to
+  say tabs on one row, or a small switch inside another tab.
+
+
+## [1.28.0] - 2026-10-19
+
+### Changed
+
+- **Insert tabs asks: steps or choices** (owner, 2026-10-19, with the
+  Content Manager's new tab looks, PCM `1457a27a`). The guide now shows a
+  tab block whose titles are all numbered as a **stepper** (numbered
+  dots, the step's title, Previous / Next), and any other block as tabs
+  on one row with **More**, or a small switch inside another tab. So the
+  dialog asks **Steps, done in order** or **Choices, pick one**:
+  - **Steps:** the dialog numbers the titles itself (`1. Read`,
+    `2. Write`), once, even when the author typed a number
+    (`tabsMarkdown`, `bareTitle`).
+  - **Choices:** never numbered, and a typed `1.` is dropped, so a choice
+    cannot become a stepper by accident.
+  - **Defaults:** a Windows 11 course starts on Steps; others keep the
+    Windows / macOS-Linux pair as Choices.
+  - **The preview** shows the new looks with no change here: it renders
+    through the app's `MarkdownBody` and `app.css` (`@app`).
+  - **Tests:** `tabsModalKind.test.tsx`, 7 tests; with steps left
+    unnumbered 5 fail.
+- **Media > Image and upload / paste / drop write the house figure**
+  (Content Manager COURSE-STANDARD 6, checker S303): six lines,
+  `<div align="center">` / `<figure>` / `<img src alt width>` /
+  `<figcaption>Caption</figcaption>` / `</figure>` / `</div>`. All HTML, so
+  no blank lines to get wrong: the old form put a markdown `![...]` inside
+  the `<figure>`, and one edit that dropped its blank lines lost Hello
+  World's "What you build" picture. An uploaded picture gets its own
+  on-screen width (`pictureWidth`, `src/houseFigure.ts`: the pixel width,
+  divided by the display scale for a 150% / 200% PNG capture, at most 800);
+  a pasted path's `#w=NNN` hint becomes the width. Alt text is quoted
+  exactly, so a formula's `[FIELD]` references survive (`"` and `<` are
+  written as entities).
+
+### Removed
+
+- **Media > Image — centred, float left and float right.** Every course
+  picture is a centred house figure since the 2026-10-17 sweep of all 13
+  courses; a float is not one.
+
+
+## [1.27.0] - 2026-10-17
+
+### Added
+
 - **Windows 11 courses (Content Manager COURSE-STANDARD 3.5).** A course
   whose `course.json` sets `"platform": "windows11"` (DI, BA and
   pdi-2hr-lab first; the rest after the owner checks those) is a Windows 11
@@ -62,45 +162,6 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   AI review checks the same points. A test pins the prompt (shown failing
   on the old one).
 
-### Added
-
-- **A seeded installer, for a machine with no Content Manager checkout.**
-  `npm run dist:seeded` (in `desktop/`) builds
-  `Pentaho Content Editor_<version>_x64-seeded-setup.exe`, which carries
-  a pruned copy of a Content Manager tree and opens straight onto its
-  courses. The plain installer is unchanged and stays the right one for
-  an author who already has a checkout.
-  - **What it carries**: the courses (`PCE_SEED_COURSES=a,b` or
-    `npm run stage:seed -- --courses a,b` for a subset; every course
-    otherwise, which is large), the four authoring scripts and what they
-    import, the two TypeScript modules `verify-course.mjs` imports, and
-    the `node_modules` closure of `lowlight`. That last part is why a
-    seeded editor can Verify without `npm install` anywhere: the learner
-    app's installer vendors `node.exe` but not npm.
-  - **Only tracked files ship.** Courses are staged from
-    `git ls-files`, because the distribution repo is public and an
-    installer is a second way for an ignored `.env` to leave the
-    building. Outside git a short skip list applies instead.
-  - **First run** lays the seed out under the editor's data folder
-    (`%APPDATA%\com.pentaho.content-editor\pcm-seed`) and edits that,
-    since the install tree is read-only. It ranks below `PCM_REPO`, a
-    saved choice and the installer's registry hint, so a real checkout
-    always wins and nothing is saved that a later checkout would have to
-    undo.
-  - **Upgrades never touch an author's courses.** A course is copied only
-    if missing, and none is ever deleted. The scripts, `src/` and
-    `node_modules/` are replaced when the seed's id changes, and the id
-    is a hash of exactly those, so editing a lab changes nothing.
-  - `/api/setup` gains `seeded`, true when the open courses are that copy.
-  - **Uninstall**: the install-tree seed is removed, and the author's
-    copy is not, unless "delete application data" is ticked. It is
-    unticked by default, and ticking it now also deletes edited courses.
-- `desktop/scripts/stage-seed.mjs`, in Node so it runs under pytest on any
-  OS. It refuses to run without `npm install` in the checkout, will not
-  delete a directory that is not a seed, and finishes by running the
-  staged `verify-course.mjs`.
-- `collect-installer.ps1 -Suffix <name>` keeps a seeded and a plain
-  installer of one version side by side in `dist\`.
 
 ## [1.26.2] - 2026-10-08
 

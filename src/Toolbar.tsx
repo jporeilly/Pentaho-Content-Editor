@@ -22,6 +22,7 @@ import { headingAnchorId } from "@app/components/MarkdownBody";
 import { TEXT_COLOURS } from "@app/components/textColours";
 import { applyColour } from "./textColour";
 import { restoreCaret } from "./caret";
+import { DEFAULT_FIGURE_WIDTH, houseFigure } from "./houseFigure";
 
 // Inline formatting. These share `toggleWrap` with the keyboard
 // shortcuts rather than re-implementing the wrap, so a button and its
@@ -157,23 +158,18 @@ export const BLOCKS: Block[] = [
     build: (s) => ({ text: `- [ ] ${s || "First thing to do"}\n- [ ] Second thing\n\n` }) },
 
   // ── Media ──
-  // Standard image insert (also what the upload / paste / drop path emits):
-  // a <figure> with the image flush-left and a centred <figcaption>, so
-  // every caption gets the theme's 12.5px italic caption style rather
-  // than body-text size.
-  { group: "Media", label: "Image", title: "Shared course image with a centred caption (../_assets/images/…)",
-    build: (s) => ({ text: `<figure>\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png")})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
-  // The image variants follow the plain one rather than being split by
-  // the videos, and the alignment three run left, centred, right the way
-  // the Text menu's do. Blank lines INSIDE each wrapper are
-  // load-bearing: without them CommonMark keeps the ![…] line inside the
-  // HTML block and renders it as literal text instead of an image.
-  { group: "Media", label: "Image — centred", title: "Centred image with an optional caption (house pattern for dialog screenshots)",
-    build: (s) => ({ text: `<div align="center">\n<figure>\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png#w=420")})\n\n<figcaption><em>Caption</em></figcaption>\n</figure>\n</div>\n\n` }) },
-  { group: "Media", label: "Image — float left", title: "Image on the left with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-left">\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png#w=320")})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
-  { group: "Media", label: "Image — float right", title: "Image on the right with the text wrapping beside it; the next step heading starts below it",
-    build: (s) => ({ text: `<figure class="pcm-float-right">\n\n![${altForImage(s)}](${srcFrom(s, "../_assets/images/example.png#w=320")})\n\n<div align="center">\n<figcaption><em>Caption</em></figcaption>\n</div>\n</figure>\n\n` }) },
+  // The house figure (COURSE-STANDARD 6, the checker's S303), the one form
+  // a course picture takes; the upload / paste / drop path writes it too,
+  // with the width read from the picture. The centred and float variants
+  // are gone: every picture is centred now, and a float is not a house
+  // figure. Set the width to the picture's on-screen size.
+  { group: "Media", label: "Image", title: "Centred picture with a caption: the house figure (../_assets/images/…)",
+    build: (s) => {
+      // A pasted path's #w=NNN size hint becomes the width attribute.
+      const src = srcFrom(s, "../_assets/images/example.png");
+      const hint = /#w=(\d+)$/.exec(src);
+      return { text: houseFigure(hint ? src.slice(0, hint.index) : src, altForImage(s), hint ? Number(hint[1]) : DEFAULT_FIGURE_WIDTH) };
+    } },
   // Course videos live on Vimeo, so that is the default the button
   // writes. An Unlisted video's link carries an access hash as a second
   // path segment and the player refuses the bare id without it, so the

@@ -29,7 +29,7 @@ describe("placeholderRange", () => {
     expect(placeholderOf(byLabel("Code", "PowerShell (.ps1)"))).toBe("Get-ChildItem C:\\Workshop");
     expect(placeholderOf(byLabel("Heading", "Step (H2)"))).toBe("Step title");
     expect(placeholderOf(byLabel("Block", "Link"))).toBe("link text");
-    expect(placeholderOf(byLabel("Media", "Image — centred"))).toBe("alt text");
+    expect(placeholderOf(byLabel("Media", "Image"))).toBe("alt text");
     expect(placeholderOf(byLabel("Media", "Video"))).toBe("Walkthrough");
   });
 
