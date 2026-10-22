@@ -35,6 +35,9 @@
   ; leaves 177 MB of runtimes nobody will ever look for, and the
   ; uninstaller cannot remove a directory it never shipped.
   RMDir /r "$INSTDIR\tools"
+  ; The seed is replaced wholesale too. What an author EDITED lives in
+  ; %APPDATA%\com.pentaho.content-editor\pcm-seed, which nothing here touches.
+  RMDir /r "$INSTDIR\seed"
 !macroend
 
 !macro NSIS_HOOK_POSTUNINSTALL
@@ -42,6 +45,7 @@
   RMDir /r "$INSTDIR\python"
   RMDir /r "$INSTDIR\tools"
   RMDir /r "$INSTDIR\provisioning"
+  RMDir /r "$INSTDIR\seed"
   ; Only if empty: never take a directory the user has put something in.
   RMDir "$INSTDIR"
 

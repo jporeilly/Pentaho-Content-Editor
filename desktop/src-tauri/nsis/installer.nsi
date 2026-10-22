@@ -812,10 +812,17 @@ Section "Find my Content Manager courses" SecDetect
 
   ${If} $0 <> 0
   ${OrIf} $1 == ""
-    DetailPrint "No checkout found - the editor will ask on first run."
-    ${If} $PassiveMode <> 1
-    ${AndIfNot} ${Silent}
-      MessageBox MB_OK|MB_ICONINFORMATION "No Pentaho Content Manager checkout was found on this machine.$\r$\n$\r$\nThat is not a problem: the editor asks for the folder the first time it runs, and offers whatever it can find then.$\r$\n$\r$\nThe editor edits the Content Manager's courses, so it does need one eventually."
+    ; A seeded installer (npm run dist:seeded) carries its own courses and
+    ; lays them out on first run, so there is nothing for the author to
+    ; point the editor at and nothing to warn about.
+    ${If} ${FileExists} "$INSTDIR\seed\manifest.json"
+      DetailPrint "No checkout found - this installer carries its own courses; the editor opens into those."
+    ${Else}
+      DetailPrint "No checkout found - the editor will ask on first run."
+      ${If} $PassiveMode <> 1
+      ${AndIfNot} ${Silent}
+        MessageBox MB_OK|MB_ICONINFORMATION "No Pentaho Content Manager checkout was found on this machine.$\r$\n$\r$\nThat is not a problem: the editor asks for the folder the first time it runs, and offers whatever it can find then.$\r$\n$\r$\nThe editor edits the Content Manager's courses, so it does need one eventually."
+      ${EndIf}
     ${EndIf}
   ${ElseIfNot} ${FileExists} "$1\courses\*.*"
     ; Recorded, but not actually there - a stale hint helps nobody.

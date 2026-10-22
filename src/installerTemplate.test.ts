@@ -59,6 +59,56 @@ describe("what the installer carries", () => {
   });
 });
 
+describe("the seeded installer", () => {
+  // `npm run dist:seeded` adds a pruned Content Manager tree to the
+  // installer so a clean laptop needs no checkout (api/seed.py lays it
+  // out on first run). Three things keep that from leaking into the
+  // plain installer or lingering after an uninstall.
+  const read = (rel: string) =>
+    readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+  const conf = JSON.parse(read("../desktop/src-tauri/tauri.conf.json"));
+  const seeded = JSON.parse(read("../desktop/src-tauri/tauri.seeded.conf.json"));
+  const hooks = read("../desktop/src-tauri/nsis/hooks.nsh");
+  const pkg = JSON.parse(read("../desktop/package.json"));
+
+  it("is an overlay: the plain installer carries no seed", () => {
+    expect(Object.keys(conf.bundle.resources)).not.toContain("vendor/seed");
+    expect(seeded.bundle.resources).toEqual({ "vendor/seed": "seed" });
+  });
+
+  it("is built by a script that stages the seed before bundling it", () => {
+    const dist: string = pkg.scripts["dist:seeded"];
+    expect(dist.indexOf("stage:seed")).toBeGreaterThan(-1);
+    expect(dist.indexOf("tauri:build:seeded")).toBeGreaterThan(dist.indexOf("stage:seed"));
+    expect(pkg.scripts["tauri:build:seeded"]).toContain("tauri.seeded.conf.json");
+    // Its own file name, or it overwrites the plain installer in dist\.
+    expect(pkg.scripts["collect:seeded"]).toContain("-Suffix seeded");
+  });
+
+  it("clears its install-tree copy on upgrade and on uninstall", () => {
+    const pre = hooks.slice(
+      hooks.indexOf("NSIS_HOOK_PREINSTALL"),
+      hooks.indexOf("NSIS_HOOK_POSTUNINSTALL"),
+    );
+    const post = hooks.slice(hooks.indexOf("NSIS_HOOK_POSTUNINSTALL"));
+    expect(pre).toContain('RMDir /r "$INSTDIR\\seed"');
+    expect(post).toContain('RMDir /r "$INSTDIR\\seed"');
+    // What the author edited lives in %APPDATA%, and neither hook may reach it.
+    expect(hooks).not.toMatch(/RMDir \/r "\$APPDATA/i);
+  });
+
+  it("does not tell a seeded install the editor will ask for a folder", () => {
+    const section = template.slice(
+      template.indexOf('Section "Find my Content Manager courses"'),
+      template.indexOf('Section "Ollama runtime'),
+    );
+    const seededBranch = section.indexOf('${FileExists} "$INSTDIR\\seed\\manifest.json"');
+    const warning = section.indexOf("No Pentaho Content Manager checkout was found");
+    expect(seededBranch).toBeGreaterThan(-1);
+    expect(warning).toBeGreaterThan(seededBranch);
+  });
+});
+
 describe("the course-detection component", () => {
   const section = template.slice(
     template.indexOf('Section "Find my Content Manager courses"'),

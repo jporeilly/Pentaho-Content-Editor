@@ -27,6 +27,7 @@ from pydantic import BaseModel
 
 import providers
 import mcp
+import seed
 import tools
 
 # ── Where the courses live ──────────────────────────────────────────
@@ -39,7 +40,11 @@ import tools
 #
 #   1. PCM_REPO in the environment — one machine, one answer, no UI.
 #   2. the saved `pcmRepo` setting — what the first-run screen writes.
-#   3. the sibling directory — right for every checkout, which is why it
+#   3. the installer's registry hint — a checkout it found at install.
+#   4. the bundled seed, when this is a seeded installer: a pruned copy of
+#      a Content Manager tree laid out under the author's state directory
+#      (see seed.py). It ranks below every real checkout on purpose.
+#   5. the sibling directory — right for every checkout, which is why it
 #      stayed the default through the repo split.
 #
 # **This does not raise when the answer is wrong**, and that is the whole
@@ -106,6 +111,9 @@ def _resolve_repo_root() -> Path:
     hint = installer_hint()
     if hint and (hint / "courses").is_dir():
         return hint.resolve()
+    seeded = seed.ensure()
+    if seeded is not None:
+        return seeded.resolve()
     return DEFAULT_REPO.resolve()
 
 
