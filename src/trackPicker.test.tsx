@@ -57,7 +57,9 @@ describe("the track picker", () => {
     await open({ title: "A course", theme: { accent: "#b91c1c" } });
     expect(tracks().map((b) => b.textContent)).toEqual(COURSE_TRACKS.map((t) => t.label));
     expect(document.querySelector('input[type="color"]')).toBeNull();
-    expect(pressed()).toBe("PDI - Data Integration");
+    // The label is the Content Manager's to choose (it has renamed it once);
+    // the test pins WHICH track the colour selects, by id.
+    expect(pressed()).toBe(COURSE_TRACKS.find((t) => t.id === "pdi")!.label);
   });
 
   it("says so when a course's colour is no track, and selects nothing", async () => {

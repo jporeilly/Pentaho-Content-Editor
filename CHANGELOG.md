@@ -13,7 +13,67 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **A seeded installer, for a machine with no Content Manager checkout.**
+  `npm run dist:seeded` (in `desktop/`) builds
+  `Pentaho Content Editor_<version>_x64-seeded-setup.exe`, which carries
+  a pruned copy of a Content Manager tree and opens straight onto its
+  courses. The plain installer is unchanged and stays the right one for
+  an author who already has a checkout.
+  - **What it carries**: the courses (`PCE_SEED_COURSES=a,b` or
+    `npm run stage:seed -- --courses a,b` for a subset; every course
+    otherwise, which is large), the four authoring scripts and what they
+    import, the two TypeScript modules `verify-course.mjs` imports, and
+    the `node_modules` closure of `lowlight`. That last part is why a
+    seeded editor can Verify without `npm install` anywhere: the learner
+    app's installer vendors `node.exe` but not npm.
+  - **Only tracked files ship.** Courses are staged from
+    `git ls-files`, because the distribution repo is public and an
+    installer is a second way for an ignored `.env` to leave the
+    building. Outside git a short skip list applies instead.
+  - **First run** lays the seed out under the editor's data folder
+    (`%APPDATA%\com.pentaho.content-editor\pcm-seed`) and edits that,
+    since the install tree is read-only. It ranks below `PCM_REPO`, a
+    saved choice and the installer's registry hint, so a real checkout
+    always wins and nothing is saved that a later checkout would have to
+    undo.
+  - **Upgrades never touch an author's courses.** A course is copied only
+    if missing, and none is ever deleted. The scripts, `src/` and
+    `node_modules/` are replaced when the seed's id changes, and the id
+    is a hash of exactly those, so editing a lab changes nothing.
+  - `/api/setup` gains `seeded`, true when the open courses are that copy.
+  - **Uninstall**: the install-tree seed is removed, and the author's
+    copy is not, unless "delete application data" is ticked. It is
+    unticked by default, and ticking it now also deletes edited courses.
+- `desktop/scripts/stage-seed.mjs`, in Node so it runs under pytest on any
+  OS. It refuses to run without `npm install` in the checkout, will not
+  delete a directory that is not a seed, and finishes by running the
+  staged `verify-course.mjs`.
+- `collect-installer.ps1 -Suffix <name>` keeps a seeded and a plain
+  installer of one version side by side in `dist\`.
+
+## [1.30.0] - 2026-10-21
+
+### Changed
+
+- **The preview is built against Content Manager 0.7.42 (`f7b23060`)**
+  (owner, 2026-10-21: "please complete both"; "coordinate and sync merge
+  to ensure we have clean builds"). It now shows what 1.29.0's preview
+  did not:
+  - **One-step workshops:** a single numbered tab is a one-dot stepper
+    (CT 14, RD 10 and 19, Installation 11). It was a switch with one
+    option.
+  - **Long steppers:** eleven steps fit a narrow preview.
+  - **Annotated figures** (Media Studio's Export to course) show their
+    pins and caption, with the picture's URL rewritten once. Twice broke
+    it under the packaged editor's root-relative `/api/courses/` base.
+  - **Built from a clean copy:** the build runs against a worktree at
+    the v0.7.42 tag after `npm ci` (vite 8.3.4, dompurify 3.4.16), not
+    the shared checkout.
+- **trackPicker test** pins the Pentaho Data Integration track by id,
+  not by its label, which 0.7.40 changed (`e966889`).
+
 
 ## [1.29.0] - 2026-10-20
 
