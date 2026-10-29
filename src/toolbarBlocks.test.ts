@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { BLOCKS, WALKTHROUGH_PLACEHOLDER } from "./Toolbar";
+import { BLOCKS, INTERACTIVE_WALKTHROUGH_PLACEHOLDER, WALKTHROUGH_PLACEHOLDER } from "./Toolbar";
 import { parseCalloutTag } from "@app/components/Callout";
 import type { CalloutKind } from "@app/components/Callout";
 
@@ -123,5 +123,20 @@ describe("walkthrough placeholder (COURSE-STANDARD 3.5)", () => {
     // broken image), never Loom
     expect(text).not.toMatch(/vimeo\.com|loom\.com|!\[/);
     expect(text).toMatch(/^<figure>\n\n<figcaption/);
+  });
+});
+
+describe("interactive walkthrough placeholder (COURSE-STANDARD 3.5)", () => {
+  const block = BLOCKS.find((b) => b.group === "Media" && b.label === "Interactive walkthrough placeholder");
+
+  it("is the walkthrough figure with only its caption: what the Engine draws as the quiet caption row", () => {
+    expect(block).toBeDefined();
+    const text = block!.build("").text;
+    expect(text).toBe(INTERACTIVE_WALKTHROUGH_PLACEHOLDER);
+    // MarkdownBody's figure walk keys on this exact class; Media Studio's
+    // Export to course fills the same figure with the player's iframe.
+    expect(text).toMatch(/^<figure class="pcm-walkthrough">\n\n<figcaption>Interactive walkthrough: coming soon<\/figcaption>\n\n<\/figure>\n\n$/);
+    // Never a frame on a folder that is not there yet.
+    expect(text).not.toContain("<iframe");
   });
 });

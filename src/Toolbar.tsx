@@ -63,6 +63,13 @@ interface ToolbarProps {
 export const WALKTHROUGH_PLACEHOLDER =
   `<figure>\n\n<figcaption class="pcm-video-caption">Walkthrough: coming soon</figcaption>\n\n</figure>\n\n`;
 
+/** COURSE-STANDARD 3.5's placeholder for an INTERACTIVE walkthrough still to
+ *  record: the figure Media Studio's Export to course (Also the interactive
+ *  player) fills with the embedded player, with only its caption until then.
+ *  The Content Manager draws it as the video placeholder's caption row. */
+export const INTERACTIVE_WALKTHROUGH_PLACEHOLDER =
+  `<figure class="pcm-walkthrough">\n\n<figcaption>Interactive walkthrough: coming soon</figcaption>\n\n</figure>\n\n`;
+
 interface Block {
   /** Menu group; standalone buttons use "". */
   group: string;
@@ -187,6 +194,11 @@ export const BLOCKS: Block[] = [
   // above the caption, as Video — with caption writes it.
   { group: "Media", label: "Walkthrough placeholder", title: "A walkthrough still to record: the video icon and \"Walkthrough: coming soon\"",
     build: () => ({ text: WALKTHROUGH_PLACEHOLDER }) },
+  // The interactive walkthrough's placeholder (COURSE-STANDARD 3.5): the
+  // figure Media Studio's Export to course fills with the embedded player,
+  // with only its caption until then. Below the video figure when both exist.
+  { group: "Media", label: "Interactive walkthrough placeholder", title: "An interactive walkthrough still to record: \"Interactive walkthrough: coming soon\" (Media Studio's Export to course fills it)",
+    build: () => ({ text: INTERACTIVE_WALKTHROUGH_PLACEHOLDER }) },
   // PDF last: it is Media, but it is neither an image nor a video, and
   // it used to sit after the whole Block group - so it arrived at the
   // end of the menu by accident rather than by intent.

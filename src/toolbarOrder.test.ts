@@ -52,6 +52,7 @@ describe("media is ordered by kind", () => {
       "Video",
       "Video — with caption",
       "Walkthrough placeholder",
+      "Interactive walkthrough placeholder",
       "PDF",
     ]);
   });

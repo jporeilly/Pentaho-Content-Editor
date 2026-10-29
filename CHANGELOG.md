@@ -15,6 +15,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **Media > Interactive walkthrough placeholder** writes
+  `<figure class="pcm-walkthrough">` with only its caption
+  (`Interactive walkthrough: coming soon`), the figure Media Studio's
+  Export to course fills with the embedded player and the Content Manager
+  (from its next release) draws as the video placeholder's caption row.
+  Below **Walkthrough placeholder** in the menu, as the figure sits below
+  the video in a lab (COURSE-STANDARD 3.5).
 - **A seeded installer, for a machine with no Content Manager checkout.**
   `npm run dist:seeded` (in `desktop/`) builds
   `Pentaho Content Editor_<version>_x64-seeded-setup.exe`, which carries
