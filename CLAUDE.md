@@ -110,7 +110,7 @@ coordinate:
 
 ```
 author-root
-├── author-header        brand · course picker · New/Import/Course/Verify/Publish · Chat · AI pill · Save
+├── author-header        brand · course picker · New/Import/Course/Verify/Publish · Chat · Courses pill (· ⇣ Pull) · AI pill · Save
 ├── author-sources / author-verify        dismissable result panels
 ├── author-body          flex row, both seams draggable
 │   ├── author-structure-wrap   width from useSplit("pcm-author-sidebar-px"); « collapses to author-rail
@@ -493,6 +493,26 @@ a course-root `README.md`, which is the internal ops runbook; nested
 `README.md` files still publish). It commits as
 `jporeilly@users.noreply.github.com` — GH007 email privacy blocks the
 hotmail address.
+
+**⇣ Pull is the other direction** (`routers/repo.py`, `POST
+/api/repo/pull`), shown beside the Courses pill only while the checkout
+is behind. Fetch, then `git rebase --autostash @{u}`, never `pull` (the
+fetch already happened). Three guards, in order, each pinned by
+`api/test_repo_pull.py` against a temporary bare remote:
+
+* **Unsaved editor text is refused in the UI**, because the pull ends by
+  re-reading the open lab from disk and that would replace it.
+* **A saved-but-uncommitted file the remote also changed is refused
+  before anything runs**, with the files named. Untracked files count:
+  a remote that adds the same path stops the rebase. Autostash would
+  otherwise leave conflict markers inside a guide.
+* **A rebase that stops is aborted**, which restores the stash too. The
+  checkout ends exactly as it started.
+
+After a pull the frontend re-reads the course list, the structure, the
+course version and the open lab (`refreshFromDisk`, `reloadLab`) without
+the course effect's jump to the first lab, and clears undo history so
+Ctrl+Z cannot resurrect the pre-pull text for a Save to write back.
 
 **Publish honours `.gitignore`; the distribution repo is PUBLIC.**
 `_publishable` (`routers/publish.py`) asks git for the course's

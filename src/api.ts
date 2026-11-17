@@ -198,6 +198,15 @@ export interface RepoStatus {
   detail: string | null;
 }
 
+/** What a Pull did: `pulled` remote commits came in, or `detail` says why not. */
+export interface RepoPullResult {
+  ok: boolean;
+  pulled: number;
+  detail: string | null;
+  conflicts: string[];
+  status: RepoStatus;
+}
+
 export const api = {
   base: API_BASE,
 
@@ -205,6 +214,12 @@ export const api = {
    *  header does it once on load and then only when clicked. */
   async repoStatus(doFetch = false): Promise<RepoStatus> {
     return json(await fetch(`${API_BASE}/api/repo/status?fetch=${doFetch ? "true" : "false"}`));
+  },
+
+  /** Fetch, then rebase the checkout onto its remote. Refuses (ok:false,
+   *  conflicts named) when an uncommitted file was also changed upstream. */
+  async repoPull(): Promise<RepoPullResult> {
+    return json(await fetch(`${API_BASE}/api/repo/pull`, { method: "POST" }));
   },
 
   async health(): Promise<{ ok: boolean; coursesDir: string; needsSetup?: boolean }> {

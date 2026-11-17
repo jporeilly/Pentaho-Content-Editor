@@ -15,6 +15,18 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- **⇣ Pull, beside the Courses pill.** Shown only while the Content
+  Manager checkout is behind its remote (or has diverged). It fetches,
+  then rebases the checkout onto the remote (`POST /api/repo/pull`) and
+  re-reads the course list, the structure, the course's version and the
+  open lab from disk. Your edits come first: unsaved text in the editor
+  is refused ("Save this lab first"), saved but uncommitted files are
+  carried across (`--autostash`) unless the remote changed the same file,
+  in which case nothing is pulled and the files are named, and a rebase
+  that stops on a conflict is aborted, which leaves the checkout as it
+  was. Undo history is cleared after a pull, so Ctrl+Z cannot bring back
+  the pre-pull text for a Save to write over the change.
+
 - **Media > Interactive walkthrough placeholder** writes
   `<figure class="pcm-walkthrough">` with only its caption
   (`Interactive walkthrough: coming soon`), the figure Media Studio's

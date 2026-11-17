@@ -178,7 +178,7 @@ export function App() {
 
   const { health, refreshHealth } = useProviderHealth();
   const { setup } = useSetup(setStatus);
-  const { repo, checking: checkingRepo, recheck: recheckRepo } = useRepoStatus();
+  const { repo, checking: checkingRepo, recheck: recheckRepo, pulling, pull: pullRepo } = useRepoStatus();
 
   // What the pill says. Short enough for a header that already carries a
   // course picker, six buttons and a provider pill - the detail lives in
@@ -200,12 +200,12 @@ export function App() {
       default: return "Courses · no checkout";
     }
   }, [repo]);
-  const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, coursePlatform, onCourseCreated } =
+  const { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, coursePlatform, onCourseCreated, refreshFromDisk } =
     useCourses(setStatus);
   const {
     detail, setDetail, body, setBody, setDirty, dirty, saving, save,
     onBodyChange, undoEdit, lastEditAt, insertAtCaret, textareaRef, baseUrl,
-    structureKey, bumpStructure, lastRewrite, setLastRewrite,
+    structureKey, bumpStructure, lastRewrite, setLastRewrite, reloadLab,
   } = useLab(course, lab, setStatus);
   // The course's pages, for the toolbar's Link to page menu and for
   // following those links in the preview. Fetched here as well as
@@ -248,6 +248,34 @@ export function App() {
       setStatus(`✓ Exam Bank opening on ${course} (${r.kind})`);
     } catch (err) {
       setStatus(`✗ ${(err as Error).message}`);
+    }
+  }
+
+  // ⇣ Pull: bring the Content Manager checkout up to date, then re-read
+  // everything a pull can change. Unsaved text is refused first, not
+  // merged: it lives only in this tab, and re-reading the lab from disk
+  // afterwards would replace it.
+  async function pullCourses() {
+    if (dirty) {
+      setStatus("Save this lab first, then Pull: the pull re-reads the lab from disk.");
+      return;
+    }
+    setStatus("Pulling the latest courses…");
+    try {
+      const r = await pullRepo();
+      if (!r.ok) {
+        const files = r.conflicts.length ? ` (${r.conflicts.slice(0, 3).join(", ")}${r.conflicts.length > 3 ? ", …" : ""})` : "";
+        setStatus(`✗ ${r.detail ?? "Not pulled."}${files}`);
+        return;
+      }
+      if (r.pulled) {
+        const kept = await refreshFromDisk();
+        bumpStructure();
+        if (kept) await reloadLab();
+      }
+      setStatus(r.pulled ? `✓ ${r.detail}` : "✓ Courses already up to date.");
+    } catch (e) {
+      setStatus(`✗ Pull failed: ${(e as Error).message}`);
     }
   }
 
@@ -746,6 +774,23 @@ export function App() {
             {/* The words go first when the header runs out of room; the
                 dot and the tooltip carry the meaning on a laptop. */}
             <span className="author-repo-label">{repoLabel}</span>
+          </button>
+        )}
+        {/* Only when there is something to pull: a permanent button would
+            be one more thing in a header that has pushed Save off-screen
+            before. */}
+        {repo && (repo.state === "behind" || repo.state === "diverged") && (
+          <button
+            type="button"
+            className="author-repo-pull"
+            onClick={pullCourses}
+            disabled={pulling || checkingRepo}
+            title={
+              `Pull ${repo.behind} change${repo.behind === 1 ? "" : "s"} from ${repo.upstream ?? "the remote"} into ${repo.path}.` +
+              "\nYour saved edits are kept; a file changed both here and on the remote is not pulled until you Publish it."
+            }
+          >
+            {pulling ? "Pulling…" : "⇣ Pull"}
           </button>
         )}
         <button

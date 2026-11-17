@@ -18,7 +18,7 @@ import {
   type ClipboardEvent, type DragEvent,
 } from "react";
 import {
-  api, type CourseSummary, type LabDetail, type ProviderHealth, type RepoStatus,
+  api, type CourseSummary, type LabDetail, type ProviderHealth, type RepoStatus, type RepoPullResult,
   type SetupStatus, type Source,
 } from "./api";
 import { parseFindings, tagLocated, type Finding } from "./reviewFindings";
@@ -120,7 +120,22 @@ export function useRepoStatus() {
 
   useEffect(() => { check(true); }, [check]);
 
-  return { repo, checking, recheck: () => check(true) };
+  // Pull: the backend fetches, refuses when an uncommitted file was also
+  // changed upstream, and rebases otherwise. The pill takes the status
+  // the pull answers with, so it never shows a count from before it.
+  const [pulling, setPulling] = useState(false);
+  const pull = useCallback(async (): Promise<RepoPullResult> => {
+    setPulling(true);
+    try {
+      const r = await api.repoPull();
+      setRepo(r.status);
+      return r;
+    } finally {
+      setPulling(false);
+    }
+  }, []);
+
+  return { repo, checking, recheck: () => check(true), pulling, pull };
 }
 
 // ── Courses: list + selection + glossary ──────────────────────────
@@ -191,7 +206,35 @@ export function useCourses(setStatus: (s: string) => void) {
     }
   }, [setStatus]);
 
-  return { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, coursePlatform, onCourseCreated };
+  // After a Pull: re-read what a pull can change - the course list, this
+  // course's version and glossary, and its labs - WITHOUT the course
+  // effect's reset to the first lab. Only a lab the pull removed moves.
+  // True when the open lab is still there, so the caller re-reads it.
+  const refreshFromDisk = useCallback(async (): Promise<boolean> => {
+    const list = await api.listCourses();
+    setCourses(list);
+    if (!course) return false;
+    if (!list.some((c) => c.id === course)) {
+      setCourse(list.length ? list[0].id : "");
+      return false;
+    }
+    const labs = await api.listLabs(course);
+    const kept = !!lab && labs.some((l) => l.slug === lab);
+    if (!kept) setLab(labs.length ? labs[0].slug : "");
+    fetch(`${api.base}/api/courses/${course}/tree/glossary.json`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((g) => setGlossary(g ?? {}))
+      .catch(() => setGlossary({}));
+    api.getCourse(course)
+      .then((c) => {
+        setCourseVersion(typeof c.version === "string" ? c.version : "");
+        setCoursePlatform(typeof c.platform === "string" ? c.platform : "");
+      })
+      .catch(() => { /* keep what is shown */ });
+    return kept;
+  }, [course, lab]);
+
+  return { apiUp, courses, setCourses, course, setCourse, lab, setLab, glossary, courseVersion, coursePlatform, onCourseCreated, refreshFromDisk };
 }
 
 // ── Unsaved-draft backup ──────────────────────────────────────────
@@ -230,6 +273,24 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
   const forceNext = useRef(false);
 
   const bumpStructure = useCallback(() => setStructureKey((k) => k + 1), []);
+  // Re-read the open lab from disk, after a Pull rewrote it. Only called
+  // with nothing unsaved (the Pull button refuses otherwise), so the disk
+  // copy simply replaces the buffer. Awaitable, and silent on success, so
+  // the caller's own status line is the one left showing.
+  const reloadLab = useCallback(async () => {
+    if (!course || !lab) return;
+    const d = await api.getLab(course, lab);
+    clearDraft(course, lab);
+    setDetail(d);
+    setBody(d.body);
+    setDirty(false);
+    setLastRewrite(null);
+    forceNext.current = false;
+    // Undo must not step back to the pre-pull text: a Save after that
+    // would quietly revert the change that was just pulled.
+    history.current = [];
+    lastPush.current = 0;
+  }, [course, lab]);
 
   // Lab change: load the body.
   useEffect(() => {
@@ -438,7 +499,7 @@ export function useLab(course: string, lab: string, setStatus: (s: string) => vo
   return {
     detail, setDetail, body, setBody, dirty, setDirty, saving, save,
     onBodyChange, undoEdit, lastEditAt, insertAtCaret, textareaRef, baseUrl,
-    structureKey, bumpStructure, lastRewrite, setLastRewrite,
+    structureKey, bumpStructure, lastRewrite, setLastRewrite, reloadLab,
   };
 }
 

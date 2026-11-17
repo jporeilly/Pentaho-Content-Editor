@@ -1851,6 +1851,24 @@ textarea.author-input { min-height: 0; }
 .author-repo.is-diverged .author-repo-dot { background: var(--author-warn); }
 .author-repo.is-ahead .author-repo-dot { background: var(--author-review); }
 .author-repo.is-checking { opacity: 0.6; }
+/* ⇣ Pull: shown only while behind, in the pill's amber, so it reads as
+   the pill's own action. Never shrinks: it is short, and it is the thing
+   the amber is asking for. */
+.author-repo-pull {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid var(--author-warn);
+  border-radius: 999px;
+  background: var(--author-bg);
+  color: var(--author-warn);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.author-repo-pull:hover:not(:disabled) { background: var(--author-warn); color: var(--author-bg); }
+.author-repo-pull:disabled { cursor: default; opacity: 0.6; }
 
 /* The header is a nowrap flex row that has pushed the Save button
    off-screen once already (see the layout note in CLAUDE.md), and this
