@@ -13,6 +13,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [1.31.0] - 2026-11-17
+
 ### Added
 
 - **⇣ Pull, beside the Courses pill.** Shown only while the Content
@@ -71,6 +75,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
   staged `verify-course.mjs`.
 - `collect-installer.ps1 -Suffix <name>` keeps a seeded and a plain
   installer of one version side by side in `dist\`.
+
 
 ## [1.30.0] - 2026-10-21
 
