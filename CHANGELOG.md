@@ -15,6 +15,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.32.1] - 2026-11-25
+
+### Fixed
+
+- **The desktop app carries the release version.** 1.32.0 was tagged without
+  its desktop version files; nothing was built from it.
+
+
 ## [1.32.0] - 2026-11-25
 
 ### Fixed
