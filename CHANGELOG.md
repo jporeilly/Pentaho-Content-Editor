@@ -15,6 +15,15 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 Nothing yet.
 
+## [1.32.0] - 2026-11-25
+
+### Fixed
+
+- **The preview shows table columns as the Content Manager 0.7.50 does.**
+  Short names in a table stay on one line and the prose wraps, so
+  `day_of_month` no longer breaks in the middle.
+
+
 ## [1.31.0] - 2026-11-17
 
 ### Added
